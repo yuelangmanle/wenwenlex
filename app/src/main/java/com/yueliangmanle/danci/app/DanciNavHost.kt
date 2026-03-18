@@ -10,6 +10,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.yueliangmanle.danci.feature.books.BooksRoute
+import com.yueliangmanle.danci.feature.home.HomeRoute
 
 @Composable
 fun DanciNavHost(
@@ -25,6 +26,7 @@ fun DanciNavHost(
         TopLevelDestination.entries.forEach { destination ->
             composable(route = destination.name) {
                 when (destination) {
+                    TopLevelDestination.HOME -> HomeRoute()
                     TopLevelDestination.BOOKS -> BooksRoute()
                     else -> Box(
                         modifier = Modifier.fillMaxSize(),

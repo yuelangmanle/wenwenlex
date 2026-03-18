@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -49,13 +50,19 @@ fun BooksScreen(
             }
         }
         item {
-            SectionTitle(title = "内置词书")
+            SectionTitle(
+                title = "内置词书",
+                modifier = Modifier.testTag("books_built_in_section"),
+            )
         }
         items(state.builtInBooks, key = BookListItem::id) { book ->
             BookCard(book = book, onBookClick = onBookClick)
         }
         item {
-            SectionTitle(title = "导入词书")
+            SectionTitle(
+                title = "导入词书",
+                modifier = Modifier.testTag("books_imported_section"),
+            )
         }
         if (state.importedBooks.isEmpty()) {
             item {
@@ -70,10 +77,13 @@ fun BooksScreen(
 }
 
 @Composable
-private fun SectionTitle(title: String) {
+private fun SectionTitle(
+    title: String,
+    modifier: Modifier = Modifier,
+) {
     Text(
         text = title,
-        modifier = Modifier.padding(horizontal = 20.dp),
+        modifier = modifier.padding(horizontal = 20.dp),
         style = MaterialTheme.typography.titleLarge,
     )
 }
