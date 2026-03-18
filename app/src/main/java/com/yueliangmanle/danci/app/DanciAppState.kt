@@ -1,6 +1,7 @@
 package com.yueliangmanle.danci.app
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.Stable
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -40,4 +41,6 @@ class DanciAppState(
 @Composable
 fun rememberDanciAppState(
     navController: NavHostController = rememberNavController(),
-): DanciAppState = DanciAppState(navController = navController)
+): DanciAppState = remember(navController) {
+    DanciAppState(navController = navController)
+}

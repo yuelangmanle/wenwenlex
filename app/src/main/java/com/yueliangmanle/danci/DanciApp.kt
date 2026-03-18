@@ -1,5 +1,7 @@
 package com.yueliangmanle.danci
 
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Modifier
 import androidx.compose.runtime.Composable
 import com.yueliangmanle.danci.app.DanciNavHost
 import com.yueliangmanle.danci.app.TopLevelDestination
@@ -19,6 +21,7 @@ fun DanciApp() {
             onDestinationSelected = appState::navigateToTopLevelDestination,
         ) { paddingValues ->
             DanciNavHost(
+                modifier = Modifier.padding(paddingValues),
                 startDestination = TopLevelDestination.HOME,
                 navController = appState.navController,
             )

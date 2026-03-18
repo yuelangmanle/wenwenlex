@@ -12,10 +12,12 @@ import androidx.navigation.compose.composable
 
 @Composable
 fun DanciNavHost(
+    modifier: Modifier = Modifier,
     startDestination: TopLevelDestination,
     navController: NavHostController,
 ) {
     NavHost(
+        modifier = modifier,
         navController = navController,
         startDestination = startDestination.name,
     ) {
