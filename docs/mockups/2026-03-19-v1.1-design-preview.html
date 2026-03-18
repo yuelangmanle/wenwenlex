@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文文Lex v1.1 设计预览</title>
+  <style>
+    :root {
+      --bg: #f6f3ee;
+      --panel: #fffdf9;
+      --ink: #1f1a17;
+      --muted: #6d6258;
+      --line: #dccfbe;
+      --accent: #bf5a36;
+      --accent-soft: #f7e1d8;
+      --blue: #2f6173;
+      --blue-soft: #dfeef3;
+      --green: #4f7a56;
+      --green-soft: #e3efe2;
+      --shadow: 0 18px 45px rgba(63, 42, 22, 0.12);
+      --radius-xl: 28px;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Noto Sans SC", "Hiragino Sans GB", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, #f9e6d2 0%, transparent 28%),
+        radial-gradient(circle at bottom right, #d9e9ef 0%, transparent 30%),
+        var(--bg);
+    }
+
+    .page {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 40px 28px 64px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, rgba(255, 253, 249, 0.95), rgba(247, 236, 222, 0.95));
+      border: 1px solid rgba(191, 90, 54, 0.15);
+      border-radius: 32px;
+      box-shadow: var(--shadow);
+      padding: 28px;
+      margin-bottom: 28px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 16px 0 10px;
+      font-size: 36px;
+      line-height: 1.15;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 920px;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 16px;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .tag {
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.8);
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(300px, 1fr));
+      gap: 22px;
+    }
+
+    .phone {
+      background: #201915;
+      border-radius: 36px;
+      padding: 14px;
+      box-shadow: var(--shadow);
+      position: relative;
+    }
+
+    .phone::before {
+      content: "";
+      width: 38%;
+      height: 24px;
+      border-radius: 0 0 14px 14px;
+      background: #201915;
+      position: absolute;
+      left: 50%;
+      top: 0;
+      transform: translateX(-50%);
+      z-index: 2;
+    }
+
+    .screen {
+      background: var(--panel);
+      border-radius: 26px;
+      min-height: 780px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .screen-header {
+      padding: 20px 20px 14px;
+      background: linear-gradient(180deg, #f8efe5, #fffdf9);
+      border-bottom: 1px solid #efe4d6;
+    }
+
+    .screen-header h2 {
+      margin: 10px 0 6px;
+      font-size: 24px;
+    }
+
+    .screen-header p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .content {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .card {
+      background: white;
+      border: 1px solid #eee3d7;
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      box-shadow: 0 10px 24px rgba(63, 42, 22, 0.05);
+    }
+
+    .card h3 {
+      margin: 0 0 8px;
+      font-size: 17px;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .subtle {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .pill {
+      padding: 7px 11px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #f4eee5;
+      color: #634e3a;
+    }
+
+    .pill.blue {
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+
+    .pill.green {
+      background: var(--green-soft);
+      color: var(--green);
+    }
+
+    .list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .list-item {
+      border: 1px solid #eee3d7;
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      background: #fffdfa;
+    }
+
+    .list-item strong {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 14px;
+    }
+
+    .list-item span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .action-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .button {
+      border: none;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .button.primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .button.secondary {
+      background: #f2ece5;
+      color: #5e4b3a;
+    }
+
+    .button.blue {
+      background: var(--blue);
+      color: white;
+    }
+
+    .section-label {
+      margin: 2px 0 0;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .mini-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 13px;
+    }
+
+    .mini-table th,
+    .mini-table td {
+      text-align: left;
+      padding: 10px 8px;
+      border-bottom: 1px solid #efe4d6;
+    }
+
+    .mini-table th {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .footer-note {
+      margin-top: 26px;
+      padding: 20px 22px;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid var(--line);
+      line-height: 1.7;
+      color: var(--muted);
+    }
+
+    @media (max-width: 1180px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .screen {
+        min-height: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <div class="eyebrow">WenwenLex v1.1 Design Preview</div>
+      <h1>词书扩充、Excel 导入、多 API 管理、AI 音标补全</h1>
+      <p>
+        这是文文Lex 下一轮设计确认稿的静态预览。目标不是还原真实安卓界面细节，而是把功能结构先定下来：
+        内置词书从演示数据升级为可持续扩容的正式书库；导入只接 Excel；AI 从单配置升级为多配置快速切换；
+        音标支持单个补全、批量补全，并把结果写回数据库。
+      </p>
+      <div class="tag-row">
+        <span class="tag">词库来源：开源可分发 + 可核验的公开整理版</span>
+        <span class="tag">导入格式：.xlsx / A列单词 / B列中文义</span>
+        <span class="tag">音标策略：优先双音标，允许单套保存</span>
+        <span class="tag">API 路由：全局默认 + 功能级覆盖</span>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="phone">
+        <div class="screen">
+          <div class="screen-header">
+            <div class="section-label">Screen A</div>
+            <h2>词书与导入</h2>
+            <p>内置词书做大，导入入口直接说明 Excel 规范，避免用户反复试错。</p>
+          </div>
+          <div class="content">
+            <div class="card">
+              <h3>内置词书</h3>
+              <p>正式内置词书按考试/阶段组织，并显示来源状态、词量和更新时间。</p>
+              <div class="pill-row">
+                <span class="pill">CET4 1800+</span>
+                <span class="pill">CET6 2200+</span>
+                <span class="pill">考研 2600+</span>
+                <span class="pill">高中 3500</span>
+                <span class="pill">雅思基础</span>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>导入你的 Excel 词书</h3>
+              <p>默认读取第一个工作表，只识别前两列。B 列中文释义同时支持英文逗号和中文逗号。</p>
+              <table class="mini-table">
+                <thead>
+                  <tr>
+                    <th>列</th>
+                    <th>含义</th>
+                    <th>示例</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>A</td>
+                    <td>英文单词</td>
+                    <td>abandon</td>
+                  </tr>
+                  <tr>
+                    <td>B</td>
+                    <td>中文释义</td>
+                    <td>放弃，抛弃,沉溺</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="action-row">
+                <div class="button primary">选择 .xlsx 文件</div>
+                <div class="button secondary">查看模板说明</div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>导入结果预期</h3>
+              <div class="list">
+                <div class="list-item">
+                  <strong>自动清洗</strong>
+                  <span>去掉空行、前后空格、重复释义，保留有效单词。</span>
+                </div>
+                <div class="list-item">
+                  <strong>错误提示</strong>
+                  <span>如果某行缺英文单词或全空，提示并跳过，不阻塞整个导入。</span>
+                </div>
+                <div class="list-item">
+                  <strong>导入入库</strong>
+                  <span>导入完成后直接生成一本文本书，后续可立即学习和批量补音标。</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="phone">
+        <div class="screen">
+          <div class="screen-header">
+            <div class="section-label">Screen B</div>
+            <h2>多 API 管理</h2>
+            <p>先有一个全局默认 API，再允许少数功能做单独覆盖，满足快速切换。</p>
+          </div>
+          <div class="content">
+            <div class="card">
+              <h3>当前默认 API</h3>
+              <p>默认供大多数 AI 功能使用，切换后全局即时生效。</p>
+              <div class="pill-row">
+                <span class="pill blue">OpenAI / gpt-5-mini</span>
+                <span class="pill green">已激活</span>
+              </div>
+              <div class="action-row">
+                <div class="button blue">快速切换默认</div>
+                <div class="button secondary">新增 API</div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>API 配置列表</h3>
+              <div class="list">
+                <div class="list-item">
+                  <strong>OpenAI</strong>
+                  <span>Base URL / Model / Key 已保存，用于默认讲解与计划分析。</span>
+                </div>
+                <div class="list-item">
+                  <strong>OpenRouter</strong>
+                  <span>用于补充选择题解析，支持备用切换。</span>
+                </div>
+                <div class="list-item">
+                  <strong>自定义兼容接口</strong>
+                  <span>用于音标补全或实验模型，不影响主配置。</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>功能级覆盖</h3>
+              <table class="mini-table">
+                <thead>
+                  <tr>
+                    <th>功能</th>
+                    <th>当前路由</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>单词讲解</td>
+                    <td>跟随默认 API</td>
+                  </tr>
+                  <tr>
+                    <td>计划分析</td>
+                    <td>跟随默认 API</td>
+                  </tr>
+                  <tr>
+                    <td>音标补全</td>
+                    <td>指定为 自定义兼容接口</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p class="subtle">第一版只开放少数高价值功能做覆盖，不把路由做得太重。</p>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="phone">
+        <div class="screen">
+          <div class="screen-header">
+            <div class="section-label">Screen C</div>
+            <h2>AI 音标补全</h2>
+            <p>支持单个补全和批量补全，结果写回数据库，后续学习直接复用。</p>
+          </div>
+          <div class="content">
+            <div class="card">
+              <h3>单词详情页操作</h3>
+              <p>在单词详情页增加音标卡片，展示英式和美式两栏，以及 AI 补全入口。</p>
+              <div class="list">
+                <div class="list-item">
+                  <strong>英式音标</strong>
+                  <span>/əˈbændən/</span>
+                </div>
+                <div class="list-item">
+                  <strong>美式音标</strong>
+                  <span>/əˈbændən/</span>
+                </div>
+              </div>
+              <div class="action-row">
+                <div class="button primary">补全这一个</div>
+                <div class="button secondary">仅重跑音标</div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>批量补全任务</h3>
+              <p>可针对整本词书发起任务。发现已有音标时，先询问是否覆盖。</p>
+              <div class="pill-row">
+                <span class="pill">目标词书：CET4</span>
+                <span class="pill">待补全：1268</span>
+                <span class="pill">已有音标：532</span>
+              </div>
+              <div class="action-row">
+                <div class="button primary">只补空白项</div>
+                <div class="button secondary">确认后覆盖全部</div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>写回数据库后的规则</h3>
+              <div class="list">
+                <div class="list-item">
+                  <strong>优先存双音标</strong>
+                  <span>英式和美式都保存；如果 AI 只返回一套，也允许先保存单套。</span>
+                </div>
+                <div class="list-item">
+                  <strong>落库复用</strong>
+                  <span>补全结果直接存入词表，不重复请求同一个词。</span>
+                </div>
+                <div class="list-item">
+                  <strong>来源标记</strong>
+                  <span>记录这条音标来自 AI 补全，便于后续人工修订或重跑。</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="footer-note">
+      这版设计的重点不是把每个细节一次做满，而是先把结构固定下来。只要你确认这个方向，我下一步就会继续给出
+      数据模型、数据库迁移、导入流程、AI 路由规则和发版升级策略，然后再把规格文档和实施计划写进仓库。
+    </section>
+  </div>
+</body>
+</html>
