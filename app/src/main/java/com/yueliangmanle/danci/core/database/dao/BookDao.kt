@@ -1,0 +1,41 @@
+package com.yueliangmanle.danci.core.database.dao
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import com.yueliangmanle.danci.core.database.entity.BookEntity
+import com.yueliangmanle.danci.core.database.entity.BookWordEntity
+import com.yueliangmanle.danci.core.database.entity.WordEntity
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface BookDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBook(book: BookEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBooks(books: List<BookEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBookWordCrossRef(crossRef: BookWordEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBookWordCrossRefs(crossRefs: List<BookWordEntity>)
+
+    @Query("SELECT * FROM books WHERE id = :bookId")
+    suspend fun getBookById(bookId: String): BookEntity?
+
+    @Query("SELECT * FROM books ORDER BY updatedAt DESC")
+    fun observeBooks(): Flow<List<BookEntity>>
+
+    @Query(
+        """
+        SELECT words.* FROM words
+        INNER JOIN book_words ON words.id = book_words.wordId
+        WHERE book_words.bookId = :bookId
+        ORDER BY book_words.sortOrder ASC, words.lemma ASC
+        """,
+    )
+    fun observeWordsForBook(bookId: String): Flow<List<WordEntity>>
+}

@@ -1,0 +1,61 @@
+package com.yueliangmanle.danci.core.model
+
+import java.time.Instant
+
+data class AiMemorySummary(
+    val learnerProfile: LearnerProfile? = null,
+    val dailySummaries: List<DailySummary> = emptyList(),
+    val weeklySummaries: List<WeeklySummary> = emptyList(),
+    val planHistory: List<PlanHistoryEntry> = emptyList(),
+    val confusionEdges: List<ConfusionEdge> = emptyList(),
+)
+
+data class DailySummary(
+    val date: String,
+    val studiedCount: Int,
+    val reviewCount: Int,
+    val correctRate: Float,
+    val fatigueNote: String? = null,
+    val primaryMistakeReasons: List<String> = emptyList(),
+    val updatedAt: Instant = Instant.EPOCH,
+)
+
+data class WeeklySummary(
+    val weekStartDate: String,
+    val studiedCount: Int,
+    val correctRate: Float,
+    val trendSummary: String? = null,
+    val persistentWeakSpots: List<String> = emptyList(),
+    val updatedAt: Instant = Instant.EPOCH,
+)
+
+data class LearnerProfile(
+    val profileId: String = DEFAULT_PROFILE_ID,
+    val vocabularyLevel: String? = null,
+    val weakSpots: List<String> = emptyList(),
+    val preferredQuestionTypes: List<String> = emptyList(),
+    val commonMistakePatterns: List<String> = emptyList(),
+    val updatedAt: Instant = Instant.EPOCH,
+) {
+    companion object {
+        const val DEFAULT_PROFILE_ID = "default"
+    }
+}
+
+data class PlanHistoryEntry(
+    val id: Long = 0,
+    val generatedAt: Instant,
+    val summary: String,
+    val recommendedFocus: List<String> = emptyList(),
+    val suggestedPace: String? = null,
+    val executionEffect: String? = null,
+)
+
+data class ConfusionEdge(
+    val sourceWordId: Long,
+    val targetWordId: Long,
+    val relationType: String,
+    val weight: Float = 0f,
+    val mistakeCount: Int = 0,
+    val updatedAt: Instant = Instant.EPOCH,
+)

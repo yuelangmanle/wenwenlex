@@ -3,7 +3,7 @@
 
     <application
         android:allowBackup="false"
-        android:label="Danci"
+        android:label="文文Lex"
         android:supportsRtl="true">
         <activity
             android:name=".MainActivity"
