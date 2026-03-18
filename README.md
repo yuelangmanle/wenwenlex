@@ -27,6 +27,25 @@
 
 以后正式版本都通过 GitHub 云端工作流发包，不依赖本地手工打包。
 
+## 安装与升级
+
+### 首次安装
+
+1. 前往 [GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases) 下载最新 APK。
+2. 把 APK 传到 Android 手机，直接点开安装。
+3. 如果系统提示“禁止未知来源应用安装”，给浏览器、文件管理器或聊天工具开启“允许安装未知应用”。
+
+### 日常升级
+
+1. 从 Releases 页面下载更高版本，例如 `1.1`、`1.2`。
+2. 直接安装新 APK，Android 会覆盖旧版本，学习数据会保留。
+3. 升级前仍建议先在 App 里做一次本地备份。
+
+### 从旧调试包切换到正式包
+
+- 如果你手机里装的是早期 `debug` 内测包，切到新的 `release-signed` 正式包时，Android 可能提示签名不一致。
+- 遇到这种情况，需要先在 App 内完成备份，然后卸载旧包，再安装新的 Release 包，最后恢复备份。
+
 ### 发版流程
 
 1. 在 [CHANGELOG.md](CHANGELOG.md) 里新增对应版本的小节，先写完整更新日志。
@@ -35,7 +54,8 @@
 4. 工作流会在云端完成：
    - 校验版本号格式
    - 运行单元测试
-   - 构建 APK
+   - 读取 GitHub Secrets 中的正式签名材料
+   - 构建并校验 `release-signed APK`
    - 创建或更新 GitHub Release
    - 上传安装包到 Release 下载页
 5. 用户以后只需要去 Releases 页面看版本列表、更新日志和下载入口。
@@ -50,7 +70,18 @@
 - 版本号固定使用一位小数，例如 `1.0`、`1.1`、`2.0`
 - 每次发版前必须先更新 `CHANGELOG.md`
 - Release 页面正文直接从 `CHANGELOG.md` 对应版本段落生成
-- 当前云端发布产物为 `debug` 签名 APK，适合体验、演示和内测
+- 当前云端发布产物为 `release-signed APK`，适合正式安装和后续升级
+
+## 签名密钥与 GitHub Secrets
+
+正式升级链路依赖同一套签名密钥。只要以后继续沿用同一把 key，用户就可以持续覆盖升级，不会丢数据。
+
+- 详细说明见 [release-signing.md](docs/release-signing.md)
+- GitHub 仓库需要这 4 个 secrets：
+  - `ANDROID_RELEASE_KEYSTORE_BASE64`
+  - `ANDROID_RELEASE_STORE_PASSWORD`
+  - `ANDROID_RELEASE_KEY_ALIAS`
+  - `ANDROID_RELEASE_KEY_PASSWORD`
 
 ## 本地兜底
 

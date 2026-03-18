@@ -18,9 +18,9 @@
 
 - 将 Room 升级到 `2.7.0`，对齐 WorkManager 依赖链，修复云端构建兼容问题
 - 调整二级页面下的底部导航选中逻辑，让“我的”与 AI 设置等页面切换更稳定
-- 完善 GitHub Actions 构建链路，为后续云端 Release 发包做准备
+- 完善 GitHub Actions 构建链路，接入正式 Release 页面与可持续升级的签名发包流程
 
 ### Notes
 
 - `1.0` 对应首个正式版本号
-- 当前 Release 提供的是 `debug` 签名 APK，适合体验、演示和内测
+- 当前 Release 提供的是 `release-signed APK`，适合正式安装与后续覆盖升级

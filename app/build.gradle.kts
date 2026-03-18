@@ -19,9 +19,24 @@ fun parseAppVersion(versionName: String): Pair<Int, Int> {
     return major to minor
 }
 
+fun stringPropertyOrEnv(propertyName: String, envName: String): String? {
+    return providers.gradleProperty(propertyName).orNull
+        ?: System.getenv(envName)?.takeIf { it.isNotBlank() }
+}
+
 val appVersionName = providers.gradleProperty("appVersionName").orElse("1.0").get()
 val (majorVersion, minorVersion) = parseAppVersion(appVersionName)
 val appVersionCode = majorVersion * 100 + minorVersion * 10
+val releaseStoreFilePath = stringPropertyOrEnv("releaseStoreFile", "ANDROID_RELEASE_KEYSTORE_PATH")
+val releaseStorePassword = stringPropertyOrEnv("releaseStorePassword", "ANDROID_RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = stringPropertyOrEnv("releaseKeyAlias", "ANDROID_RELEASE_KEY_ALIAS")
+val releaseKeyPassword = stringPropertyOrEnv("releaseKeyPassword", "ANDROID_RELEASE_KEY_PASSWORD")
+val hasReleaseSigning = listOf(
+    releaseStoreFilePath,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+).all { !it.isNullOrBlank() }
 
 android {
     namespace = "com.yueliangmanle.danci"
@@ -37,9 +52,23 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            if (hasReleaseSigning) {
+                storeFile = file(requireNotNull(releaseStoreFilePath))
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
