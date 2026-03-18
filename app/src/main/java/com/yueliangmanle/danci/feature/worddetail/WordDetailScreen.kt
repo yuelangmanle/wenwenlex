@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -26,6 +28,7 @@ fun WordDetailScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -63,13 +66,6 @@ fun WordDetailScreen(
                 }
             }
         }
-
-        DetailSection(title = "近义词", items = state.synonyms)
-        DetailSection(title = "反义词", items = state.antonyms)
-        DetailSection(title = "拼写相近词", items = state.similarWords)
-        DetailSection(title = "易混词", items = state.confusingWords.ifEmpty { state.similarWords })
-        DetailSection(title = "单词变形", items = state.wordForms)
-        DetailSection(title = "词根词缀", items = listOfNotNull(state.root))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -117,6 +113,12 @@ fun WordDetailScreen(
         state.aiCards.forEach { card ->
             AiInsightCard(card = card)
         }
+        DetailSection(title = "近义词", items = state.synonyms)
+        DetailSection(title = "反义词", items = state.antonyms)
+        DetailSection(title = "拼写相近词", items = state.similarWords)
+        DetailSection(title = "易混词", items = state.confusingWords.ifEmpty { state.similarWords })
+        DetailSection(title = "单词变形", items = state.wordForms)
+        DetailSection(title = "词根词缀", items = listOfNotNull(state.root))
         OutlinedButton(
             onClick = onStartQuizClick,
             modifier = Modifier.fillMaxWidth(),
