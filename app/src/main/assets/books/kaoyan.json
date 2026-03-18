@@ -1,0 +1,40 @@
+{
+  "id": "kaoyan",
+  "title": "考研核心词",
+  "description": "考研英语高频词组",
+  "language": "en",
+  "category": "exam",
+  "sourceType": "builtin",
+  "words": [
+    {
+      "word": "derive",
+      "phonetic": "/dɪˈraɪv/",
+      "meaning": ["获得", "推导"],
+      "synonyms": ["obtain", "deduce"],
+      "antonyms": ["forfeit"],
+      "similar_words": ["drive"],
+      "word_forms": ["derived", "deriving", "derivative"],
+      "root": "riv"
+    },
+    {
+      "word": "empirical",
+      "phonetic": "/ɪmˈpɪrɪkəl/",
+      "meaning": ["经验主义的", "以观察为依据的"],
+      "synonyms": ["observed", "experimental"],
+      "antonyms": ["theoretical"],
+      "similar_words": ["imperial"],
+      "word_forms": ["empirically"],
+      "root": "peer"
+    },
+    {
+      "word": "facilitate",
+      "phonetic": "/fəˈsɪlɪteɪt/",
+      "meaning": ["促进", "使便利"],
+      "synonyms": ["ease", "expedite"],
+      "antonyms": ["obstruct"],
+      "similar_words": ["fascinate"],
+      "word_forms": ["facilitated", "facilitating", "facilitation"],
+      "root": "fac"
+    }
+  ]
+}

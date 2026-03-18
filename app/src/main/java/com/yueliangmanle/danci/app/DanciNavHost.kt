@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.yueliangmanle.danci.feature.books.BooksRoute
 
 @Composable
 fun DanciNavHost(
@@ -23,11 +24,14 @@ fun DanciNavHost(
     ) {
         TopLevelDestination.entries.forEach { destination ->
             composable(route = destination.name) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(text = destination.screenTitle)
+                when (destination) {
+                    TopLevelDestination.BOOKS -> BooksRoute()
+                    else -> Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(text = destination.screenTitle)
+                    }
                 }
             }
         }

@@ -1,0 +1,40 @@
+{
+  "id": "cet6",
+  "title": "六级核心词",
+  "description": "大学英语六级进阶词",
+  "language": "en",
+  "category": "exam",
+  "sourceType": "builtin",
+  "words": [
+    {
+      "word": "allocate",
+      "phonetic": "/ˈæləkeɪt/",
+      "meaning": ["分配", "拨给"],
+      "synonyms": ["assign", "distribute"],
+      "antonyms": ["withhold"],
+      "similar_words": ["locate"],
+      "word_forms": ["allocated", "allocating", "allocation"],
+      "root": "loc"
+    },
+    {
+      "word": "coherent",
+      "phonetic": "/koʊˈhɪrənt/",
+      "meaning": ["连贯的", "一致的"],
+      "synonyms": ["logical", "consistent"],
+      "antonyms": ["chaotic"],
+      "similar_words": ["adherent"],
+      "word_forms": ["coherently", "coherence"],
+      "root": "cohere"
+    },
+    {
+      "word": "diminish",
+      "phonetic": "/dɪˈmɪnɪʃ/",
+      "meaning": ["减少", "贬低"],
+      "synonyms": ["reduce", "decrease"],
+      "antonyms": ["increase"],
+      "similar_words": ["finish"],
+      "word_forms": ["diminished", "diminishing", "diminution"],
+      "root": "mini"
+    }
+  ]
+}

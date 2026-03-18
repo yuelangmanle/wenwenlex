@@ -1,0 +1,40 @@
+{
+  "id": "cet4",
+  "title": "四级核心词",
+  "description": "大学英语四级高频词",
+  "language": "en",
+  "category": "exam",
+  "sourceType": "builtin",
+  "words": [
+    {
+      "word": "abandon",
+      "phonetic": "/əˈbændən/",
+      "meaning": ["放弃", "遗弃"],
+      "synonyms": ["give up", "quit"],
+      "antonyms": ["continue"],
+      "similar_words": ["abundant", "absorb"],
+      "word_forms": ["abandoned", "abandoning", "abandonment"],
+      "root": "bandon"
+    },
+    {
+      "word": "brief",
+      "phonetic": "/briːf/",
+      "meaning": ["简短的", "摘要"],
+      "synonyms": ["short", "concise"],
+      "antonyms": ["lengthy"],
+      "similar_words": ["grief"],
+      "word_forms": ["briefly", "briefness"],
+      "root": "brev"
+    },
+    {
+      "word": "capture",
+      "phonetic": "/ˈkæptʃər/",
+      "meaning": ["捕获", "吸引"],
+      "synonyms": ["seize", "grasp"],
+      "antonyms": ["release"],
+      "similar_words": ["chapter"],
+      "word_forms": ["captured", "capturing", "captor"],
+      "root": "cap"
+    }
+  ]
+}

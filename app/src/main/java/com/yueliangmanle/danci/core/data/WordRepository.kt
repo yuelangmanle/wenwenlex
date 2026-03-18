@@ -2,6 +2,7 @@ package com.yueliangmanle.danci.core.data
 
 import com.yueliangmanle.danci.core.database.dao.WordDao
 import com.yueliangmanle.danci.core.database.entity.WordEntity
+import com.yueliangmanle.danci.core.importer.ImportedWord
 import com.yueliangmanle.danci.core.model.Word
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -10,6 +11,7 @@ interface WordRepository {
     fun observeWords(query: String = ""): Flow<List<Word>>
     suspend fun getWord(wordId: Long): Word?
     suspend fun insertWord(word: Word): Long
+    suspend fun importWords(words: List<ImportedWord>): List<Long>
 }
 
 class RoomWordRepository(
@@ -31,6 +33,9 @@ class RoomWordRepository(
             "Expected canonical word to exist for lemma=${word.lemma}"
         }.id
     }
+
+    override suspend fun importWords(words: List<ImportedWord>): List<Long> =
+        words.map { importedWord -> insertWord(importedWord.asWord()) }
 }
 
 internal fun WordEntity.asExternalModel(): Word =
@@ -71,4 +76,18 @@ internal fun Word.asEntity(): WordEntity =
         tags = tags,
         frequencyRank = frequencyRank,
         pronunciationUrl = pronunciationUrl,
+    )
+
+internal fun ImportedWord.asWord(): Word =
+    Word(
+        lemma = text,
+        phonetic = phonetic,
+        meanings = meanings,
+        synonyms = synonyms,
+        antonyms = antonyms,
+        similarWords = similarWords,
+        wordForms = wordForms,
+        root = root,
+        exampleSentence = exampleSentence,
+        exampleTranslation = exampleTranslation,
     )

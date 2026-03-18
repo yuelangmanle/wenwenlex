@@ -1,0 +1,25 @@
+{
+  "books": [
+    {
+      "id": "cet4",
+      "title": "四级核心词",
+      "description": "大学英语四级高频词",
+      "wordCount": 3,
+      "asset": "cet4.json"
+    },
+    {
+      "id": "cet6",
+      "title": "六级核心词",
+      "description": "大学英语六级进阶词",
+      "wordCount": 3,
+      "asset": "cet6.json"
+    },
+    {
+      "id": "kaoyan",
+      "title": "考研核心词",
+      "description": "考研英语高频词组",
+      "wordCount": 3,
+      "asset": "kaoyan.json"
+    }
+  ]
+}
