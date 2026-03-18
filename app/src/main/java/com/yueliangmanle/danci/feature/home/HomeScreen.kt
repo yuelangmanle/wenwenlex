@@ -64,6 +64,7 @@ fun HomeScreen(
         }
         item {
             ActionPanel(
+                state = state,
                 onStartNewWordsClick = onStartNewWordsClick,
                 onStartReviewClick = onStartReviewClick,
                 onOpenMistakesClick = onOpenMistakesClick,
@@ -72,7 +73,12 @@ fun HomeScreen(
         }
         state.aiSuggestion?.let { suggestion ->
             item {
-                AiHintCard(suggestion = suggestion)
+                AiHintCard(
+                    suggestion = suggestion,
+                    title = state.aiSuggestionTitle,
+                    meta = state.aiSuggestionMeta,
+                    focusWords = state.aiFocusWords,
+                )
             }
         }
     }
@@ -188,6 +194,7 @@ private fun StatCard(
 
 @Composable
 private fun ActionPanel(
+    state: HomeUiState,
     onStartNewWordsClick: () -> Unit,
     onStartReviewClick: () -> Unit,
     onOpenMistakesClick: () -> Unit,
@@ -232,7 +239,7 @@ private fun ActionPanel(
                     onClick = onAnalyzePlanClick,
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text("分析并调整计划")
+                    Text(if (state.isAnalyzingPlan) "分析中…" else "分析并调整计划")
                 }
             }
         }
@@ -240,7 +247,12 @@ private fun ActionPanel(
 }
 
 @Composable
-private fun AiHintCard(suggestion: String) {
+private fun AiHintCard(
+    suggestion: String,
+    title: String? = null,
+    meta: String? = null,
+    focusWords: List<String> = emptyList(),
+) {
     Card(
         modifier = Modifier
             .padding(horizontal = 20.dp)
@@ -251,13 +263,27 @@ private fun AiHintCard(suggestion: String) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                text = "AI 计划提示",
+                text = title ?: "AI 计划提示",
                 style = MaterialTheme.typography.titleMedium,
             )
+            meta?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Text(
                 text = suggestion,
                 style = MaterialTheme.typography.bodyMedium,
             )
+            if (focusWords.isNotEmpty()) {
+                Text(
+                    text = "重点词群：${focusWords.joinToString(" · ")}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

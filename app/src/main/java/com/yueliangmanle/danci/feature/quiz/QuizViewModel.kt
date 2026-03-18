@@ -1,6 +1,11 @@
 package com.yueliangmanle.danci.feature.quiz
 
 import android.content.Context
+import com.yueliangmanle.danci.core.ai.AiStrategyCoordinator
+import com.yueliangmanle.danci.core.ai.AiWordHelpRequest
+import com.yueliangmanle.danci.core.ai.AiRuntimeSettings
+import com.yueliangmanle.danci.core.ai.PlanSource
+import com.yueliangmanle.danci.core.data.AppSettings
 import com.yueliangmanle.danci.core.data.NoOpStudyEventRecorder
 import com.yueliangmanle.danci.core.data.StudyEventRecorder
 import com.yueliangmanle.danci.core.data.buildAiMemoryRepository
@@ -9,6 +14,7 @@ import com.yueliangmanle.danci.core.data.loadBuiltInWord
 import com.yueliangmanle.danci.core.data.loadBuiltInWords
 import com.yueliangmanle.danci.core.model.StudyEvent
 import com.yueliangmanle.danci.core.model.StudyEventType
+import com.yueliangmanle.danci.core.model.Word
 import com.yueliangmanle.danci.core.model.studyEventMetadataOf
 import com.yueliangmanle.danci.core.study.QuizGenerator
 import com.yueliangmanle.danci.core.study.QuizQuestion
@@ -22,15 +28,22 @@ data class QuizUiState(
     val selectedOption: String? = null,
     val correctAnswer: String = "",
     val explanation: String? = null,
+    val aiReviewTitle: String? = null,
+    val aiReviewBody: String? = null,
+    val aiReviewSourceLabel: String? = null,
 )
 
 class QuizViewModel(
+    private val targetWord: Word,
     private val question: QuizQuestion,
     private val eventRecorder: StudyEventRecorder = NoOpStudyEventRecorder,
     private val nowProvider: () -> Instant = { Instant.now() },
 ) {
     private val presentedAt: Instant = nowProvider()
     private var selectedOption: String? = null
+    private var aiReviewTitle: String? = null
+    private var aiReviewBody: String? = null
+    private var aiReviewSourceLabel: String? = null
 
     init {
         eventRecorder.record(
@@ -59,6 +72,9 @@ class QuizViewModel(
                     "正确答案是 ${question.correctAnswer}。"
                 }
             },
+            aiReviewTitle = aiReviewTitle,
+            aiReviewBody = aiReviewBody,
+            aiReviewSourceLabel = aiReviewSourceLabel,
         )
 
     fun selectOption(option: String): QuizUiState {
@@ -84,6 +100,29 @@ class QuizViewModel(
                 ),
             ),
         )
+        return buildUiState()
+    }
+
+    fun needsMistakeInsight(): Boolean =
+        selectedOption != null && selectedOption != question.correctAnswer && aiReviewBody == null
+
+    suspend fun resolveMistakeInsight(
+        settings: AppSettings,
+        runtimeSettings: AiRuntimeSettings?,
+        coordinator: AiStrategyCoordinator,
+    ): QuizUiState {
+        val wrongOption = selectedOption ?: return buildUiState()
+        val result = coordinator.requestWordHelp(
+            settings = settings,
+            runtimeSettings = runtimeSettings,
+            word = targetWord,
+            request = AiWordHelpRequest.MISTAKE_EXPLANATION,
+            wrongOption = wrongOption,
+            correctOption = question.correctAnswer,
+        )
+        aiReviewTitle = result.title
+        aiReviewBody = result.body
+        aiReviewSourceLabel = if (result.source == PlanSource.AI) "AI 生成" else "本地兜底"
         return buildUiState()
     }
 
@@ -117,6 +156,7 @@ fun loadQuizViewModel(
     ).ensureMinimumOptions(target.primaryMeaning(), fallbackWords.map { it.primaryMeaning() })
 
     return QuizViewModel(
+        targetWord = target,
         question = question,
         eventRecorder = buildAiMemoryRepository(context),
     )

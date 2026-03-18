@@ -1,6 +1,8 @@
 package com.yueliangmanle.danci.feature.home
 
 import android.content.Context
+import com.yueliangmanle.danci.core.ai.AiPlanAdjustmentResult
+import com.yueliangmanle.danci.core.ai.PlanSource
 import com.yueliangmanle.danci.core.data.AppSettings
 import com.yueliangmanle.danci.core.data.BuiltInBookCatalogItem
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
@@ -13,6 +15,7 @@ import kotlin.math.max
 
 data class HomeUiState(
     val isLoading: Boolean = false,
+    val isAnalyzingPlan: Boolean = false,
     val headline: String = "",
     val todayGoalCount: Int = 0,
     val completedCount: Int = 0,
@@ -22,7 +25,10 @@ data class HomeUiState(
     val estimatedMinutes: Int = 0,
     val streakDays: Int = 0,
     val activeBookTitle: String = "",
+    val aiSuggestionTitle: String? = null,
     val aiSuggestion: String? = null,
+    val aiSuggestionMeta: String? = null,
+    val aiFocusWords: List<String> = emptyList(),
 ) {
     companion object {
         fun loading(): HomeUiState = HomeUiState(isLoading = true)
@@ -63,6 +69,7 @@ class HomeViewModel(
             estimatedMinutes = plan.estimatedMinutes,
             streakDays = reviewSummary.streakDays,
             activeBookTitle = activeBook?.title ?: "还未选择词书",
+            aiSuggestionTitle = "今日节奏建议",
             aiSuggestion = if (plan.mistakeCount > 0) {
                 "先处理错词，再开始今天的新词，能更稳地拉回记忆。"
             } else {
@@ -70,6 +77,33 @@ class HomeViewModel(
             },
         )
     }
+
+    fun markAnalyzing(current: HomeUiState): HomeUiState =
+        current.copy(
+            isAnalyzingPlan = true,
+            aiSuggestionTitle = "AI 正在分析",
+            aiSuggestion = "正在整理最近的学习表现和薄弱点，请稍候。",
+            aiSuggestionMeta = null,
+        )
+
+    fun applyPlanAdjustment(
+        current: HomeUiState,
+        result: AiPlanAdjustmentResult,
+    ): HomeUiState =
+        current.copy(
+            isAnalyzingPlan = false,
+            aiSuggestionTitle = if (result.source == PlanSource.AI) {
+                "AI 计划调整"
+            } else {
+                "本地兜底建议"
+            },
+            aiSuggestion = listOfNotNull(result.summary, result.checkpointAdvice).joinToString("\n"),
+            aiSuggestionMeta = listOfNotNull(
+                if (result.source == PlanSource.AI) "来源：AI" else "来源：本地规则",
+                result.suggestedPace?.let { "节奏：$it" },
+            ).joinToString(" · ").takeIf(String::isNotBlank),
+            aiFocusWords = result.recommendedFocus,
+        )
 
     private fun selectActiveBook(): BuiltInBookCatalogItem? =
         builtInBooks.firstOrNull { it.id == settings.activeBookId } ?: builtInBooks.firstOrNull()

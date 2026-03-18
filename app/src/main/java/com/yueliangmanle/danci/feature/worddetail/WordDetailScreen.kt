@@ -17,9 +17,11 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun WordDetailScreen(
     state: WordDetailUiState,
-    onAiMemoryClick: () -> Unit,
-    onAiContrastClick: () -> Unit,
-    onStartQuizClick: () -> Unit,
+    onAiMemoryClick: () -> Unit = {},
+    onAiContrastClick: () -> Unit = {},
+    onExplainWordFormsClick: () -> Unit = {},
+    onExpandExampleClick: () -> Unit = {},
+    onStartQuizClick: () -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -86,11 +88,73 @@ fun WordDetailScreen(
                 Text("近反义辨析")
             }
         }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            OutlinedButton(
+                onClick = onExplainWordFormsClick,
+                modifier = Modifier.weight(1f),
+            ) {
+                Text("词形讲解")
+            }
+            OutlinedButton(
+                onClick = onExpandExampleClick,
+                modifier = Modifier.weight(1f),
+            ) {
+                Text("例句扩展")
+            }
+        }
+        if (state.isAiLoading) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "AI 正在整理这条提示…",
+                    modifier = Modifier.padding(16.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+        state.aiCards.forEach { card ->
+            AiInsightCard(card = card)
+        }
         OutlinedButton(
             onClick = onStartQuizClick,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text("开始选择题复习")
+        }
+    }
+}
+
+@Composable
+private fun AiInsightCard(card: AiInsightCardUiState) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = card.title,
+                style = MaterialTheme.typography.titleMedium,
+            )
+            card.sourceLabel?.let { label ->
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                text = card.body,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            if (card.bullets.isNotEmpty()) {
+                Text(
+                    text = card.bullets.joinToString("\n") { "• $it" },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

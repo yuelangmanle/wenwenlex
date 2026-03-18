@@ -62,6 +62,32 @@ fun QuizScreen(
                 )
             }
         }
+        if (state.aiReviewTitle != null && state.aiReviewBody != null) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = state.aiReviewTitle,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    state.aiReviewSourceLabel?.let { label ->
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(
+                        text = state.aiReviewBody,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+        }
         OutlinedButton(
             onClick = onOpenDetailClick,
         ) {

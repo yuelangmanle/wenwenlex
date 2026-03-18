@@ -81,6 +81,30 @@ fun StudyScreen(
                 }
             }
         }
+        if (state.checkpointTitle != null && state.checkpointSuggestion != null) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = state.checkpointTitle,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    state.checkpointSourceLabel?.let { label ->
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(
+                        text = state.checkpointSuggestion,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+        }
         if (state.isSessionComplete) {
             Button(
                 onClick = onOpenDetailClick,

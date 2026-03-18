@@ -4,14 +4,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import com.yueliangmanle.danci.core.ai.buildAiStrategyCoordinator
+import com.yueliangmanle.danci.core.ai.loadCurrentPlanSnapshot
+import com.yueliangmanle.danci.core.data.buildSettingsRepository
+import kotlinx.coroutines.launch
 
 @Composable
 fun StudyRoute(
     onOpenDetailClick: (Long) -> Unit = {},
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val settingsRepository = remember(context) {
+        buildSettingsRepository(context)
+    }
     val viewModel = remember(context) {
         loadStudyViewModel(context)
     }
@@ -23,6 +32,21 @@ fun StudyRoute(
         state = state,
         onFeedbackClick = { feedback ->
             state = viewModel.submitFeedback(feedback)
+            scope.launch {
+                val settings = settingsRepository.getSettings()
+                val checkpoint = viewModel.consumeCheckpointRequest(
+                    sessionCheckpointsEnabled = settings.aiSessionCheckpointEnabled,
+                ) ?: return@launch
+                val snapshot = loadCurrentPlanSnapshot(
+                    context = context,
+                    activeBookTitle = "当前学习会话",
+                    headline = state.progressText,
+                    mistakeCount = checkpoint.mistakeBurst,
+                    anomalyNotes = listOf(checkpoint.reason),
+                )
+                val result = buildAiStrategyCoordinator(context).adjustPlan(snapshot)
+                state = viewModel.applyCheckpointSuggestion(result)
+            }
         },
         onOpenDetailClick = {
             viewModel.openCurrentWordDetail()
