@@ -189,7 +189,7 @@ class AppShellTest {
 
 - [ ] **Step 2: Run the instrumentation test to verify it fails**
 
-Run: `./gradlew :app:connectedDebugAndroidTest --tests com.yueliangmanle.danci.AppShellTest`
+Run: `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.yueliangmanle.danci.AppShellTest`
 
 Expected: FAIL because the Android project, `MainActivity`, and app shell do not exist yet.
 
@@ -214,7 +214,7 @@ fun DanciApp() {
 
 - [ ] **Step 4: Re-run the instrumentation test to verify it passes**
 
-Run: `./gradlew :app:connectedDebugAndroidTest --tests com.yueliangmanle.danci.AppShellTest`
+Run: `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.yueliangmanle.danci.AppShellTest`
 
 Expected: PASS with the four top-level tabs rendered in the root scaffold.
 
@@ -399,7 +399,7 @@ fun booksScreenShowsBuiltInAndImportedSections() {
 
 - [ ] **Step 5: Run the UI test to verify it fails, then implement the screen**
 
-Run: `./gradlew :app:connectedDebugAndroidTest --tests com.yueliangmanle.danci.feature.books.BooksScreenTest`
+Run: `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.yueliangmanle.danci.feature.books.BooksScreenTest`
 
 Expected: FAIL first, then PASS once `BooksScreen` renders built-in and imported sections from the repository.
 
@@ -490,7 +490,7 @@ fun homeScreenShowsTodayStatsAndPrimaryActions() {
 
 - [ ] **Step 5: Run the UI test to verify it fails, then implement `HomeScreen`**
 
-Run: `./gradlew :app:connectedDebugAndroidTest --tests com.yueliangmanle.danci.feature.home.HomeScreenTest`
+Run: `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.yueliangmanle.danci.feature.home.HomeScreenTest`
 
 Expected: FAIL first, then PASS with today counts and quick actions visible.
 
@@ -572,7 +572,7 @@ fun studyScreenShowsWordAndThreeFeedbackButtons() {
 
 - [ ] **Step 5: Run the UI test to verify it fails, then implement `StudyScreen`**
 
-Run: `./gradlew :app:connectedDebugAndroidTest --tests com.yueliangmanle.danci.feature.study.StudyScreenTest`
+Run: `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.yueliangmanle.danci.feature.study.StudyScreenTest`
 
 Expected: FAIL first, then PASS with the card session UI and feedback buttons wired to the ViewModel.
 
@@ -659,7 +659,7 @@ fun wordDetailShowsRelationsFormsAndAiActions() {
 
 - [ ] **Step 5: Run the UI test to verify it fails, then implement detail tabs**
 
-Run: `./gradlew :app:connectedDebugAndroidTest --tests com.yueliangmanle.danci.feature.worddetail.WordDetailScreenTest`
+Run: `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.yueliangmanle.danci.feature.worddetail.WordDetailScreenTest`
 
 Expected: FAIL first, then PASS with relation, form, and AI action sections visible.
 
@@ -856,7 +856,7 @@ Expected: FAIL first, then PASS with invalid AI output safely ignored.
 
 - [ ] **Step 6: Add AI settings UI and Home “Analyze Plan” trigger**
 
-Run: `./gradlew :app:connectedDebugAndroidTest --tests com.yueliangmanle.danci.feature.home.HomeScreenTest --tests com.yueliangmanle.danci.feature.me.AiSettingsScreenTest`
+Run: `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.yueliangmanle.danci.feature.home.HomeScreenTest,com.yueliangmanle.danci.feature.me.AiSettingsScreenTest`
 
 Expected: PASS with `HomeScreenTest` covering the manual “分析并调整计划” action and `AiSettingsScreenTest` covering Base URL, Model, and API key entry.
 
@@ -926,7 +926,7 @@ fun wordDetailAiActionsShowResultCards() {
 
 - [ ] **Step 5: Run the UI test to verify it fails, then implement the result panels**
 
-Run: `./gradlew :app:connectedDebugAndroidTest --tests com.yueliangmanle.danci.feature.worddetail.WordDetailAiActionsTest`
+Run: `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.yueliangmanle.danci.feature.worddetail.WordDetailAiActionsTest`
 
 Expected: FAIL first, then PASS with AI result cards rendered in the detail flow.
 
@@ -1017,7 +1017,7 @@ Expected: FAIL first, then PASS with reminder requests generated from settings.
 
 - [ ] **Step 6: Add the settings screen for reminders, backup/restore, and AI config**
 
-Run: `./gradlew :app:connectedDebugAndroidTest --tests com.yueliangmanle.danci.feature.me.MeScreenTest`
+Run: `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.yueliangmanle.danci.feature.me.MeScreenTest`
 
 Expected: PASS with “我的” exposing backup/restore, reminder configuration, and AI settings entry points.
 
@@ -1059,7 +1059,7 @@ class SmokeJourneyTest {
 
 - [ ] **Step 2: Run the smoke test to verify it fails**
 
-Run: `./gradlew :app:connectedDebugAndroidTest --tests com.yueliangmanle.danci.SmokeJourneyTest`
+Run: `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.yueliangmanle.danci.SmokeJourneyTest`
 
 Expected: FAIL until all top-level flows are connected end-to-end.
 

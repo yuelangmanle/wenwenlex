@@ -83,7 +83,7 @@ jobs:
           api-level: 35
           arch: x86_64
           profile: pixel_7
-          script: ./gradlew :app:connectedDebugAndroidTest --tests com.yueliangmanle.danci.AppShellTest
+          script: ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.yueliangmanle.danci.AppShellTest
 
       - name: Upload instrumentation reports
         if: always()

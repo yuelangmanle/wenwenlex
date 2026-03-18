@@ -25,7 +25,7 @@ fun DanciNavHost(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(text = destination.label)
+                    Text(text = destination.screenTitle)
                 }
             }
         }
