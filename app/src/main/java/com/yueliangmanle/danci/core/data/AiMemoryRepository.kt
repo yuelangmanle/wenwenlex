@@ -1,11 +1,11 @@
 package com.yueliangmanle.danci.core.data
 
 import android.content.Context
-import androidx.room.Room
 import com.yueliangmanle.danci.core.analytics.StudyAnalyticsAggregator
 import com.yueliangmanle.danci.core.analytics.SummaryBuilder
 import com.yueliangmanle.danci.core.analytics.SummaryContext
 import com.yueliangmanle.danci.core.database.DanciDatabase
+import com.yueliangmanle.danci.core.database.buildDanciDatabase
 import com.yueliangmanle.danci.core.model.AiMemorySummary
 import com.yueliangmanle.danci.core.model.StudyEvent
 import java.time.Instant
@@ -99,12 +99,7 @@ class AiMemoryRepository(
     }
 }
 
-private const val DANCIDB_NAME = "danci.db"
-
 private object AiMemoryRepositoryHolder {
-    @Volatile
-    var database: DanciDatabase? = null
-
     @Volatile
     var repository: AiMemoryRepository? = null
 }
@@ -115,13 +110,7 @@ fun buildAiMemoryRepository(context: Context): AiMemoryRepository {
 
     return synchronized(AiMemoryRepositoryHolder) {
         AiMemoryRepositoryHolder.repository ?: run {
-            val database = AiMemoryRepositoryHolder.database ?: Room.databaseBuilder(
-                appContext,
-                DanciDatabase::class.java,
-                DANCIDB_NAME,
-            ).build().also { created ->
-                AiMemoryRepositoryHolder.database = created
-            }
+            val database: DanciDatabase = buildDanciDatabase(appContext)
 
             AiMemoryRepository(
                 studyRepository = RoomStudyRepository(database.studyDao()),

@@ -11,7 +11,7 @@ import com.yueliangmanle.danci.app.TopLevelDestination
 @Composable
 fun DanciScaffold(
     destinations: List<TopLevelDestination>,
-    currentDestinationRoute: String?,
+    isDestinationSelected: (TopLevelDestination) -> Boolean,
     onDestinationSelected: (TopLevelDestination) -> Unit,
     content: @Composable (PaddingValues) -> Unit,
 ) {
@@ -20,7 +20,7 @@ fun DanciScaffold(
             NavigationBar {
                 destinations.forEach { destination ->
                     NavigationBarItem(
-                        selected = currentDestinationRoute == destination.name,
+                        selected = isDestinationSelected(destination),
                         onClick = { onDestinationSelected(destination) },
                         icon = { SpacerIcon },
                         label = { Text(text = destination.label) },

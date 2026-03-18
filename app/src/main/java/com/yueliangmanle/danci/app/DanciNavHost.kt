@@ -10,6 +10,8 @@ import androidx.navigation.navArgument
 import com.yueliangmanle.danci.feature.books.BooksRoute
 import com.yueliangmanle.danci.feature.home.HomeRoute
 import com.yueliangmanle.danci.feature.me.AiSettingsRoute
+import com.yueliangmanle.danci.feature.me.AI_SETTINGS_ROUTE
+import com.yueliangmanle.danci.feature.me.MeRoute
 import com.yueliangmanle.danci.feature.quiz.QuizRoute
 import com.yueliangmanle.danci.feature.quiz.quizRoute
 import com.yueliangmanle.danci.feature.study.StudyRoute
@@ -47,7 +49,11 @@ fun DanciNavHost(
                         },
                     )
                     TopLevelDestination.BOOKS -> BooksRoute()
-                    TopLevelDestination.ME -> AiSettingsRoute()
+                    TopLevelDestination.ME -> MeRoute(
+                        onOpenAiSettingsClick = {
+                            navController.navigate(AI_SETTINGS_ROUTE)
+                        },
+                    )
                 }
             }
         }
@@ -78,6 +84,9 @@ fun DanciNavHost(
                     navController.navigate(wordDetailRoute(wordId))
                 },
             )
+        }
+        composable(route = AI_SETTINGS_ROUTE) {
+            AiSettingsRoute()
         }
     }
 }

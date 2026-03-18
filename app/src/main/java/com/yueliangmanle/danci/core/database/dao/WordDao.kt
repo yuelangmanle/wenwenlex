@@ -21,6 +21,9 @@ interface WordDao {
     @Query("SELECT * FROM words WHERE lemma = :lemma LIMIT 1")
     suspend fun getWordByLemma(lemma: String): WordEntity?
 
+    @Query("SELECT * FROM words ORDER BY id ASC")
+    suspend fun getAllWords(): List<WordEntity>
+
     @Query("SELECT * FROM words ORDER BY lemma ASC")
     fun observeWords(): Flow<List<WordEntity>>
 
@@ -32,4 +35,7 @@ interface WordDao {
         """,
     )
     fun searchWords(query: String): Flow<List<WordEntity>>
+
+    @Query("DELETE FROM words")
+    suspend fun clearWords()
 }

@@ -25,10 +25,13 @@ interface StudyRepository {
     fun observeLearningRecord(wordId: Long): Flow<LearningRecord?>
     suspend fun getLearningRecordOrDefault(wordId: Long): LearningRecord
     suspend fun getLearningRecordsForWord(wordId: Long): List<LearningRecord>
+    suspend fun getAllLearningRecords(): List<LearningRecord>
+    suspend fun getAllStudySessions(): List<StudySession>
     suspend fun upsertLearningRecord(record: LearningRecord)
     suspend fun startSession(session: StudySession): Long
     suspend fun appendEvent(event: StudyEvent): Long
     suspend fun getStudyEventsSince(since: java.time.Instant): List<StudyEvent>
+    suspend fun getAllStudyEvents(): List<StudyEvent>
     suspend fun getRecentStudyEvents(limit: Int = 200): List<StudyEvent>
     suspend fun loadAiMemorySummary(
         dailyLimit: Int = 7,
@@ -52,6 +55,12 @@ class RoomStudyRepository(
     override suspend fun getLearningRecordsForWord(wordId: Long): List<LearningRecord> =
         studyDao.getLearningRecordsForWord(wordId).map(LearningRecordEntity::asExternalModel)
 
+    override suspend fun getAllLearningRecords(): List<LearningRecord> =
+        studyDao.getAllLearningRecords().map(LearningRecordEntity::asExternalModel)
+
+    override suspend fun getAllStudySessions(): List<StudySession> =
+        studyDao.getAllStudySessions().map(StudySessionEntity::asExternalModel)
+
     override suspend fun upsertLearningRecord(record: LearningRecord) {
         studyDao.upsertLearningRecord(record.asEntity())
     }
@@ -64,6 +73,9 @@ class RoomStudyRepository(
 
     override suspend fun getStudyEventsSince(since: java.time.Instant): List<StudyEvent> =
         studyDao.getStudyEventsSince(since).map(StudyEventEntity::asExternalModel)
+
+    override suspend fun getAllStudyEvents(): List<StudyEvent> =
+        studyDao.getAllStudyEvents().map(StudyEventEntity::asExternalModel)
 
     override suspend fun getRecentStudyEvents(limit: Int): List<StudyEvent> =
         studyDao.getRecentStudyEvents(limit).map(StudyEventEntity::asExternalModel)
@@ -172,6 +184,20 @@ internal fun StudyEventEntity.asExternalModel(): StudyEvent =
         happenedAt = happenedAt,
         elapsedMillis = elapsedMillis,
         metadata = metadata,
+    )
+
+internal fun StudySessionEntity.asExternalModel(): StudySession =
+    StudySession(
+        id = id,
+        mode = mode,
+        targetBookId = targetBookId,
+        startedAt = startedAt,
+        finishedAt = finishedAt,
+        plannedCount = plannedCount,
+        completedCount = completedCount,
+        correctCount = correctCount,
+        wrongCount = wrongCount,
+        strategySnapshot = strategySnapshot,
     )
 
 internal fun LearnerProfile.asEntity(): LearnerProfileEntity =

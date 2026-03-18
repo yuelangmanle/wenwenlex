@@ -1,5 +1,7 @@
 package com.yueliangmanle.danci.core.database
 
+import android.content.Context
+import androidx.room.Room
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
@@ -42,6 +44,26 @@ abstract class DanciDatabase : RoomDatabase() {
     abstract fun wordDao(): WordDao
     abstract fun bookDao(): BookDao
     abstract fun studyDao(): StudyDao
+}
+
+private const val DANCI_DB_NAME = "danci.db"
+
+private object DanciDatabaseHolder {
+    @Volatile
+    var instance: DanciDatabase? = null
+}
+
+fun buildDanciDatabase(context: Context): DanciDatabase {
+    DanciDatabaseHolder.instance?.let { return it }
+    return synchronized(DanciDatabaseHolder) {
+        DanciDatabaseHolder.instance ?: Room.databaseBuilder(
+            context.applicationContext,
+            DanciDatabase::class.java,
+            DANCI_DB_NAME,
+        ).build().also { database ->
+            DanciDatabaseHolder.instance = database
+        }
+    }
 }
 
 class DanciTypeConverters {

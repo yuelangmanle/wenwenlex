@@ -9,6 +9,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.yueliangmanle.danci.feature.me.AI_SETTINGS_ROUTE
 
 @Stable
 class DanciAppState(
@@ -35,7 +36,22 @@ class DanciAppState(
     fun isTopLevelDestinationSelected(
         destination: TopLevelDestination,
         currentDestination: NavDestination?,
-    ): Boolean = currentDestination?.hierarchy?.any { it.route == destination.name } == true
+    ): Boolean {
+        val currentRoute = currentDestination?.route ?: return false
+        return when (destination) {
+            TopLevelDestination.HOME -> currentRoute == TopLevelDestination.HOME.name
+            TopLevelDestination.STUDY -> {
+                currentDestination.hierarchy.any { it.route == TopLevelDestination.STUDY.name } ||
+                    currentRoute.startsWith("word_detail") ||
+                    currentRoute.startsWith("quiz")
+            }
+            TopLevelDestination.BOOKS -> currentRoute == TopLevelDestination.BOOKS.name
+            TopLevelDestination.ME -> {
+                currentDestination.hierarchy.any { it.route == TopLevelDestination.ME.name } ||
+                    currentRoute == AI_SETTINGS_ROUTE
+            }
+        }
+    }
 }
 
 @Composable

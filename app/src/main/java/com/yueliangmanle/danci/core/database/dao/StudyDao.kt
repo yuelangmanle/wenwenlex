@@ -22,6 +22,9 @@ interface StudyDao {
     @Query("SELECT * FROM learning_records WHERE wordId = :wordId")
     suspend fun getLearningRecordsForWord(wordId: Long): List<LearningRecordEntity>
 
+    @Query("SELECT * FROM learning_records ORDER BY wordId ASC")
+    suspend fun getAllLearningRecords(): List<LearningRecordEntity>
+
     @Query("SELECT * FROM learning_records WHERE wordId = :wordId")
     fun observeLearningRecord(wordId: Long): Flow<LearningRecordEntity?>
 
@@ -29,10 +32,22 @@ interface StudyDao {
     suspend fun insertStudySession(session: StudySessionEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertStudySessions(sessions: List<StudySessionEntity>)
+
+    @Query("SELECT * FROM study_sessions ORDER BY startedAt ASC")
+    suspend fun getAllStudySessions(): List<StudySessionEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertStudyEvent(event: StudyEventEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertStudyEvents(events: List<StudyEventEntity>)
 
     @Query("SELECT * FROM study_events WHERE happenedAt >= :since ORDER BY happenedAt ASC")
     suspend fun getStudyEventsSince(since: java.time.Instant): List<StudyEventEntity>
+
+    @Query("SELECT * FROM study_events ORDER BY happenedAt ASC")
+    suspend fun getAllStudyEvents(): List<StudyEventEntity>
 
     @Query("SELECT * FROM study_events ORDER BY happenedAt DESC LIMIT :limit")
     suspend fun getRecentStudyEvents(limit: Int): List<StudyEventEntity>
@@ -66,4 +81,28 @@ interface StudyDao {
 
     @Query("SELECT * FROM confusion_edges ORDER BY mistakeCount DESC, weight DESC LIMIT :limit")
     suspend fun getConfusionEdges(limit: Int): List<ConfusionEdgeEntity>
+
+    @Query("DELETE FROM study_events")
+    suspend fun clearStudyEvents()
+
+    @Query("DELETE FROM study_sessions")
+    suspend fun clearStudySessions()
+
+    @Query("DELETE FROM learning_records")
+    suspend fun clearLearningRecords()
+
+    @Query("DELETE FROM daily_summaries")
+    suspend fun clearDailySummaries()
+
+    @Query("DELETE FROM weekly_summaries")
+    suspend fun clearWeeklySummaries()
+
+    @Query("DELETE FROM learner_profiles")
+    suspend fun clearLearnerProfiles()
+
+    @Query("DELETE FROM plan_history")
+    suspend fun clearPlanHistory()
+
+    @Query("DELETE FROM confusion_edges")
+    suspend fun clearConfusionEdges()
 }

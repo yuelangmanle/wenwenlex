@@ -21,6 +21,9 @@ data class AppSettings(
     val aiModel: String = DEFAULT_AI_MODEL,
     val aiPlanAdjustmentEnabled: Boolean = true,
     val aiSessionCheckpointEnabled: Boolean = true,
+    val reminderEnabled: Boolean = false,
+    val reminderHour: Int = DEFAULT_REMINDER_HOUR,
+    val reminderMinute: Int = DEFAULT_REMINDER_MINUTE,
 )
 
 interface SettingsRepository {
@@ -41,6 +44,10 @@ interface SettingsRepository {
     suspend fun updateAiPlanAdjustmentEnabled(enabled: Boolean)
 
     suspend fun updateAiSessionCheckpointEnabled(enabled: Boolean)
+
+    suspend fun updateReminderEnabled(enabled: Boolean)
+
+    suspend fun updateReminderTime(hour: Int, minute: Int)
 }
 
 private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(
@@ -55,6 +62,9 @@ private object SettingsPreferencesKeys {
     val aiModel = stringPreferencesKey("ai_model")
     val aiPlanAdjustmentEnabled = booleanPreferencesKey("ai_plan_adjustment_enabled")
     val aiSessionCheckpointEnabled = booleanPreferencesKey("ai_session_checkpoint_enabled")
+    val reminderEnabled = booleanPreferencesKey("reminder_enabled")
+    val reminderHour = intPreferencesKey("reminder_hour")
+    val reminderMinute = intPreferencesKey("reminder_minute")
 }
 
 class DataStoreSettingsRepository(
@@ -70,6 +80,9 @@ class DataStoreSettingsRepository(
                 aiModel = preferences[SettingsPreferencesKeys.aiModel] ?: DEFAULT_AI_MODEL,
                 aiPlanAdjustmentEnabled = preferences[SettingsPreferencesKeys.aiPlanAdjustmentEnabled] ?: true,
                 aiSessionCheckpointEnabled = preferences[SettingsPreferencesKeys.aiSessionCheckpointEnabled] ?: true,
+                reminderEnabled = preferences[SettingsPreferencesKeys.reminderEnabled] ?: false,
+                reminderHour = preferences[SettingsPreferencesKeys.reminderHour] ?: DEFAULT_REMINDER_HOUR,
+                reminderMinute = preferences[SettingsPreferencesKeys.reminderMinute] ?: DEFAULT_REMINDER_MINUTE,
             )
         }
 
@@ -120,6 +133,19 @@ class DataStoreSettingsRepository(
             preferences[SettingsPreferencesKeys.aiSessionCheckpointEnabled] = enabled
         }
     }
+
+    override suspend fun updateReminderEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[SettingsPreferencesKeys.reminderEnabled] = enabled
+        }
+    }
+
+    override suspend fun updateReminderTime(hour: Int, minute: Int) {
+        dataStore.edit { preferences ->
+            preferences[SettingsPreferencesKeys.reminderHour] = hour.coerceIn(0, 23)
+            preferences[SettingsPreferencesKeys.reminderMinute] = minute.coerceIn(0, 59)
+        }
+    }
 }
 
 fun buildSettingsRepository(context: Context): SettingsRepository =
@@ -135,3 +161,5 @@ fun AppSettings.asAiRuntimeSettings(apiKey: String? = null): AiRuntimeSettings =
 
 const val DEFAULT_AI_BASE_URL = "https://api.openai.com/v1"
 const val DEFAULT_AI_MODEL = "gpt-5-mini"
+const val DEFAULT_REMINDER_HOUR = 21
+const val DEFAULT_REMINDER_MINUTE = 0

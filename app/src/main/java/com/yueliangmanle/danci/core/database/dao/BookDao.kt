@@ -27,7 +27,13 @@ interface BookDao {
     suspend fun getBookById(bookId: String): BookEntity?
 
     @Query("SELECT * FROM books ORDER BY updatedAt DESC")
+    suspend fun getAllBooks(): List<BookEntity>
+
+    @Query("SELECT * FROM books ORDER BY updatedAt DESC")
     fun observeBooks(): Flow<List<BookEntity>>
+
+    @Query("SELECT * FROM book_words ORDER BY bookId ASC, sortOrder ASC, wordId ASC")
+    suspend fun getAllBookWordCrossRefs(): List<BookWordEntity>
 
     @Query(
         """
@@ -38,4 +44,10 @@ interface BookDao {
         """,
     )
     fun observeWordsForBook(bookId: String): Flow<List<WordEntity>>
+
+    @Query("DELETE FROM book_words")
+    suspend fun clearBookWordCrossRefs()
+
+    @Query("DELETE FROM books")
+    suspend fun clearBooks()
 }
