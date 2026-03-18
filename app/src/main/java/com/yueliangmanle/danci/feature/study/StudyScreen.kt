@@ -1,0 +1,117 @@
+package com.yueliangmanle.danci.feature.study
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.yueliangmanle.danci.core.study.CardFeedback
+
+@Composable
+fun StudyScreen(
+    state: StudyUiState,
+    onFeedbackClick: (CardFeedback) -> Unit,
+    onOpenDetailClick: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text(
+            text = state.sessionTitle,
+            style = MaterialTheme.typography.titleLarge,
+        )
+        Text(
+            text = state.progressText,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = state.currentWord,
+                    style = MaterialTheme.typography.displaySmall,
+                )
+                state.phonetic?.let { phonetic ->
+                    Text(
+                        text = phonetic,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (state.meanings.isNotEmpty()) {
+                    Text(
+                        text = state.meanings.joinToString("；"),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+                state.exampleSentence?.let { sentence ->
+                    Text(
+                        text = sentence,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                state.exampleTranslation?.let { translation ->
+                    Text(
+                        text = translation,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                OutlinedButton(
+                    onClick = onOpenDetailClick,
+                ) {
+                    Text("查看详情")
+                }
+            }
+        }
+        if (state.isSessionComplete) {
+            Button(
+                onClick = onOpenDetailClick,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("返回单词详情")
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Button(
+                    onClick = { onFeedbackClick(CardFeedback.NOT_KNOWN) },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("不认识")
+                }
+                Button(
+                    onClick = { onFeedbackClick(CardFeedback.FUZZY) },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("模糊")
+                }
+                Button(
+                    onClick = { onFeedbackClick(CardFeedback.KNOWN) },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("认识")
+                }
+            }
+        }
+    }
+}

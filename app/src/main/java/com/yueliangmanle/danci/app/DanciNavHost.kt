@@ -11,6 +11,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.yueliangmanle.danci.feature.books.BooksRoute
 import com.yueliangmanle.danci.feature.home.HomeRoute
+import com.yueliangmanle.danci.feature.study.StudyRoute
 
 @Composable
 fun DanciNavHost(
@@ -26,7 +27,18 @@ fun DanciNavHost(
         TopLevelDestination.entries.forEach { destination ->
             composable(route = destination.name) {
                 when (destination) {
-                    TopLevelDestination.HOME -> HomeRoute()
+                    TopLevelDestination.HOME -> HomeRoute(
+                        onStartNewWordsClick = {
+                            navController.navigate(TopLevelDestination.STUDY.name)
+                        },
+                        onStartReviewClick = {
+                            navController.navigate(TopLevelDestination.STUDY.name)
+                        },
+                        onOpenMistakesClick = {
+                            navController.navigate(TopLevelDestination.STUDY.name)
+                        },
+                    )
+                    TopLevelDestination.STUDY -> StudyRoute()
                     TopLevelDestination.BOOKS -> BooksRoute()
                     else -> Box(
                         modifier = Modifier.fillMaxSize(),

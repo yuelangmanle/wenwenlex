@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.map
 
 interface StudyRepository {
     fun observeLearningRecord(wordId: Long): Flow<LearningRecord?>
+    suspend fun getLearningRecordOrDefault(wordId: Long): LearningRecord
     suspend fun getLearningRecordsForWord(wordId: Long): List<LearningRecord>
     suspend fun upsertLearningRecord(record: LearningRecord)
     suspend fun startSession(session: StudySession): Long
@@ -35,6 +36,10 @@ class RoomStudyRepository(
 ) : StudyRepository {
     override fun observeLearningRecord(wordId: Long): Flow<LearningRecord?> =
         studyDao.observeLearningRecord(wordId).map { it?.asExternalModel() }
+
+    override suspend fun getLearningRecordOrDefault(wordId: Long): LearningRecord =
+        studyDao.getLearningRecordsForWord(wordId).firstOrNull()?.asExternalModel()
+            ?: defaultLearningRecord(wordId)
 
     override suspend fun getLearningRecordsForWord(wordId: Long): List<LearningRecord> =
         studyDao.getLearningRecordsForWord(wordId).map(LearningRecordEntity::asExternalModel)
@@ -57,6 +62,13 @@ class RoomStudyRepository(
         summary.confusionEdges.forEach { studyDao.upsertConfusionEdge(it.asEntity()) }
     }
 }
+
+fun defaultLearningRecord(wordId: Long): LearningRecord =
+    LearningRecord(
+        wordId = wordId,
+        mastery = 0.3f,
+        familiarityState = "未学",
+    )
 
 internal fun LearningRecordEntity.asExternalModel(): LearningRecord =
     LearningRecord(
