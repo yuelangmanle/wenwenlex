@@ -15,6 +15,7 @@ env:
   ANDROID_API_LEVEL: "35"
   ANDROID_BUILD_TOOLS: "35.0.0"
   ANDROID_SYSTEM_IMAGE: "system-images;android-35;google_apis;x86_64"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   build-debug:
@@ -24,10 +25,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -53,7 +54,7 @@ jobs:
         run: ./gradlew :app:assembleDebug
 
       - name: Upload debug APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: danci-debug-apk
           path: app/build/outputs/apk/debug/*.apk
@@ -61,7 +62,7 @@ jobs:
 
       - name: Upload build reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: danci-build-reports
           path: |
@@ -76,10 +77,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -117,7 +118,7 @@ jobs:
 
       - name: Upload instrumentation reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: danci-androidTest-reports
           path: |
