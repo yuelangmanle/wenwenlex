@@ -12,6 +12,7 @@ import java.time.Instant
 
 data class StudyUiState(
     val sessionTitle: String = "卡片学习",
+    val currentWordId: Long = 0L,
     val currentWord: String = "",
     val phonetic: String? = null,
     val meanings: List<String> = emptyList(),
@@ -36,6 +37,7 @@ class StudyViewModel(
         val card = queue.getOrNull(currentIndex)
         if (card == null) {
             return StudyUiState(
+                currentWordId = queue.lastOrNull()?.wordId ?: 0L,
                 currentWord = "今日学习完成",
                 meanings = listOf("可以回到首页继续安排下一轮复习。"),
                 progressText = "${queue.size} / ${queue.size}",
@@ -44,6 +46,7 @@ class StudyViewModel(
         }
 
         return StudyUiState(
+            currentWordId = card.wordId,
             currentWord = card.word,
             phonetic = card.phonetic,
             meanings = card.meanings,

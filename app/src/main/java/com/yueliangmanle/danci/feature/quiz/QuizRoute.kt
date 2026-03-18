@@ -1,4 +1,4 @@
-package com.yueliangmanle.danci.feature.study
+package com.yueliangmanle.danci.feature.quiz
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -7,25 +7,26 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 
+fun quizRoute(wordId: Long): String = "quiz/$wordId"
+
 @Composable
-fun StudyRoute(
-    onOpenDetailClick: (Long) -> Unit = {},
+fun QuizRoute(
+    wordId: Long,
+    onOpenDetailClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    val viewModel = remember(context) {
-        loadStudyViewModel(context)
+    val viewModel = remember(context, wordId) {
+        loadQuizViewModel(context, wordId)
     }
     var state by remember(viewModel) {
         mutableStateOf(viewModel.buildUiState())
     }
 
-    StudyScreen(
+    QuizScreen(
         state = state,
-        onFeedbackClick = { feedback ->
-            state = viewModel.submitFeedback(feedback)
+        onOptionClick = { option ->
+            state = viewModel.buildUiState(selectedOption = option)
         },
-        onOpenDetailClick = {
-            onOpenDetailClick(state.currentWordId)
-        },
+        onOpenDetailClick = onOpenDetailClick,
     )
 }

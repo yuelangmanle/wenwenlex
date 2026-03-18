@@ -1,8 +1,10 @@
 package com.yueliangmanle.danci.core.data
 
+import android.content.Context
 import com.yueliangmanle.danci.core.database.dao.WordDao
 import com.yueliangmanle.danci.core.database.entity.WordEntity
 import com.yueliangmanle.danci.core.importer.ImportedWord
+import com.yueliangmanle.danci.core.importer.JsonBookImporter
 import com.yueliangmanle.danci.core.model.Word
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -91,3 +93,27 @@ internal fun ImportedWord.asWord(): Word =
         exampleSentence = exampleSentence,
         exampleTranslation = exampleTranslation,
     )
+
+fun loadBuiltInWords(
+    context: Context,
+    assetName: String = "books/cet4.json",
+): List<Word> =
+    context.assets.open(assetName).use(JsonBookImporter()::parse).words.mapIndexed { index, importedWord ->
+        importedWord.asWord().copy(id = index.toLong() + 1L)
+    }
+
+fun loadBuiltInWord(
+    context: Context,
+    wordId: Long,
+    assetName: String = "books/cet4.json",
+): Word? = loadBuiltInWords(context, assetName).firstOrNull { it.id == wordId }
+
+fun findRelatedWords(
+    target: Word,
+    candidates: List<Word>,
+): List<Word> {
+    val relatedLemmas = (target.similarWords + target.confusingWords).map(String::lowercase).toSet()
+    return candidates.filter { candidate ->
+        candidate.id != target.id && relatedLemmas.contains(candidate.lemma.lowercase())
+    }
+}
