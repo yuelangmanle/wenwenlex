@@ -9,6 +9,14 @@
 - 正式发包界面：GitHub Releases
 - 开发验证界面：GitHub Actions
 
+## 协作文档入口
+
+- [协作开发书](docs/collaboration-handbook.md)
+- [开发进度书](docs/development-progress.md)
+- [发版签名说明](docs/release-signing.md)
+- [产品设计规格](docs/superpowers/specs/2026-03-18-vocabulary-android-design.md)
+- [实施计划](docs/superpowers/plans/2026-03-18-vocabulary-android-app.md)
+
 ## 已实现能力
 
 - 首页、学习、词书、我的 四大主导航
