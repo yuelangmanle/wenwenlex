@@ -79,7 +79,9 @@ class BackupRepository(
             if (imported.snapshot.bookWords.isNotEmpty()) {
                 database.bookDao().insertBookWordCrossRefs(imported.snapshot.bookWords)
             }
-            imported.snapshot.learningRecords.forEach(database.studyDao()::upsertLearningRecord)
+            imported.snapshot.learningRecords.forEach { record ->
+                database.studyDao().upsertLearningRecord(record)
+            }
             if (imported.snapshot.studySessions.isNotEmpty()) {
                 database.studyDao().insertStudySessions(imported.snapshot.studySessions)
             }
