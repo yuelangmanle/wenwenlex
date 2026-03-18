@@ -1,9 +1,27 @@
+import org.gradle.api.GradleException
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.kapt)
 }
+
+fun parseAppVersion(versionName: String): Pair<Int, Int> {
+    val match = Regex("""^(\d+)\.(\d+)$""").matchEntire(versionName)
+        ?: throw GradleException("App version must match <major>.<minor>, for example 1.0.")
+    val (majorValue, minorValue) = match.destructured
+    val major = majorValue.toInt()
+    val minor = minorValue.toInt()
+    if (minor !in 0..9) {
+        throw GradleException("Minor version must stay between 0 and 9 so versions roll like 1.0 -> 1.9 -> 2.0.")
+    }
+    return major to minor
+}
+
+val appVersionName = providers.gradleProperty("appVersionName").orElse("1.0").get()
+val (majorVersion, minorVersion) = parseAppVersion(appVersionName)
+val appVersionCode = majorVersion * 100 + minorVersion * 10
 
 android {
     namespace = "com.yueliangmanle.danci"
@@ -13,8 +31,8 @@ android {
         applicationId = "com.yueliangmanle.danci"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

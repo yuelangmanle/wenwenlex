@@ -1,2 +1,7 @@
 .DS_Store
 .superpowers/
+.gradle/
+app/build/
+output/
+local.properties
+*.iml
