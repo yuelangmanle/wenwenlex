@@ -25,8 +25,11 @@ fun QuizRoute(
     QuizScreen(
         state = state,
         onOptionClick = { option ->
-            state = viewModel.buildUiState(selectedOption = option)
+            state = viewModel.selectOption(option)
         },
-        onOpenDetailClick = onOpenDetailClick,
+        onOpenDetailClick = {
+            viewModel.openWordDetail()
+            onOpenDetailClick()
+        },
     )
 }

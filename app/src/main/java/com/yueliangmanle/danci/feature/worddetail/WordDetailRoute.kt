@@ -1,7 +1,10 @@
 package com.yueliangmanle.danci.feature.worddetail
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 
 fun wordDetailRoute(wordId: Long): String = "word_detail/$wordId"
@@ -14,14 +17,26 @@ fun WordDetailRoute(
     onStartQuizClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    val state = remember(context, wordId) {
-        loadWordDetailViewModel(context, wordId).buildUiState()
+    val viewModel = remember(context, wordId) {
+        loadWordDetailViewModel(context, wordId)
+    }
+    var state by remember(viewModel) {
+        mutableStateOf(viewModel.buildUiState())
     }
 
     WordDetailScreen(
         state = state,
-        onAiMemoryClick = onAiMemoryClick,
-        onAiContrastClick = onAiContrastClick,
-        onStartQuizClick = onStartQuizClick,
+        onAiMemoryClick = {
+            viewModel.onAiMemoryClick()
+            onAiMemoryClick()
+        },
+        onAiContrastClick = {
+            viewModel.onAiContrastClick()
+            onAiContrastClick()
+        },
+        onStartQuizClick = {
+            viewModel.onStartQuizClick()
+            onStartQuizClick()
+        },
     )
 }

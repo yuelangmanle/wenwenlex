@@ -1,8 +1,15 @@
 package com.yueliangmanle.danci.feature.worddetail
 
 import android.content.Context
+import com.yueliangmanle.danci.core.data.NoOpStudyEventRecorder
+import com.yueliangmanle.danci.core.data.StudyEventRecorder
+import com.yueliangmanle.danci.core.data.buildAiMemoryRepository
 import com.yueliangmanle.danci.core.data.loadBuiltInWord
+import com.yueliangmanle.danci.core.model.StudyEvent
+import com.yueliangmanle.danci.core.model.StudyEventType
 import com.yueliangmanle.danci.core.model.Word
+import com.yueliangmanle.danci.core.model.studyEventMetadataOf
+import java.time.Instant
 
 data class WordDetailUiState(
     val wordId: Long = 0L,
@@ -21,7 +28,23 @@ data class WordDetailUiState(
 
 class WordDetailViewModel(
     private val word: Word,
+    private val eventRecorder: StudyEventRecorder = NoOpStudyEventRecorder,
+    private val nowProvider: () -> Instant = { Instant.now() },
 ) {
+    init {
+        eventRecorder.record(
+            StudyEvent(
+                wordId = word.id,
+                eventType = StudyEventType.DETAIL_OPENED,
+                happenedAt = nowProvider(),
+                metadata = studyEventMetadataOf(
+                    "mode" to "detail",
+                    "sections" to detailSections().joinToString(","),
+                ),
+            ),
+        )
+    }
+
     fun buildUiState(): WordDetailUiState =
         WordDetailUiState(
             wordId = word.id,
@@ -37,6 +60,52 @@ class WordDetailViewModel(
             wordForms = word.wordForms,
             root = word.root,
         )
+
+    fun onAiMemoryClick() {
+        recordAiAction("memory_helper")
+    }
+
+    fun onAiContrastClick() {
+        recordAiAction("contrast")
+    }
+
+    fun onStartQuizClick() {
+        eventRecorder.record(
+            StudyEvent(
+                wordId = word.id,
+                eventType = StudyEventType.QUIZ_STARTED,
+                happenedAt = nowProvider(),
+                metadata = studyEventMetadataOf(
+                    "mode" to "detail",
+                    "source" to "word_detail",
+                ),
+            ),
+        )
+    }
+
+    private fun recordAiAction(action: String) {
+        eventRecorder.record(
+            StudyEvent(
+                wordId = word.id,
+                eventType = StudyEventType.AI_ACTION,
+                happenedAt = nowProvider(),
+                metadata = studyEventMetadataOf(
+                    "mode" to "detail",
+                    "action" to action,
+                ),
+            ),
+        )
+    }
+
+    private fun detailSections(): List<String> =
+        buildList {
+            if (word.synonyms.isNotEmpty()) add("synonyms")
+            if (word.antonyms.isNotEmpty()) add("antonyms")
+            if (word.similarWords.isNotEmpty()) add("similar_words")
+            if (word.confusingWords.isNotEmpty()) add("confusing_words")
+            if (word.wordForms.isNotEmpty()) add("word_forms")
+            if (!word.root.isNullOrBlank()) add("root")
+        }
 }
 
 fun loadWordDetailViewModel(
@@ -46,5 +115,8 @@ fun loadWordDetailViewModel(
     val word = requireNotNull(loadBuiltInWord(context, wordId)) {
         "Expected built-in word for id=$wordId"
     }
-    return WordDetailViewModel(word = word)
+    return WordDetailViewModel(
+        word = word,
+        eventRecorder = buildAiMemoryRepository(context),
+    )
 }

@@ -25,6 +25,7 @@ fun StudyRoute(
             state = viewModel.submitFeedback(feedback)
         },
         onOpenDetailClick = {
+            viewModel.openCurrentWordDetail()
             onOpenDetailClick(state.currentWordId)
         },
     )
