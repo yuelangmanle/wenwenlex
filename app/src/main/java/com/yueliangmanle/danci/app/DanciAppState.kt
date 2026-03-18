@@ -9,6 +9,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.yueliangmanle.danci.feature.books.BOOK_IMPORT_ROUTE
 import com.yueliangmanle.danci.feature.me.AI_SETTINGS_ROUTE
 
 @Stable
@@ -45,7 +46,11 @@ class DanciAppState(
                     currentRoute.startsWith("word_detail") ||
                     currentRoute.startsWith("quiz")
             }
-            TopLevelDestination.BOOKS -> currentRoute == TopLevelDestination.BOOKS.name
+            TopLevelDestination.BOOKS -> {
+                currentDestination.hierarchy.any { it.route == TopLevelDestination.BOOKS.name } ||
+                    currentRoute == BOOK_IMPORT_ROUTE ||
+                    currentRoute.startsWith("book_detail")
+            }
             TopLevelDestination.ME -> {
                 currentDestination.hierarchy.any { it.route == TopLevelDestination.ME.name } ||
                     currentRoute == AI_SETTINGS_ROUTE

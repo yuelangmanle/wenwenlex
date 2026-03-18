@@ -23,10 +23,13 @@ data class ImportedBookMetadata(
 data class ImportedWord(
     val text: String,
     val phonetic: String? = null,
+    val phoneticUk: String? = null,
+    val phoneticUs: String? = null,
     val meanings: List<String> = emptyList(),
     val synonyms: List<String> = emptyList(),
     val antonyms: List<String> = emptyList(),
     val similarWords: List<String> = emptyList(),
+    val confusingWords: List<String> = emptyList(),
     val wordForms: List<String> = emptyList(),
     val root: String? = null,
     val exampleSentence: String? = null,

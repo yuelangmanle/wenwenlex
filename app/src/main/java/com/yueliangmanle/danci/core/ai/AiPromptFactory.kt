@@ -1,5 +1,6 @@
 package com.yueliangmanle.danci.core.ai
 
+import com.yueliangmanle.danci.core.importer.XlsxSheetData
 import com.yueliangmanle.danci.core.model.Word
 import org.json.JSONArray
 import org.json.JSONObject
@@ -106,6 +107,86 @@ class AiPromptFactory {
             ),
         )
 
+    fun buildImportNormalizationPrompt(
+        workbookSheets: List<XlsxSheetData>,
+    ): AiStructuredPrompt =
+        AiStructuredPrompt(
+            instructions = """
+                你是文文Lex 的 Excel 词书整理助手。
+                只输出合法 JSON，不要输出 Markdown。
+                你可以识别真正的数据表、英文列和中文列，也可以补全缺失的中文义和音标。
+                但你绝对不能凭空编造不存在的英文单词。
+            """.trimIndent(),
+            input = """
+                请把下面的工作表预览整理成文文Lex 可导入结构：
+                ${workbookSheets.toWorkbookPreviewJson()}
+            """.trimIndent(),
+            responseFormat = AiResponseFormat.JsonSchema(
+                name = "import_normalization",
+                schema = JSONObject()
+                    .put("type", "object")
+                    .put(
+                        "properties",
+                        JSONObject()
+                            .put("sheet_name", JSONObject().put("type", "string"))
+                            .put("total_rows", JSONObject().put("type", "integer"))
+                            .put("skipped_rows", JSONObject().put("type", "integer"))
+                            .put(
+                                "rows",
+                                JSONObject()
+                                    .put("type", "array")
+                                    .put(
+                                        "items",
+                                        JSONObject()
+                                            .put("type", "object")
+                                            .put(
+                                                "properties",
+                                                JSONObject()
+                                                    .put("word", JSONObject().put("type", "string"))
+                                                    .put(
+                                                        "meanings",
+                                                        JSONObject()
+                                                            .put("type", "array")
+                                                            .put("items", JSONObject().put("type", "string")),
+                                                    )
+                                                    .put("phonetic_uk", JSONObject().put("type", "string"))
+                                                    .put("phonetic_us", JSONObject().put("type", "string")),
+                                            )
+                                            .put("required", JSONArray(listOf("word", "meanings", "phonetic_uk", "phonetic_us"))),
+                                    ),
+                            ),
+                    )
+                    .put("required", JSONArray(listOf("sheet_name", "total_rows", "skipped_rows", "rows"))),
+            ),
+        )
+
+    fun buildPhoneticFillPrompt(word: Word): AiStructuredPrompt =
+        AiStructuredPrompt(
+            instructions = """
+                你是文文Lex 的音标补全助手。
+                只输出合法 JSON，不要输出 Markdown。
+                请优先给出英式和美式两套音标，如果只能确定一套，另一套输出空字符串。
+            """.trimIndent(),
+            input = """
+                单词：${word.lemma}
+                释义：${word.meanings.joinToString("；")}
+                已有音标：${word.phonetic.orEmpty()}
+                请输出 phonetic_uk 和 phonetic_us。
+            """.trimIndent(),
+            responseFormat = AiResponseFormat.JsonSchema(
+                name = "phonetic_fill",
+                schema = JSONObject()
+                    .put("type", "object")
+                    .put(
+                        "properties",
+                        JSONObject()
+                            .put("phonetic_uk", JSONObject().put("type", "string"))
+                            .put("phonetic_us", JSONObject().put("type", "string")),
+                    )
+                    .put("required", JSONArray(listOf("phonetic_uk", "phonetic_us"))),
+            ),
+        )
+
     fun wordHelpPrompt(
         word: Word,
         request: AiWordHelpRequest,
@@ -158,3 +239,19 @@ class AiPromptFactory {
         }
     }
 }
+
+private fun List<XlsxSheetData>.toWorkbookPreviewJson(): String =
+    JSONArray(
+        map { sheet ->
+            JSONObject()
+                .put("name", sheet.name)
+                .put(
+                    "rows",
+                    JSONArray(
+                        sheet.rows.take(60).map { row ->
+                            JSONArray(row.take(6))
+                        },
+                    ),
+                )
+        },
+    ).toString()

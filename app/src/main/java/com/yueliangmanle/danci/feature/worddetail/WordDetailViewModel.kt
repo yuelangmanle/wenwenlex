@@ -1,25 +1,42 @@
 package com.yueliangmanle.danci.feature.worddetail
 
 import android.content.Context
+import com.yueliangmanle.danci.core.ai.AiProfileResolver
 import com.yueliangmanle.danci.core.ai.AiStrategyCoordinator
 import com.yueliangmanle.danci.core.ai.AiWordHelpRequest
 import com.yueliangmanle.danci.core.ai.PlanSource
+import com.yueliangmanle.danci.core.ai.resolveRuntimeSettingsForCapability
 import com.yueliangmanle.danci.core.data.NoOpStudyEventRecorder
+import com.yueliangmanle.danci.core.data.PhoneticEnrichmentRepository
+import com.yueliangmanle.danci.core.data.SettingsRepository
 import com.yueliangmanle.danci.core.data.StudyEventRecorder
+import com.yueliangmanle.danci.core.data.WordRepository
 import com.yueliangmanle.danci.core.data.buildAiMemoryRepository
-import com.yueliangmanle.danci.core.data.AppSettings
-import com.yueliangmanle.danci.core.data.loadBuiltInWord
-import com.yueliangmanle.danci.core.ai.AiRuntimeSettings
+import com.yueliangmanle.danci.core.data.buildPhoneticEnrichmentRepository
+import com.yueliangmanle.danci.core.data.buildSettingsRepository
+import com.yueliangmanle.danci.core.data.buildWordRepository
+import com.yueliangmanle.danci.core.data.syncBuiltInCatalogToDatabase
+import com.yueliangmanle.danci.core.model.AiCapability
+import com.yueliangmanle.danci.core.model.PHONETIC_SOURCE_AI
+import com.yueliangmanle.danci.core.model.PhoneticEnrichmentJob
 import com.yueliangmanle.danci.core.model.StudyEvent
 import com.yueliangmanle.danci.core.model.StudyEventType
 import com.yueliangmanle.danci.core.model.Word
+import com.yueliangmanle.danci.core.model.hasAnyPhonetic
+import com.yueliangmanle.danci.core.model.hasCompletePhonetic
+import com.yueliangmanle.danci.core.model.needsPhoneticFill
 import com.yueliangmanle.danci.core.model.studyEventMetadataOf
+import com.yueliangmanle.danci.core.model.withUpdatedPhonetics
 import java.time.Instant
 
 data class WordDetailUiState(
     val wordId: Long = 0L,
     val word: String = "",
     val phonetic: String? = null,
+    val phoneticUk: String? = null,
+    val phoneticUs: String? = null,
+    val phoneticStatusLabel: String = "空白",
+    val phoneticSourceLabel: String = "未补全",
     val meanings: List<String> = emptyList(),
     val exampleSentence: String? = null,
     val exampleTranslation: String? = null,
@@ -30,7 +47,10 @@ data class WordDetailUiState(
     val wordForms: List<String> = emptyList(),
     val root: String? = null,
     val isAiLoading: Boolean = false,
+    val isPhoneticLoading: Boolean = false,
     val aiCards: List<AiInsightCardUiState> = emptyList(),
+    val statusMessage: String? = null,
+    val errorMessage: String? = null,
 )
 
 data class AiInsightCardUiState(
@@ -42,11 +62,16 @@ data class AiInsightCardUiState(
 )
 
 class WordDetailViewModel(
-    private val word: Word,
+    private val appContext: Context,
+    private var word: Word,
+    private val wordRepository: WordRepository,
+    private val settingsRepository: SettingsRepository,
+    private val phoneticEnrichmentRepository: PhoneticEnrichmentRepository,
     private val eventRecorder: StudyEventRecorder = NoOpStudyEventRecorder,
     private val nowProvider: () -> Instant = { Instant.now() },
 ) {
     private var isAiLoading = false
+    private var isPhoneticLoading = false
     private val aiCards = mutableListOf<AiInsightCardUiState>()
 
     init {
@@ -63,11 +88,28 @@ class WordDetailViewModel(
         )
     }
 
-    fun buildUiState(): WordDetailUiState =
+    fun buildUiState(
+        statusMessage: String? = null,
+        errorMessage: String? = null,
+    ): WordDetailUiState =
         WordDetailUiState(
             wordId = word.id,
             word = word.lemma,
             phonetic = word.phonetic,
+            phoneticUk = word.phoneticUk,
+            phoneticUs = word.phoneticUs,
+            phoneticStatusLabel = when {
+                word.hasCompletePhonetic() -> "双音标完整"
+                word.hasAnyPhonetic() -> "部分音标"
+                else -> "空白"
+            },
+            phoneticSourceLabel = when (word.phoneticSource) {
+                "builtin" -> "来源：内置词库"
+                "imported" -> "来源：导入文件"
+                "ai_generated" -> "来源：AI 补全"
+                "legacy" -> "来源：旧版迁移"
+                else -> "来源：待补全"
+            },
             meanings = word.meanings,
             exampleSentence = word.exampleSentence,
             exampleTranslation = word.exampleTranslation,
@@ -78,7 +120,10 @@ class WordDetailViewModel(
             wordForms = word.wordForms,
             root = word.root,
             isAiLoading = isAiLoading,
+            isPhoneticLoading = isPhoneticLoading,
             aiCards = aiCards.toList(),
+            statusMessage = statusMessage,
+            errorMessage = errorMessage,
         )
 
     fun onAiMemoryClick() {
@@ -116,10 +161,15 @@ class WordDetailViewModel(
         return buildUiState()
     }
 
+    fun markPhoneticLoading(): WordDetailUiState {
+        isPhoneticLoading = true
+        return buildUiState()
+    }
+
     suspend fun resolveAiHelp(
         request: AiWordHelpRequest,
-        settings: AppSettings,
-        runtimeSettings: AiRuntimeSettings?,
+        settings: com.yueliangmanle.danci.core.data.AppSettings,
+        runtimeSettings: com.yueliangmanle.danci.core.ai.AiRuntimeSettings?,
         coordinator: AiStrategyCoordinator,
     ): WordDetailUiState {
         val result = coordinator.requestWordHelp(
@@ -148,6 +198,94 @@ class WordDetailViewModel(
         return buildUiState()
     }
 
+    suspend fun fillPhonetic(
+        overwrite: Boolean,
+        coordinator: AiStrategyCoordinator,
+    ): WordDetailUiState {
+        val settings = settingsRepository.getSettings()
+        val runtimeSettings = resolveRuntimeSettingsForCapability(appContext, AiCapability.PHONETIC_FILL)
+        if (runtimeSettings?.enabled != true || runtimeSettings.apiKey.isNullOrBlank()) {
+            isPhoneticLoading = false
+            return buildUiState(errorMessage = "请先在 AI 设置里配置音标补全 API。")
+        }
+        if (!overwrite && !word.needsPhoneticFill()) {
+            isPhoneticLoading = false
+            return buildUiState(statusMessage = "当前这条单词已经有双音标，可以改用“覆盖重拉”。")
+        }
+
+        val now = Instant.now()
+        val fillMode = if (overwrite) "overwrite_single" else "fill_missing_single"
+        val jobId = phoneticEnrichmentRepository.insert(
+            PhoneticEnrichmentJob(
+                scopeType = "word",
+                scopeRef = word.id.toString(),
+                profileId = AiProfileResolver().resolveProfileId(settings, AiCapability.PHONETIC_FILL),
+                fillMode = fillMode,
+                status = "running",
+                totalCount = 1,
+                createdAt = now,
+                updatedAt = now,
+            ),
+        )
+        val result = coordinator.requestPhoneticFill(
+            settings = settings,
+            runtimeSettings = runtimeSettings,
+            word = word,
+        )
+        val merged = mergePhonetics(result, overwrite)
+        val success = merged != word
+        if (success) {
+            wordRepository.updateWord(merged)
+            word = merged
+        }
+        phoneticEnrichmentRepository.update(
+            PhoneticEnrichmentJob(
+                id = jobId,
+                scopeType = "word",
+                scopeRef = word.id.toString(),
+                profileId = AiProfileResolver().resolveProfileId(settings, AiCapability.PHONETIC_FILL),
+                fillMode = fillMode,
+                status = if (success) "completed" else "failed",
+                totalCount = 1,
+                completedCount = if (success) 1 else 0,
+                failedCount = if (success) 0 else 1,
+                createdAt = now,
+                updatedAt = Instant.now(),
+            ),
+        )
+        isPhoneticLoading = false
+        return if (success) {
+            buildUiState(statusMessage = "音标已写回本地数据库。")
+        } else {
+            buildUiState(errorMessage = "这次没有拿到更完整的音标结果。")
+        }
+    }
+
+    private fun mergePhonetics(
+        result: com.yueliangmanle.danci.core.ai.AiPhoneticFillResult,
+        overwrite: Boolean,
+    ): Word {
+        val nextUk = if (overwrite || word.phoneticUk.isNullOrBlank()) {
+            result.phoneticUk ?: word.phoneticUk
+        } else {
+            word.phoneticUk
+        }
+        val nextUs = if (overwrite || word.phoneticUs.isNullOrBlank()) {
+            result.phoneticUs ?: word.phoneticUs
+        } else {
+            word.phoneticUs
+        }
+        if (nextUk == word.phoneticUk && nextUs == word.phoneticUs) {
+            return word
+        }
+        return word.withUpdatedPhonetics(
+            phoneticUk = nextUk,
+            phoneticUs = nextUs,
+            source = if (result.source == PlanSource.AI) PHONETIC_SOURCE_AI else word.phoneticSource,
+            updatedAt = Instant.now(),
+        )
+    }
+
     private fun recordAiAction(action: String) {
         eventRecorder.record(
             StudyEvent(
@@ -173,15 +311,20 @@ class WordDetailViewModel(
         }
 }
 
-fun loadWordDetailViewModel(
+suspend fun loadWordDetailViewModel(
     context: Context,
     wordId: Long,
 ): WordDetailViewModel {
-    val word = requireNotNull(loadBuiltInWord(context, wordId)) {
-        "Expected built-in word for id=$wordId"
-    }
+    syncBuiltInCatalogToDatabase(context)
+    val appContext = context.applicationContext
+    val wordRepository = buildWordRepository(appContext)
+    val word = requireNotNull(wordRepository.getWord(wordId)) { "Expected word for id=$wordId" }
     return WordDetailViewModel(
+        appContext = appContext,
         word = word,
-        eventRecorder = buildAiMemoryRepository(context),
+        wordRepository = wordRepository,
+        settingsRepository = buildSettingsRepository(appContext),
+        phoneticEnrichmentRepository = buildPhoneticEnrichmentRepository(appContext),
+        eventRecorder = buildAiMemoryRepository(appContext),
     )
 }

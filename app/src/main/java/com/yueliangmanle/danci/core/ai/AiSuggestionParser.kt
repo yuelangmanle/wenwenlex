@@ -22,6 +22,24 @@ class AiSuggestionParser {
             bullets = json.optJSONArray("bullets").toStringList(),
         )
     }.getOrNull()
+
+    fun parseImportNormalization(text: String): ParsedImportNormalization? = runCatching {
+        val json = JSONObject(text)
+        ParsedImportNormalization(
+            sheetName = json.optString("sheet_name").ifBlank { null },
+            totalRows = json.optInt("total_rows", 0),
+            skippedRows = json.optInt("skipped_rows", 0),
+            rows = json.optJSONArray("rows").toImportRows(),
+        )
+    }.getOrNull()
+
+    fun parsePhoneticFill(text: String): ParsedPhoneticFill? = runCatching {
+        val json = JSONObject(text)
+        ParsedPhoneticFill(
+            phoneticUk = json.optString("phonetic_uk").ifBlank { null },
+            phoneticUs = json.optString("phonetic_us").ifBlank { null },
+        )
+    }.getOrNull()
 }
 
 data class ParsedPlanAdjustment(
@@ -38,9 +56,42 @@ data class ParsedWordHelp(
     val bullets: List<String>,
 )
 
+data class ParsedImportNormalization(
+    val sheetName: String?,
+    val totalRows: Int,
+    val skippedRows: Int,
+    val rows: List<ParsedImportNormalizationRow>,
+)
+
+data class ParsedImportNormalizationRow(
+    val word: String,
+    val meanings: List<String>,
+    val phoneticUk: String? = null,
+    val phoneticUs: String? = null,
+)
+
+data class ParsedPhoneticFill(
+    val phoneticUk: String? = null,
+    val phoneticUs: String? = null,
+)
+
 private fun org.json.JSONArray?.toStringList(): List<String> =
     this?.let { array ->
         List(array.length()) { index ->
             array.optString(index)
         }.filter(String::isNotBlank)
+    }.orEmpty()
+
+private fun org.json.JSONArray?.toImportRows(): List<ParsedImportNormalizationRow> =
+    this?.let { array ->
+        List(array.length()) { index ->
+            array.getJSONObject(index).let { row ->
+                ParsedImportNormalizationRow(
+                    word = row.optString("word").trim(),
+                    meanings = row.optJSONArray("meanings").toStringList(),
+                    phoneticUk = row.optString("phonetic_uk").ifBlank { null },
+                    phoneticUs = row.optString("phonetic_us").ifBlank { null },
+                )
+            }
+        }.filter { it.word.isNotBlank() && it.meanings.isNotEmpty() }
     }.orEmpty()

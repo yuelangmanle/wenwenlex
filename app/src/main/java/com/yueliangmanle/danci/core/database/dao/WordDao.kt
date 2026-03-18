@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import com.yueliangmanle.danci.core.database.entity.WordEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -21,6 +22,9 @@ interface WordDao {
     @Query("SELECT * FROM words WHERE lemma = :lemma LIMIT 1")
     suspend fun getWordByLemma(lemma: String): WordEntity?
 
+    @Query("SELECT * FROM words WHERE id IN (:wordIds) ORDER BY lemma ASC")
+    suspend fun getWordsByIds(wordIds: List<Long>): List<WordEntity>
+
     @Query("SELECT * FROM words ORDER BY id ASC")
     suspend fun getAllWords(): List<WordEntity>
 
@@ -35,6 +39,9 @@ interface WordDao {
         """,
     )
     fun searchWords(query: String): Flow<List<WordEntity>>
+
+    @Update
+    suspend fun updateWord(word: WordEntity)
 
     @Query("DELETE FROM words")
     suspend fun clearWords()

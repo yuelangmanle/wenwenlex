@@ -23,6 +23,8 @@ fun WordDetailScreen(
     onAiContrastClick: () -> Unit = {},
     onExplainWordFormsClick: () -> Unit = {},
     onExpandExampleClick: () -> Unit = {},
+    onFillMissingPhoneticClick: () -> Unit = {},
+    onOverwritePhoneticClick: () -> Unit = {},
     onStartQuizClick: () -> Unit = {},
 ) {
     Column(
@@ -41,13 +43,25 @@ fun WordDetailScreen(
                     text = state.word,
                     style = MaterialTheme.typography.displaySmall,
                 )
-                state.phonetic?.let { phonetic ->
-                    Text(
-                        text = phonetic,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                Text(
+                    text = state.phoneticStatusLabel,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = state.phoneticSourceLabel,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "英式：${state.phoneticUk ?: "待补全"}",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    text = "美式：${state.phoneticUs ?: state.phonetic ?: "待补全"}",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 if (state.meanings.isNotEmpty()) {
                     Text(
                         text = state.meanings.joinToString("；"),
@@ -65,6 +79,33 @@ fun WordDetailScreen(
                     )
                 }
             }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            OutlinedButton(
+                onClick = onFillMissingPhoneticClick,
+                modifier = Modifier.weight(1f),
+                enabled = !state.isPhoneticLoading,
+            ) {
+                Text(if (state.isPhoneticLoading) "处理中…" else "补空白音标")
+            }
+            OutlinedButton(
+                onClick = onOverwritePhoneticClick,
+                modifier = Modifier.weight(1f),
+                enabled = !state.isPhoneticLoading,
+            ) {
+                Text("覆盖重拉")
+            }
+        }
+
+        state.statusMessage?.let { message ->
+            MessageCard(message = message, isError = false)
+        }
+        state.errorMessage?.let { message ->
+            MessageCard(message = message, isError = true)
         }
 
         Row(
@@ -125,6 +166,21 @@ fun WordDetailScreen(
         ) {
             Text("开始选择题复习")
         }
+    }
+}
+
+@Composable
+private fun MessageCard(
+    message: String,
+    isError: Boolean,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = message,
+            modifier = Modifier.padding(16.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+        )
     }
 }
 

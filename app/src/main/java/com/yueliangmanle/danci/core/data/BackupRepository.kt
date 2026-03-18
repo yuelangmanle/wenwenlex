@@ -33,9 +33,12 @@ class BackupRepository(
             snapshotProvider = {
                 BackupSnapshot(
                     settings = settingsRepository.getSettings(),
+                    aiProfiles = database.aiProviderProfileDao().getAllProfiles(),
                     books = database.bookDao().getAllBooks(),
                     bookWords = database.bookDao().getAllBookWordCrossRefs(),
                     words = database.wordDao().getAllWords(),
+                    importBatches = database.importBatchDao().getAllBatches(),
+                    phoneticEnrichmentJobs = database.phoneticEnrichmentJobDao().getAllJobs(),
                     learningRecords = database.studyDao().getAllLearningRecords(),
                     studySessions = database.studyDao().getAllStudySessions(),
                     studyEvents = database.studyDao().getAllStudyEvents(),
@@ -58,6 +61,9 @@ class BackupRepository(
         val file = requireNotNull(latestBackupFile()) { "还没有可恢复的本地备份" }
         val imported = BackupImporter().import(file.readBytes())
         database.withTransaction {
+            database.phoneticEnrichmentJobDao().clearJobs()
+            database.importBatchDao().clearBatches()
+            database.aiProviderProfileDao().clearProfiles()
             database.studyDao().clearStudyEvents()
             database.studyDao().clearStudySessions()
             database.studyDao().clearLearningRecords()
@@ -73,11 +79,20 @@ class BackupRepository(
             if (imported.snapshot.words.isNotEmpty()) {
                 database.wordDao().insertWords(imported.snapshot.words)
             }
+            if (imported.snapshot.aiProfiles.isNotEmpty()) {
+                database.aiProviderProfileDao().upsertProfiles(imported.snapshot.aiProfiles)
+            }
             if (imported.snapshot.books.isNotEmpty()) {
                 database.bookDao().insertBooks(imported.snapshot.books)
             }
             if (imported.snapshot.bookWords.isNotEmpty()) {
                 database.bookDao().insertBookWordCrossRefs(imported.snapshot.bookWords)
+            }
+            if (imported.snapshot.importBatches.isNotEmpty()) {
+                database.importBatchDao().insertBatches(imported.snapshot.importBatches)
+            }
+            if (imported.snapshot.phoneticEnrichmentJobs.isNotEmpty()) {
+                database.phoneticEnrichmentJobDao().insertJobs(imported.snapshot.phoneticEnrichmentJobs)
             }
             imported.snapshot.learningRecords.forEach { record ->
                 database.studyDao().upsertLearningRecord(record)
@@ -115,6 +130,10 @@ class BackupRepository(
         settingsRepository.updateAiEnabled(settings.aiEnabled)
         settingsRepository.updateAiBaseUrl(settings.aiBaseUrl)
         settingsRepository.updateAiModel(settings.aiModel)
+        settingsRepository.updateDefaultAiProfileId(settings.defaultAiProfileId)
+        settingsRepository.updateWordHelpProfileId(settings.wordHelpProfileId)
+        settingsRepository.updatePlanAdjustmentProfileId(settings.planAdjustmentProfileId)
+        settingsRepository.updatePhoneticFillProfileId(settings.phoneticFillProfileId)
         settingsRepository.updateAiPlanAdjustmentEnabled(settings.aiPlanAdjustmentEnabled)
         settingsRepository.updateAiSessionCheckpointEnabled(settings.aiSessionCheckpointEnabled)
         settingsRepository.updateReminderEnabled(settings.reminderEnabled)

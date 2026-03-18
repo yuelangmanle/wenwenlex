@@ -1,12 +1,14 @@
 package com.yueliangmanle.danci.feature.home
 
 import android.content.Context
+import com.yueliangmanle.danci.core.data.BookRepository
 import com.yueliangmanle.danci.core.ai.AiPlanAdjustmentResult
 import com.yueliangmanle.danci.core.ai.PlanSource
 import com.yueliangmanle.danci.core.data.AppSettings
-import com.yueliangmanle.danci.core.data.BuiltInBookCatalogItem
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
-import com.yueliangmanle.danci.core.data.parseBuiltInCatalog
+import com.yueliangmanle.danci.core.data.buildBookRepository
+import com.yueliangmanle.danci.core.data.syncBuiltInCatalogToDatabase
+import com.yueliangmanle.danci.core.model.Book
 import com.yueliangmanle.danci.core.model.LearningRecord
 import com.yueliangmanle.danci.core.study.ReviewScheduler
 import com.yueliangmanle.danci.core.study.TodayTaskEngine
@@ -37,7 +39,7 @@ data class HomeUiState(
 
 class HomeViewModel(
     private val settings: AppSettings,
-    private val builtInBooks: List<BuiltInBookCatalogItem>,
+    private val books: List<Book>,
     private val learningRecords: List<LearningRecord> = emptyList(),
     private val todayTaskEngine: TodayTaskEngine = TodayTaskEngine(),
     private val reviewScheduler: ReviewScheduler = ReviewScheduler(),
@@ -105,15 +107,16 @@ class HomeViewModel(
             aiFocusWords = result.recommendedFocus,
         )
 
-    private fun selectActiveBook(): BuiltInBookCatalogItem? =
-        builtInBooks.firstOrNull { it.id == settings.activeBookId } ?: builtInBooks.firstOrNull()
+    private fun selectActiveBook(): Book? =
+        books.firstOrNull { it.id == settings.activeBookId } ?: books.firstOrNull()
 }
 
 suspend fun loadHomeViewModel(context: Context): HomeViewModel {
+    syncBuiltInCatalogToDatabase(context)
     val settings = buildSettingsRepository(context).getSettings()
-    val builtInBooks = context.assets.open("books/manifest.json").use(::parseBuiltInCatalog)
+    val books = buildBookRepository(context).getAllBooks()
     return HomeViewModel(
         settings = settings,
-        builtInBooks = builtInBooks,
+        books = books,
     )
 }

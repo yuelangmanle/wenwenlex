@@ -29,10 +29,13 @@ private fun JSONArray.toImportedWords(): List<ImportedWord> =
         ImportedWord(
             text = item.getString("word"),
             phonetic = item.optString("phonetic").ifBlank { null },
+            phoneticUk = item.optString("phonetic_uk").ifBlank { null },
+            phoneticUs = item.optString("phonetic_us").ifBlank { null },
             meanings = item.optJSONArray("meaning").toStringList(),
             synonyms = item.optJSONArray("synonyms").toStringList(),
             antonyms = item.optJSONArray("antonyms").toStringList(),
             similarWords = item.optJSONArray("similar_words").toStringList(),
+            confusingWords = item.optJSONArray("confusing_words").toStringList(),
             wordForms = item.optJSONArray("word_forms").toStringList(),
             root = item.optString("root").ifBlank { null },
             exampleSentence = item.optString("example_sentence").ifBlank { null },

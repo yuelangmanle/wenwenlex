@@ -11,8 +11,8 @@
 
 - 项目名称：`文文Lex`
 - 仓库地址：[yuelangmanle/wenwenlex](https://github.com/yuelangmanle/wenwenlex)
-- 当前正式版本：`1.0`
-- 当前正式发布：`2026-03-18` 已发布 `v1.0`
+- 当前正式版本：`1.1`
+- 当前正式发布：`2026-03-19` 已发布 `v1.1`
 - 平台：Android
 - 开发语言：Kotlin
 - UI 技术：Jetpack Compose
@@ -27,7 +27,7 @@
 - 本地优先，离线学习是主链路
 - 支持内置词书、导入词书、自定义扩展
 - 支持学习记录、复习调度、统计、提醒、备份恢复
-- 支持 AI 分析、AI 讲解、AI 计划建议，但 AI 不是主流程硬依赖
+- 支持 AI 分析、AI 讲解、AI 音标补全、AI 计划建议，但 AI 不是主流程硬依赖
 - 正式发版主链路走 GitHub 云端
 
 ### 3.2 当前明确不做的方向
@@ -46,8 +46,8 @@
 - 更新日志：[CHANGELOG.md](../CHANGELOG.md)
 - 当前开发进度：[development-progress.md](./development-progress.md)
 - 发版签名说明：[release-signing.md](./release-signing.md)
-- 产品设计规格：[2026-03-18-vocabulary-android-design.md](./superpowers/specs/2026-03-18-vocabulary-android-design.md)
-- 实施计划：[2026-03-18-vocabulary-android-app.md](./superpowers/plans/2026-03-18-vocabulary-android-app.md)
+- `v1.1` 产品规格：[2026-03-19-v1.1-lexicon-import-ai-design.md](./superpowers/specs/2026-03-19-v1.1-lexicon-import-ai-design.md)
+- `v1.1` 实施计划：[2026-03-19-v1.1-lexicon-import-ai.md](./superpowers/plans/2026-03-19-v1.1-lexicon-import-ai.md)
 - 发布页面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
 - 构建页面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 
@@ -57,7 +57,7 @@
 app/                    Android 应用主体
 docs/                   对接文档、规格和计划
 .github/workflows/      云端 CI 与 Release 工作流
-scripts/                版本号与更新日志辅助脚本
+scripts/                版本号、更新日志和词库生成脚本
 CHANGELOG.md            发版更新日志来源
 README.md               项目入口说明
 ```
@@ -169,22 +169,30 @@ README.md               项目入口说明
 - Release 页面正文来源于 `CHANGELOG.md`
 - 禁止把 debug 包上传到正式 Release 页面替代正式包
 
-## 9. 签名与 Secrets 规则
+## 9. 词库、备份与 AI 规则
 
-仓库必须维护以下 4 个 GitHub Secrets：
+### 9.1 词库规则
 
-- `ANDROID_RELEASE_KEYSTORE_BASE64`
-- `ANDROID_RELEASE_STORE_PASSWORD`
-- `ANDROID_RELEASE_KEY_ALIAS`
-- `ANDROID_RELEASE_KEY_PASSWORD`
+- 内置词库资产统一位于 `app/src/main/assets/books/`
+- 来源底座为 ECDICT 标签词库，许可证为 MIT
+- 词库再生成统一使用 `scripts/generate_lexicons.py`
+- 改动内置词库后，必须同步检查 `manifest.json`、词书页展示和同步逻辑
 
-附加约束：
+### 9.2 备份规则
 
-- keystore 只作为密钥材料保存，不进入仓库
-- 后续所有正式版本必须沿用同一套签名 key
-- 如果更换签名 key，必须先安排用户备份、卸载旧版、再安装新版
+- 当前备份版本为 `v2`
+- 备份必须覆盖：词书、单词、学习数据、多 API 路由、导入批次、音标补全任务
+- API Key 不进入备份文件
+- 新版本仍必须兼容导入旧 `v1` 备份
 
-详细规则见：[release-signing.md](./release-signing.md)
+### 9.3 AI 路由规则
+
+- 至少维护一条“默认 API”档案
+- 功能级覆盖当前包含：
+  - 词条讲解
+  - 计划调整
+  - 音标补全
+- 新增 AI 功能时，必须明确它走默认 API 还是新增覆盖位
 
 ## 10. 文档实时更新规则
 
@@ -222,7 +230,7 @@ README.md               项目入口说明
 3. 看 [CHANGELOG.md](../CHANGELOG.md)
 4. 看 [.github/workflows/android-ci.yml](../.github/workflows/android-ci.yml)
 5. 看 [.github/workflows/android-release.yml](../.github/workflows/android-release.yml)
-6. 如涉及架构或 AI 策略，再看规格与实施计划
+6. 如涉及词库、导入或 AI 路由，再看 `v1.1` 规格与实施计划
 
 ## 12. 每轮迭代收尾清单
 
@@ -231,4 +239,4 @@ README.md               项目入口说明
 - 进度书已更新
 - 需要发版时，更新日志已补齐
 - README 入口没有失真
-- Release 或 CI 规则没有被文档遗漏
+- Release、CI、词库、备份规则没有被文档遗漏

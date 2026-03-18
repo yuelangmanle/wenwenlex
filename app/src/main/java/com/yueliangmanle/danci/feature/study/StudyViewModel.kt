@@ -6,8 +6,10 @@ import com.yueliangmanle.danci.core.ai.PlanSource
 import com.yueliangmanle.danci.core.data.NoOpStudyEventRecorder
 import com.yueliangmanle.danci.core.data.StudyEventRecorder
 import com.yueliangmanle.danci.core.data.buildAiMemoryRepository
+import com.yueliangmanle.danci.core.data.buildBookRepository
+import com.yueliangmanle.danci.core.data.buildSettingsRepository
 import com.yueliangmanle.danci.core.data.defaultLearningRecord
-import com.yueliangmanle.danci.core.importer.JsonBookImporter
+import com.yueliangmanle.danci.core.data.syncBuiltInCatalogToDatabase
 import com.yueliangmanle.danci.core.model.LearningRecord
 import com.yueliangmanle.danci.core.model.StudyEvent
 import com.yueliangmanle.danci.core.model.StudyEventType
@@ -202,9 +204,12 @@ class StudyViewModel(
     }
 }
 
-fun loadStudyViewModel(context: Context): StudyViewModel {
-    val book = context.assets.open("books/cet4.json").use(JsonBookImporter()::parse)
-    val queue = StudyQueueBuilder().buildFromImportedWords(book.words)
+suspend fun loadStudyViewModel(context: Context): StudyViewModel {
+    syncBuiltInCatalogToDatabase(context)
+    val settings = buildSettingsRepository(context).getSettings()
+    val bookRepository = buildBookRepository(context)
+    val activeBook = settings.activeBookId?.let { bookRepository.getBook(it) } ?: bookRepository.getAllBooks().first()
+    val queue = StudyQueueBuilder().buildFromWords(bookRepository.getWords(activeBook.id))
     return StudyViewModel(
         initialQueue = queue,
         eventRecorder = buildAiMemoryRepository(context),

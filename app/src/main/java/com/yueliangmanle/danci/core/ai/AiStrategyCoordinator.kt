@@ -5,6 +5,7 @@ import com.yueliangmanle.danci.core.data.AiMemoryRepository
 import com.yueliangmanle.danci.core.data.AppSettings
 import com.yueliangmanle.danci.core.data.buildAiMemoryRepository
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
+import com.yueliangmanle.danci.core.model.AiCapability
 import com.yueliangmanle.danci.core.model.AiMemorySummary
 import com.yueliangmanle.danci.core.model.Word
 import com.yueliangmanle.danci.core.security.AiCredentialStore
@@ -38,6 +39,12 @@ data class AiWordHelpResult(
     val title: String,
     val body: String,
     val bullets: List<String> = emptyList(),
+    val source: PlanSource,
+)
+
+data class AiPhoneticFillResult(
+    val phoneticUk: String? = null,
+    val phoneticUs: String? = null,
     val source: PlanSource,
 )
 
@@ -134,6 +141,37 @@ class AiStrategyCoordinator(
         } ?: localFallbackWordHelp(word, request, wrongOption, correctOption)
     }
 
+    suspend fun requestPhoneticFill(
+        settings: AppSettings,
+        runtimeSettings: AiRuntimeSettings?,
+        word: Word,
+    ): AiPhoneticFillResult {
+        if (!settings.aiEnabled || runtimeSettings?.enabled != true || runtimeSettings.apiKey.isNullOrBlank()) {
+            return localFallbackPhoneticFill(word)
+        }
+        val prompt = promptFactory.buildPhoneticFillPrompt(word)
+        val parsed = runCatching {
+            client.generate(
+                AiTextRequest(
+                    runtimeSettings = runtimeSettings,
+                    instructions = prompt.instructions,
+                    input = prompt.input,
+                    responseFormat = prompt.responseFormat,
+                ),
+            )
+        }.mapCatching { response ->
+            parser.parsePhoneticFill(response.text) ?: error("Invalid phonetic fill payload")
+        }.getOrNull()
+
+        return parsed?.let {
+            AiPhoneticFillResult(
+                phoneticUk = it.phoneticUk,
+                phoneticUs = it.phoneticUs,
+                source = PlanSource.AI,
+            )
+        } ?: localFallbackPhoneticFill(word)
+    }
+
     fun localFallbackPlan(snapshot: CurrentPlanSnapshot): AiPlanAdjustmentResult {
         val summary = when {
             snapshot.mistakeCount >= 5 -> "先压住错词密度，减少新词推进，把近义词和易混词回拉一轮。"
@@ -215,6 +253,13 @@ class AiStrategyCoordinator(
                 source = PlanSource.LOCAL_FALLBACK,
             )
         }
+
+    private fun localFallbackPhoneticFill(word: Word): AiPhoneticFillResult =
+        AiPhoneticFillResult(
+            phoneticUk = word.phoneticUk ?: word.phonetic,
+            phoneticUs = word.phoneticUs,
+            source = PlanSource.LOCAL_FALLBACK,
+        )
 }
 
 private object AiStrategyCoordinatorHolder {
@@ -255,7 +300,7 @@ suspend fun loadCurrentPlanSnapshot(
     val memory = memoryRepository.refreshMemorySummary()
     return CurrentPlanSnapshot(
         settings = settings,
-        runtimeSettings = buildRuntimeSettings(settings, buildAiCredentialStore(context)),
+        runtimeSettings = resolveRuntimeSettingsForCapability(context, AiCapability.PLAN_ADJUSTMENT),
         memory = memory,
         activeBookTitle = activeBookTitle,
         headline = headline,

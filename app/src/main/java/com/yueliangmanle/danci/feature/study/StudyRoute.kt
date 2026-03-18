@@ -7,9 +7,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import com.yueliangmanle.danci.core.ai.resolveRuntimeSettingsForCapability
 import com.yueliangmanle.danci.core.ai.buildAiStrategyCoordinator
 import com.yueliangmanle.danci.core.ai.loadCurrentPlanSnapshot
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
+import com.yueliangmanle.danci.core.model.AiCapability
 import kotlinx.coroutines.launch
 
 @Composable
@@ -21,20 +23,25 @@ fun StudyRoute(
     val settingsRepository = remember(context) {
         buildSettingsRepository(context)
     }
-    val viewModel = remember(context) {
-        loadStudyViewModel(context)
-    }
+    var viewModel: StudyViewModel? by remember(context) { mutableStateOf(null) }
     var state by remember(viewModel) {
-        mutableStateOf(viewModel.buildUiState())
+        mutableStateOf(StudyUiState())
+    }
+
+    androidx.compose.runtime.LaunchedEffect(context) {
+        val loaded = loadStudyViewModel(context)
+        viewModel = loaded
+        state = loaded.buildUiState()
     }
 
     StudyScreen(
         state = state,
         onFeedbackClick = { feedback ->
-            state = viewModel.submitFeedback(feedback)
+            val currentViewModel = viewModel ?: return@StudyScreen
+            state = currentViewModel.submitFeedback(feedback)
             scope.launch {
                 val settings = settingsRepository.getSettings()
-                val checkpoint = viewModel.consumeCheckpointRequest(
+                val checkpoint = currentViewModel.consumeCheckpointRequest(
                     sessionCheckpointsEnabled = settings.aiSessionCheckpointEnabled,
                 ) ?: return@launch
                 val snapshot = loadCurrentPlanSnapshot(
@@ -45,11 +52,11 @@ fun StudyRoute(
                     anomalyNotes = listOf(checkpoint.reason),
                 )
                 val result = buildAiStrategyCoordinator(context).adjustPlan(snapshot)
-                state = viewModel.applyCheckpointSuggestion(result)
+                state = currentViewModel.applyCheckpointSuggestion(result)
             }
         },
         onOpenDetailClick = {
-            viewModel.openCurrentWordDetail()
+            viewModel?.openCurrentWordDetail()
             onOpenDetailClick(state.currentWordId)
         },
     )

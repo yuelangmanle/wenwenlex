@@ -9,6 +9,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.yueliangmanle.danci.core.data.RoomStudyRepository
+import com.yueliangmanle.danci.core.data.buildAiProfileRepository
 import com.yueliangmanle.danci.core.data.buildBackupRepository
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
 import com.yueliangmanle.danci.core.database.buildDanciDatabase
@@ -26,6 +27,7 @@ fun MeRoute(
     val viewModel = remember(context) {
         MeViewModel(
             settingsRepository = buildSettingsRepository(context),
+            aiProfileRepository = buildAiProfileRepository(context),
             backupRepository = buildBackupRepository(context),
             studyRepository = RoomStudyRepository(buildDanciDatabase(context).studyDao()),
             reminderScheduler = DailyReminderScheduler(context),

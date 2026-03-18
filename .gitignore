@@ -4,5 +4,6 @@
 .kotlin/
 app/build/
 output/
+release-local/
 local.properties
 *.iml

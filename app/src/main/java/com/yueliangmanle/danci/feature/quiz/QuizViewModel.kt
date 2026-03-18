@@ -9,9 +9,9 @@ import com.yueliangmanle.danci.core.data.AppSettings
 import com.yueliangmanle.danci.core.data.NoOpStudyEventRecorder
 import com.yueliangmanle.danci.core.data.StudyEventRecorder
 import com.yueliangmanle.danci.core.data.buildAiMemoryRepository
+import com.yueliangmanle.danci.core.data.buildWordRepository
 import com.yueliangmanle.danci.core.data.findRelatedWords
-import com.yueliangmanle.danci.core.data.loadBuiltInWord
-import com.yueliangmanle.danci.core.data.loadBuiltInWords
+import com.yueliangmanle.danci.core.data.syncBuiltInCatalogToDatabase
 import com.yueliangmanle.danci.core.model.StudyEvent
 import com.yueliangmanle.danci.core.model.StudyEventType
 import com.yueliangmanle.danci.core.model.Word
@@ -141,12 +141,14 @@ class QuizViewModel(
     }
 }
 
-fun loadQuizViewModel(
+suspend fun loadQuizViewModel(
     context: Context,
     wordId: Long,
 ): QuizViewModel {
-    val words = loadBuiltInWords(context)
-    val target = loadBuiltInWord(context, wordId) ?: words.first()
+    syncBuiltInCatalogToDatabase(context)
+    val wordRepository = buildWordRepository(context)
+    val words = wordRepository.getAllWords()
+    val target = wordRepository.getWord(wordId) ?: words.first()
     val confusionWords = findRelatedWords(target, words)
     val fallbackWords = words.filterNot { it.id == target.id }
     val question = QuizGenerator().createQuestion(

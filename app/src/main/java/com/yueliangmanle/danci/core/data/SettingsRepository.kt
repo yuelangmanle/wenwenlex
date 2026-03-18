@@ -19,6 +19,10 @@ data class AppSettings(
     val aiEnabled: Boolean = false,
     val aiBaseUrl: String = DEFAULT_AI_BASE_URL,
     val aiModel: String = DEFAULT_AI_MODEL,
+    val defaultAiProfileId: String? = null,
+    val wordHelpProfileId: String? = null,
+    val planAdjustmentProfileId: String? = null,
+    val phoneticFillProfileId: String? = null,
     val aiPlanAdjustmentEnabled: Boolean = true,
     val aiSessionCheckpointEnabled: Boolean = true,
     val reminderEnabled: Boolean = false,
@@ -41,6 +45,14 @@ interface SettingsRepository {
 
     suspend fun updateAiModel(model: String)
 
+    suspend fun updateDefaultAiProfileId(profileId: String?)
+
+    suspend fun updateWordHelpProfileId(profileId: String?)
+
+    suspend fun updatePlanAdjustmentProfileId(profileId: String?)
+
+    suspend fun updatePhoneticFillProfileId(profileId: String?)
+
     suspend fun updateAiPlanAdjustmentEnabled(enabled: Boolean)
 
     suspend fun updateAiSessionCheckpointEnabled(enabled: Boolean)
@@ -60,6 +72,10 @@ private object SettingsPreferencesKeys {
     val aiEnabled = booleanPreferencesKey("ai_enabled")
     val aiBaseUrl = stringPreferencesKey("ai_base_url")
     val aiModel = stringPreferencesKey("ai_model")
+    val defaultAiProfileId = stringPreferencesKey("default_ai_profile_id")
+    val wordHelpProfileId = stringPreferencesKey("word_help_profile_id")
+    val planAdjustmentProfileId = stringPreferencesKey("plan_adjustment_profile_id")
+    val phoneticFillProfileId = stringPreferencesKey("phonetic_fill_profile_id")
     val aiPlanAdjustmentEnabled = booleanPreferencesKey("ai_plan_adjustment_enabled")
     val aiSessionCheckpointEnabled = booleanPreferencesKey("ai_session_checkpoint_enabled")
     val reminderEnabled = booleanPreferencesKey("reminder_enabled")
@@ -78,6 +94,10 @@ class DataStoreSettingsRepository(
                 aiEnabled = preferences[SettingsPreferencesKeys.aiEnabled] ?: false,
                 aiBaseUrl = preferences[SettingsPreferencesKeys.aiBaseUrl] ?: DEFAULT_AI_BASE_URL,
                 aiModel = preferences[SettingsPreferencesKeys.aiModel] ?: DEFAULT_AI_MODEL,
+                defaultAiProfileId = preferences[SettingsPreferencesKeys.defaultAiProfileId],
+                wordHelpProfileId = preferences[SettingsPreferencesKeys.wordHelpProfileId],
+                planAdjustmentProfileId = preferences[SettingsPreferencesKeys.planAdjustmentProfileId],
+                phoneticFillProfileId = preferences[SettingsPreferencesKeys.phoneticFillProfileId],
                 aiPlanAdjustmentEnabled = preferences[SettingsPreferencesKeys.aiPlanAdjustmentEnabled] ?: true,
                 aiSessionCheckpointEnabled = preferences[SettingsPreferencesKeys.aiSessionCheckpointEnabled] ?: true,
                 reminderEnabled = preferences[SettingsPreferencesKeys.reminderEnabled] ?: false,
@@ -122,6 +142,22 @@ class DataStoreSettingsRepository(
         }
     }
 
+    override suspend fun updateDefaultAiProfileId(profileId: String?) {
+        updateNullableString(SettingsPreferencesKeys.defaultAiProfileId, profileId)
+    }
+
+    override suspend fun updateWordHelpProfileId(profileId: String?) {
+        updateNullableString(SettingsPreferencesKeys.wordHelpProfileId, profileId)
+    }
+
+    override suspend fun updatePlanAdjustmentProfileId(profileId: String?) {
+        updateNullableString(SettingsPreferencesKeys.planAdjustmentProfileId, profileId)
+    }
+
+    override suspend fun updatePhoneticFillProfileId(profileId: String?) {
+        updateNullableString(SettingsPreferencesKeys.phoneticFillProfileId, profileId)
+    }
+
     override suspend fun updateAiPlanAdjustmentEnabled(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[SettingsPreferencesKeys.aiPlanAdjustmentEnabled] = enabled
@@ -144,6 +180,19 @@ class DataStoreSettingsRepository(
         dataStore.edit { preferences ->
             preferences[SettingsPreferencesKeys.reminderHour] = hour.coerceIn(0, 23)
             preferences[SettingsPreferencesKeys.reminderMinute] = minute.coerceIn(0, 59)
+        }
+    }
+
+    private suspend fun updateNullableString(
+        key: Preferences.Key<String>,
+        value: String?,
+    ) {
+        dataStore.edit { preferences ->
+            if (value.isNullOrBlank()) {
+                preferences.remove(key)
+            } else {
+                preferences[key] = value
+            }
         }
     }
 }

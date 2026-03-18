@@ -1,30 +1,50 @@
 # 文文Lex
 
-文文Lex 是一个原生 Android 背单词 App，使用 Kotlin + Jetpack Compose 构建，主打离线学习、AI 辅助分析、本地数据掌控和后续可持续迭代的云端发版流程。
+文文Lex 是一个原生 Android 背单词 App，使用 Kotlin + Jetpack Compose 构建，主打离线学习、真实内置词库、Excel 导入、AI API 可选增强和持续可迭代的 GitHub 云端发版流程。
 
 ## 当前状态
 
-- 当前首发版本号：`1.0`
+- 当前正式版本：`1.1`
 - 版本规则：每次迭代递增 `0.1`，按 `1.0 -> 1.1 -> ... -> 1.9 -> 2.0` 进位
-- 正式发包界面：GitHub Releases
-- 开发验证界面：GitHub Actions
+- 正式发包界面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
+- 开发验证界面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 
 ## 协作文档入口
 
 - [协作开发书](docs/collaboration-handbook.md)
 - [开发进度书](docs/development-progress.md)
 - [发版签名说明](docs/release-signing.md)
-- [产品设计规格](docs/superpowers/specs/2026-03-18-vocabulary-android-design.md)
-- [实施计划](docs/superpowers/plans/2026-03-18-vocabulary-android-app.md)
+- [v1.1 产品规格](docs/superpowers/specs/2026-03-19-v1.1-lexicon-import-ai-design.md)
+- [v1.1 实施计划](docs/superpowers/plans/2026-03-19-v1.1-lexicon-import-ai.md)
 
-## 已实现能力
+## 1.1 已实现能力
 
 - 首页、学习、词书、我的 四大主导航
-- 内置 CET4、CET6、考研词书，并支持 CSV / JSON 导入
-- 学习卡片流、选择题复习、单词详情页
-- AI 设置、AI 上下文整理、学习建议与复盘入口
-- 每日提醒、备份恢复、我的页统一设置入口
-- 本地优先的数据架构，API Key 不写入备份文件
+- 卡片学习流、选择题复习流、单词详情页与结构化学习记录
+- 单词详情中的近义词、反义词、拼写相近词、易混词、单词变形、词根词缀展示
+- Excel 词书导入，支持 `.xlsx`、A 列单词 / B 列中文义、中英文逗号拆分
+- AI 适配不规整 Excel 表格结构，并把预览后的结果确认导入
+- 词书详情页，支持设为当前词书、查看音标覆盖率、批量补空白音标、覆盖全部音标
+- 多 API 档案管理，支持本地加密保存多条 API Key
+- 全局默认 API 与功能级覆盖切换：
+  - 词条讲解
+  - 计划调整
+  - 音标补全
+- 真实内置词库：
+  - 四级 `3844`
+  - 六级 `5401`
+  - 考研 `4796`
+  - 高中 `3666`
+  - 雅思基础 `5026`
+- 本地 ZIP 备份与恢复，备份版本升级到 `v2`，兼容导入 `v1`
+- 每日提醒、本地 AI 摘要整理与 WorkManager 后台任务
+
+## 内置词库来源
+
+- 当前内置词库底座：ECDICT 标签词库
+- 许可证：MIT
+- 生成脚本：[scripts/generate_lexicons.py](scripts/generate_lexicons.py)
+- 生成结果位置：`app/src/main/assets/books/*.json`
 
 ## 云端发包与更新界面
 
@@ -54,7 +74,7 @@
 - 如果你手机里装的是早期 `debug` 内测包，切到新的 `release-signed` 正式包时，Android 可能提示签名不一致。
 - 遇到这种情况，需要先在 App 内完成备份，然后卸载旧包，再安装新的 Release 包，最后恢复备份。
 
-### 发版流程
+## 发版流程
 
 1. 在 [CHANGELOG.md](CHANGELOG.md) 里新增对应版本的小节，先写完整更新日志。
 2. 把代码推到目标分支。
@@ -78,7 +98,7 @@
 - 版本号固定使用一位小数，例如 `1.0`、`1.1`、`2.0`
 - 每次发版前必须先更新 `CHANGELOG.md`
 - Release 页面正文直接从 `CHANGELOG.md` 对应版本段落生成
-- 当前云端发布产物为 `release-signed APK`，适合正式安装和后续升级
+- 当前云端发布产物为 `release-signed APK`
 
 ## 签名密钥与 GitHub Secrets
 
@@ -93,7 +113,7 @@
 
 ## 本地兜底
 
-虽然以后主流程走 GitHub 云端发包，但本地仍保留基础环境兜底：
+虽然正式主流程走 GitHub 云端发包，但本地仍保留基础环境兜底：
 
 - JDK 17
 - Android SDK

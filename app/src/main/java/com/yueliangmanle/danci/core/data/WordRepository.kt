@@ -2,9 +2,14 @@ package com.yueliangmanle.danci.core.data
 
 import android.content.Context
 import com.yueliangmanle.danci.core.database.dao.WordDao
+import com.yueliangmanle.danci.core.database.buildDanciDatabase
 import com.yueliangmanle.danci.core.database.entity.WordEntity
 import com.yueliangmanle.danci.core.importer.ImportedWord
 import com.yueliangmanle.danci.core.importer.JsonBookImporter
+import com.yueliangmanle.danci.core.model.PHONETIC_SOURCE_IMPORTED
+import com.yueliangmanle.danci.core.model.PHONETIC_STATUS_COMPLETE
+import com.yueliangmanle.danci.core.model.PHONETIC_STATUS_EMPTY
+import com.yueliangmanle.danci.core.model.PHONETIC_STATUS_PARTIAL
 import com.yueliangmanle.danci.core.model.Word
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -12,7 +17,10 @@ import kotlinx.coroutines.flow.map
 interface WordRepository {
     fun observeWords(query: String = ""): Flow<List<Word>>
     suspend fun getWord(wordId: Long): Word?
+    suspend fun getWords(wordIds: List<Long>): List<Word>
+    suspend fun getAllWords(): List<Word>
     suspend fun insertWord(word: Word): Long
+    suspend fun updateWord(word: Word)
     suspend fun importWords(words: List<ImportedWord>): List<Long>
 }
 
@@ -26,6 +34,15 @@ class RoomWordRepository(
 
     override suspend fun getWord(wordId: Long): Word? = wordDao.getWordById(wordId)?.asExternalModel()
 
+    override suspend fun getWords(wordIds: List<Long>): List<Word> =
+        if (wordIds.isEmpty()) {
+            emptyList()
+        } else {
+            wordDao.getWordsByIds(wordIds).map(WordEntity::asExternalModel)
+        }
+
+    override suspend fun getAllWords(): List<Word> = wordDao.getAllWords().map(WordEntity::asExternalModel)
+
     override suspend fun insertWord(word: Word): Long {
         val insertedId = wordDao.insertWord(word.asEntity())
         if (insertedId != -1L) {
@@ -34,6 +51,10 @@ class RoomWordRepository(
         return requireNotNull(wordDao.getWordByLemma(word.lemma)) {
             "Expected canonical word to exist for lemma=${word.lemma}"
         }.id
+    }
+
+    override suspend fun updateWord(word: Word) {
+        wordDao.updateWord(word.asEntity())
     }
 
     override suspend fun importWords(words: List<ImportedWord>): List<Long> =
@@ -45,6 +66,11 @@ internal fun WordEntity.asExternalModel(): Word =
         id = id,
         lemma = lemma,
         phonetic = phonetic,
+        phoneticUk = phoneticUk,
+        phoneticUs = phoneticUs,
+        phoneticSource = phoneticSource,
+        phoneticStatus = phoneticStatus,
+        phoneticUpdatedAt = phoneticUpdatedAt,
         partOfSpeech = partOfSpeech,
         meanings = meanings,
         exampleSentence = exampleSentence,
@@ -65,6 +91,11 @@ internal fun Word.asEntity(): WordEntity =
         id = id,
         lemma = lemma,
         phonetic = phonetic,
+        phoneticUk = phoneticUk,
+        phoneticUs = phoneticUs,
+        phoneticSource = phoneticSource,
+        phoneticStatus = phoneticStatus,
+        phoneticUpdatedAt = phoneticUpdatedAt,
         partOfSpeech = partOfSpeech,
         meanings = meanings,
         exampleSentence = exampleSentence,
@@ -83,16 +114,28 @@ internal fun Word.asEntity(): WordEntity =
 internal fun ImportedWord.asWord(): Word =
     Word(
         lemma = text,
-        phonetic = phonetic,
+        phonetic = phonetic ?: phoneticUk ?: phoneticUs,
+        phoneticUk = phoneticUk,
+        phoneticUs = phoneticUs,
+        phoneticSource = PHONETIC_SOURCE_IMPORTED,
+        phoneticStatus = when {
+            !phoneticUk.isNullOrBlank() && !phoneticUs.isNullOrBlank() -> PHONETIC_STATUS_COMPLETE
+            !phonetic.isNullOrBlank() || !phoneticUk.isNullOrBlank() || !phoneticUs.isNullOrBlank() -> PHONETIC_STATUS_PARTIAL
+            else -> PHONETIC_STATUS_EMPTY
+        },
         meanings = meanings,
         synonyms = synonyms,
         antonyms = antonyms,
         similarWords = similarWords,
+        confusingWords = confusingWords,
         wordForms = wordForms,
         root = root,
         exampleSentence = exampleSentence,
         exampleTranslation = exampleTranslation,
     )
+
+fun buildWordRepository(context: Context): WordRepository =
+    RoomWordRepository(buildDanciDatabase(context.applicationContext).wordDao())
 
 fun loadBuiltInWords(
     context: Context,

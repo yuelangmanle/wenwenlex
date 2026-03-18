@@ -1,9 +1,12 @@
 package com.yueliangmanle.danci.core.backup
 
 import com.yueliangmanle.danci.core.data.AppSettings
+import com.yueliangmanle.danci.core.database.entity.AiProviderProfileEntity
 import com.yueliangmanle.danci.core.database.entity.BookEntity
 import com.yueliangmanle.danci.core.database.entity.BookWordEntity
+import com.yueliangmanle.danci.core.database.entity.ImportBatchEntity
 import com.yueliangmanle.danci.core.database.entity.LearningRecordEntity
+import com.yueliangmanle.danci.core.database.entity.PhoneticEnrichmentJobEntity
 import com.yueliangmanle.danci.core.database.entity.StudyEventEntity
 import com.yueliangmanle.danci.core.database.entity.StudySessionEntity
 import com.yueliangmanle.danci.core.database.entity.WordEntity
@@ -40,8 +43,11 @@ class BackupExporter(
     }
 
     private fun buildBackupSections(): List<String> = REQUIRED_BACKUP_SECTIONS + listOf(
+        "ai_profiles",
         "books",
         "words",
+        "import_batches",
+        "phonetic_enrichment_jobs",
         "study_data",
     )
 
@@ -72,9 +78,12 @@ internal fun BackupManifest.toJson(): JSONObject =
 internal fun BackupSnapshot.toJson(): JSONObject =
     JSONObject()
         .put("settings", settings.toJson())
+        .put("ai_profiles", JSONArray(aiProfiles.map(AiProviderProfileEntity::toJson)))
         .put("books", JSONArray(books.map(BookEntity::toJson)))
         .put("book_words", JSONArray(bookWords.map(BookWordEntity::toJson)))
         .put("words", JSONArray(words.map(WordEntity::toJson)))
+        .put("import_batches", JSONArray(importBatches.map(ImportBatchEntity::toJson)))
+        .put("phonetic_enrichment_jobs", JSONArray(phoneticEnrichmentJobs.map(PhoneticEnrichmentJobEntity::toJson)))
         .put("learning_records", JSONArray(learningRecords.map(LearningRecordEntity::toJson)))
         .put("study_sessions", JSONArray(studySessions.map(StudySessionEntity::toJson)))
         .put("study_events", JSONArray(studyEvents.map(StudyEventEntity::toJson)))
@@ -87,11 +96,27 @@ internal fun AppSettings.toJson(): JSONObject =
         .put("ai_enabled", aiEnabled)
         .put("ai_base_url", aiBaseUrl)
         .put("ai_model", aiModel)
+        .put("default_ai_profile_id", defaultAiProfileId)
+        .put("word_help_profile_id", wordHelpProfileId)
+        .put("plan_adjustment_profile_id", planAdjustmentProfileId)
+        .put("phonetic_fill_profile_id", phoneticFillProfileId)
         .put("ai_plan_adjustment_enabled", aiPlanAdjustmentEnabled)
         .put("ai_session_checkpoint_enabled", aiSessionCheckpointEnabled)
         .put("reminder_enabled", reminderEnabled)
         .put("reminder_hour", reminderHour)
         .put("reminder_minute", reminderMinute)
+
+internal fun AiProviderProfileEntity.toJson(): JSONObject =
+    JSONObject()
+        .put("id", id)
+        .put("name", name)
+        .put("provider_type", providerType)
+        .put("base_url", baseUrl)
+        .put("model", model)
+        .put("enabled", enabled)
+        .put("created_at", createdAt.toBackupString())
+        .put("updated_at", updatedAt.toBackupString())
+        .put("last_validated_at", lastValidatedAt.toBackupString())
 
 internal fun BookEntity.toJson(): JSONObject =
     JSONObject()
@@ -119,6 +144,11 @@ internal fun WordEntity.toJson(): JSONObject =
         .put("id", id)
         .put("lemma", lemma)
         .put("phonetic", phonetic)
+        .put("phonetic_uk", phoneticUk)
+        .put("phonetic_us", phoneticUs)
+        .put("phonetic_source", phoneticSource)
+        .put("phonetic_status", phoneticStatus)
+        .put("phonetic_updated_at", phoneticUpdatedAt.toBackupString())
         .put("part_of_speech", JSONArray(partOfSpeech))
         .put("meanings", JSONArray(meanings))
         .put("example_sentence", exampleSentence)
@@ -132,6 +162,34 @@ internal fun WordEntity.toJson(): JSONObject =
         .put("tags", JSONArray(tags))
         .put("frequency_rank", frequencyRank)
         .put("pronunciation_url", pronunciationUrl)
+
+internal fun ImportBatchEntity.toJson(): JSONObject =
+    JSONObject()
+        .put("id", id)
+        .put("book_id", bookId)
+        .put("file_name", fileName)
+        .put("sheet_name", sheetName)
+        .put("parser_mode", parserMode)
+        .put("total_rows", totalRows)
+        .put("imported_rows", importedRows)
+        .put("skipped_rows", skippedRows)
+        .put("ai_normalized_count", aiNormalizedCount)
+        .put("ai_completed_count", aiCompletedCount)
+        .put("created_at", createdAt.toBackupString())
+
+internal fun PhoneticEnrichmentJobEntity.toJson(): JSONObject =
+    JSONObject()
+        .put("id", id)
+        .put("scope_type", scopeType)
+        .put("scope_ref", scopeRef)
+        .put("profile_id", profileId)
+        .put("fill_mode", fillMode)
+        .put("status", status)
+        .put("total_count", totalCount)
+        .put("completed_count", completedCount)
+        .put("failed_count", failedCount)
+        .put("created_at", createdAt.toBackupString())
+        .put("updated_at", updatedAt.toBackupString())
 
 internal fun LearningRecordEntity.toJson(): JSONObject =
     JSONObject()

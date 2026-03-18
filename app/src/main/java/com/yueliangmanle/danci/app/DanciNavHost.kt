@@ -7,7 +7,11 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.navArgument
+import com.yueliangmanle.danci.feature.books.BOOK_IMPORT_ROUTE
+import com.yueliangmanle.danci.feature.books.BookDetailRoute
+import com.yueliangmanle.danci.feature.books.BookImportRoute
 import com.yueliangmanle.danci.feature.books.BooksRoute
+import com.yueliangmanle.danci.feature.books.bookDetailRoute
 import com.yueliangmanle.danci.feature.home.HomeRoute
 import com.yueliangmanle.danci.feature.me.AiSettingsRoute
 import com.yueliangmanle.danci.feature.me.AI_SETTINGS_ROUTE
@@ -48,7 +52,14 @@ fun DanciNavHost(
                             navController.navigate(wordDetailRoute(wordId))
                         },
                     )
-                    TopLevelDestination.BOOKS -> BooksRoute()
+                    TopLevelDestination.BOOKS -> BooksRoute(
+                        onImportClick = {
+                            navController.navigate(BOOK_IMPORT_ROUTE)
+                        },
+                        onBookClick = { bookId ->
+                            navController.navigate(bookDetailRoute(bookId))
+                        },
+                    )
                     TopLevelDestination.ME -> MeRoute(
                         onOpenAiSettingsClick = {
                             navController.navigate(AI_SETTINGS_ROUTE)
@@ -87,6 +98,27 @@ fun DanciNavHost(
         }
         composable(route = AI_SETTINGS_ROUTE) {
             AiSettingsRoute()
+        }
+        composable(route = BOOK_IMPORT_ROUTE) {
+            BookImportRoute(
+                onImportedBook = { bookId ->
+                    navController.navigate(bookDetailRoute(bookId))
+                },
+            )
+        }
+        composable(
+            route = "book_detail/{bookId}",
+            arguments = listOf(
+                navArgument("bookId") { type = NavType.StringType },
+            ),
+        ) { backStackEntry ->
+            val bookId = backStackEntry.arguments?.getString("bookId").orEmpty()
+            BookDetailRoute(
+                bookId = bookId,
+                onWordClick = { wordId ->
+                    navController.navigate(wordDetailRoute(wordId))
+                },
+            )
         }
     }
 }

@@ -1,12 +1,19 @@
 package com.yueliangmanle.danci.core.backup
 
 import com.yueliangmanle.danci.core.data.AppSettings
+import com.yueliangmanle.danci.core.database.entity.AiProviderProfileEntity
 import com.yueliangmanle.danci.core.database.entity.BookEntity
 import com.yueliangmanle.danci.core.database.entity.BookWordEntity
+import com.yueliangmanle.danci.core.database.entity.ImportBatchEntity
 import com.yueliangmanle.danci.core.database.entity.LearningRecordEntity
+import com.yueliangmanle.danci.core.database.entity.PhoneticEnrichmentJobEntity
 import com.yueliangmanle.danci.core.database.entity.StudyEventEntity
 import com.yueliangmanle.danci.core.database.entity.StudySessionEntity
 import com.yueliangmanle.danci.core.database.entity.WordEntity
+import com.yueliangmanle.danci.core.model.PHONETIC_SOURCE_EMPTY
+import com.yueliangmanle.danci.core.model.PHONETIC_SOURCE_LEGACY
+import com.yueliangmanle.danci.core.model.PHONETIC_STATUS_EMPTY
+import com.yueliangmanle.danci.core.model.PHONETIC_STATUS_PARTIAL
 import com.yueliangmanle.danci.core.model.AiMemorySummary
 import com.yueliangmanle.danci.core.model.ConfusionEdge
 import com.yueliangmanle.danci.core.model.DailySummary
@@ -24,13 +31,13 @@ class BackupImporter {
         val manifestJson = requireNotNull(entries[MANIFEST_FILE_NAME]) { "Missing $MANIFEST_FILE_NAME" }
         val payloadJson = requireNotNull(entries[PAYLOAD_FILE_NAME]) { "Missing $PAYLOAD_FILE_NAME" }
         val manifest = manifestJson.toBackupManifest()
-        require(manifest.version == BACKUP_VERSION) { "Unsupported backup version: ${manifest.version}" }
+        require(manifest.version in SUPPORTED_BACKUP_VERSIONS) { "Unsupported backup version: ${manifest.version}" }
         REQUIRED_BACKUP_SECTIONS.forEach { section ->
             require(section in manifest.sections) { "Missing required backup section: $section" }
         }
         return ImportedBackup(
             manifest = manifest,
-            snapshot = payloadJson.toBackupSnapshot(),
+            snapshot = payloadJson.toBackupSnapshot(manifest.version),
         )
     }
 
@@ -56,13 +63,16 @@ internal fun String.toBackupManifest(): BackupManifest {
     )
 }
 
-internal fun String.toBackupSnapshot(): BackupSnapshot {
+internal fun String.toBackupSnapshot(version: Int = BACKUP_VERSION): BackupSnapshot {
     val json = JSONObject(this)
     return BackupSnapshot(
         settings = json.getJSONObject("settings").toAppSettings(),
+        aiProfiles = json.optJSONArray("ai_profiles").mapObjects(JSONObject::toAiProviderProfileEntity),
         books = json.getJSONArray("books").mapObjects(JSONObject::toBookEntity),
         bookWords = json.getJSONArray("book_words").mapObjects(JSONObject::toBookWordEntity),
-        words = json.getJSONArray("words").mapObjects(JSONObject::toWordEntity),
+        words = json.getJSONArray("words").mapObjects { toWordEntity(version) },
+        importBatches = json.optJSONArray("import_batches").mapObjects(JSONObject::toImportBatchEntity),
+        phoneticEnrichmentJobs = json.optJSONArray("phonetic_enrichment_jobs").mapObjects(JSONObject::toPhoneticEnrichmentJobEntity),
         learningRecords = json.getJSONArray("learning_records").mapObjects(JSONObject::toLearningRecordEntity),
         studySessions = json.getJSONArray("study_sessions").mapObjects(JSONObject::toStudySessionEntity),
         studyEvents = json.getJSONArray("study_events").mapObjects(JSONObject::toStudyEventEntity),
@@ -77,11 +87,28 @@ internal fun JSONObject.toAppSettings(): AppSettings =
         aiEnabled = getBoolean("ai_enabled"),
         aiBaseUrl = optNullableString("ai_base_url") ?: com.yueliangmanle.danci.core.data.DEFAULT_AI_BASE_URL,
         aiModel = optNullableString("ai_model") ?: com.yueliangmanle.danci.core.data.DEFAULT_AI_MODEL,
+        defaultAiProfileId = optNullableString("default_ai_profile_id"),
+        wordHelpProfileId = optNullableString("word_help_profile_id"),
+        planAdjustmentProfileId = optNullableString("plan_adjustment_profile_id"),
+        phoneticFillProfileId = optNullableString("phonetic_fill_profile_id"),
         aiPlanAdjustmentEnabled = getBoolean("ai_plan_adjustment_enabled"),
         aiSessionCheckpointEnabled = getBoolean("ai_session_checkpoint_enabled"),
         reminderEnabled = optBoolean("reminder_enabled", false),
         reminderHour = optInt("reminder_hour", 21),
         reminderMinute = optInt("reminder_minute", 0),
+    )
+
+internal fun JSONObject.toAiProviderProfileEntity(): AiProviderProfileEntity =
+    AiProviderProfileEntity(
+        id = getString("id"),
+        name = getString("name"),
+        providerType = optNullableString("provider_type") ?: "custom",
+        baseUrl = getString("base_url"),
+        model = getString("model"),
+        enabled = optBoolean("enabled", true),
+        createdAt = optInstant("created_at") ?: java.time.Instant.EPOCH,
+        updatedAt = optInstant("updated_at") ?: java.time.Instant.EPOCH,
+        lastValidatedAt = optInstant("last_validated_at"),
     )
 
 internal fun JSONObject.toBookEntity(): BookEntity =
@@ -107,11 +134,26 @@ internal fun JSONObject.toBookWordEntity(): BookWordEntity =
         note = optNullableString("note"),
     )
 
-internal fun JSONObject.toWordEntity(): WordEntity =
-    WordEntity(
+internal fun JSONObject.toWordEntity(version: Int = BACKUP_VERSION): WordEntity {
+    val phonetic = optNullableString("phonetic")
+    val phoneticUk = optNullableString("phonetic_uk")
+        ?: phonetic.takeIf { version == 1 && !it.isNullOrBlank() }
+    val phoneticUs = optNullableString("phonetic_us")
+    return WordEntity(
         id = getLong("id"),
         lemma = getString("lemma"),
-        phonetic = optNullableString("phonetic"),
+        phonetic = phonetic,
+        phoneticUk = phoneticUk,
+        phoneticUs = phoneticUs,
+        phoneticSource = optNullableString("phonetic_source") ?: when {
+            !phonetic.isNullOrBlank() -> PHONETIC_SOURCE_LEGACY
+            else -> PHONETIC_SOURCE_EMPTY
+        },
+        phoneticStatus = optNullableString("phonetic_status") ?: when {
+            !phonetic.isNullOrBlank() -> PHONETIC_STATUS_PARTIAL
+            else -> PHONETIC_STATUS_EMPTY
+        },
+        phoneticUpdatedAt = optInstant("phonetic_updated_at"),
         partOfSpeech = optJSONArray("part_of_speech").toStringList(),
         meanings = optJSONArray("meanings").toStringList(),
         exampleSentence = optNullableString("example_sentence"),
@@ -125,6 +167,37 @@ internal fun JSONObject.toWordEntity(): WordEntity =
         tags = optJSONArray("tags").toStringList(),
         frequencyRank = optIntOrNull("frequency_rank"),
         pronunciationUrl = optNullableString("pronunciation_url"),
+    )
+}
+
+internal fun JSONObject.toImportBatchEntity(): ImportBatchEntity =
+    ImportBatchEntity(
+        id = optLongOrNull("id") ?: 0L,
+        bookId = getString("book_id"),
+        fileName = getString("file_name"),
+        sheetName = optNullableString("sheet_name"),
+        parserMode = optNullableString("parser_mode") ?: "strict",
+        totalRows = optInt("total_rows", 0),
+        importedRows = optInt("imported_rows", 0),
+        skippedRows = optInt("skipped_rows", 0),
+        aiNormalizedCount = optInt("ai_normalized_count", 0),
+        aiCompletedCount = optInt("ai_completed_count", 0),
+        createdAt = optInstant("created_at") ?: java.time.Instant.EPOCH,
+    )
+
+internal fun JSONObject.toPhoneticEnrichmentJobEntity(): PhoneticEnrichmentJobEntity =
+    PhoneticEnrichmentJobEntity(
+        id = optLongOrNull("id") ?: 0L,
+        scopeType = getString("scope_type"),
+        scopeRef = getString("scope_ref"),
+        profileId = optNullableString("profile_id"),
+        fillMode = getString("fill_mode"),
+        status = getString("status"),
+        totalCount = optInt("total_count", 0),
+        completedCount = optInt("completed_count", 0),
+        failedCount = optInt("failed_count", 0),
+        createdAt = optInstant("created_at") ?: java.time.Instant.EPOCH,
+        updatedAt = optInstant("updated_at") ?: java.time.Instant.EPOCH,
     )
 
 internal fun JSONObject.toLearningRecordEntity(): LearningRecordEntity =

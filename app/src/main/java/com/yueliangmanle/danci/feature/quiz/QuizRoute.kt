@@ -8,9 +8,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.yueliangmanle.danci.core.ai.buildAiStrategyCoordinator
-import com.yueliangmanle.danci.core.ai.buildRuntimeSettings
+import com.yueliangmanle.danci.core.ai.resolveRuntimeSettingsForCapability
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
-import com.yueliangmanle.danci.core.security.buildAiCredentialStore
+import com.yueliangmanle.danci.core.model.AiCapability
 import kotlinx.coroutines.launch
 
 fun quizRoute(wordId: Long): String = "quiz/$wordId"
@@ -22,30 +22,37 @@ fun QuizRoute(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val viewModel = remember(context, wordId) {
-        loadQuizViewModel(context, wordId)
+    var viewModel: QuizViewModel? by remember(context, wordId) {
+        mutableStateOf(null)
     }
-    var state by remember(viewModel) {
-        mutableStateOf(viewModel.buildUiState())
+    var state by remember(wordId) {
+        mutableStateOf(QuizUiState())
+    }
+
+    androidx.compose.runtime.LaunchedEffect(context, wordId) {
+        val loaded = loadQuizViewModel(context, wordId)
+        viewModel = loaded
+        state = loaded.buildUiState()
     }
 
     QuizScreen(
         state = state,
         onOptionClick = { option ->
-            state = viewModel.selectOption(option)
-            if (viewModel.needsMistakeInsight()) {
+            val currentViewModel = viewModel ?: return@QuizScreen
+            state = currentViewModel.selectOption(option)
+            if (currentViewModel.needsMistakeInsight()) {
                 scope.launch {
                     val settings = buildSettingsRepository(context).getSettings()
-                    state = viewModel.resolveMistakeInsight(
+                    state = currentViewModel.resolveMistakeInsight(
                         settings = settings,
-                        runtimeSettings = buildRuntimeSettings(settings, buildAiCredentialStore(context)),
+                        runtimeSettings = resolveRuntimeSettingsForCapability(context, AiCapability.WORD_HELP),
                         coordinator = buildAiStrategyCoordinator(context),
                     )
                 }
             }
         },
         onOpenDetailClick = {
-            viewModel.openWordDetail()
+            viewModel?.openWordDetail()
             onOpenDetailClick()
         },
     )

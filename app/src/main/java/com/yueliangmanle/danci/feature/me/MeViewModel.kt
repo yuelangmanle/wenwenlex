@@ -3,6 +3,7 @@ package com.yueliangmanle.danci.feature.me
 import com.yueliangmanle.danci.core.data.BackupRepository
 import com.yueliangmanle.danci.core.data.SettingsRepository
 import com.yueliangmanle.danci.core.data.StudyRepository
+import com.yueliangmanle.danci.core.data.AiProfileRepository
 import com.yueliangmanle.danci.core.worker.DailyReminderScheduler
 import java.io.File
 import java.time.Instant
@@ -27,6 +28,7 @@ data class MeUiState(
 
 class MeViewModel(
     private val settingsRepository: SettingsRepository,
+    private val aiProfileRepository: AiProfileRepository,
     private val backupRepository: BackupRepository,
     private val studyRepository: StudyRepository,
     private val reminderScheduler: DailyReminderScheduler,
@@ -35,6 +37,11 @@ class MeViewModel(
 ) {
     suspend fun loadUiState(statusMessage: String? = null): MeUiState {
         val settings = settingsRepository.getSettings()
+        val defaultProfile = if (settings.defaultAiProfileId != null) {
+            aiProfileRepository.getProfile(settings.defaultAiProfileId)
+        } else {
+            null
+        }
         val events = studyRepository.getAllStudyEvents()
         val activeDates = events
             .map { event -> event.happenedAt.atZone(zoneId).toLocalDate() }
@@ -51,7 +58,7 @@ class MeViewModel(
             backupSummary = latestBackup.toBackupSummary(zoneId),
             canRestoreBackup = latestBackup != null,
             aiEnabled = settings.aiEnabled,
-            aiModel = settings.aiModel,
+            aiModel = defaultProfile?.let { "${it.name} · ${it.model}" } ?: settings.aiModel,
             statusMessage = statusMessage,
         )
     }

@@ -1,6 +1,7 @@
 package com.yueliangmanle.danci.core.study
 
 import com.yueliangmanle.danci.core.importer.ImportedWord
+import com.yueliangmanle.danci.core.model.Word
 
 data class StudyCardItem(
     val wordId: Long,
@@ -18,6 +19,18 @@ class StudyQueueBuilder {
                 wordId = index.toLong() + 1L,
                 word = word.text,
                 phonetic = word.phonetic,
+                meanings = word.meanings,
+                exampleSentence = word.exampleSentence,
+                exampleTranslation = word.exampleTranslation,
+            )
+        }
+
+    fun buildFromWords(words: List<Word>): List<StudyCardItem> =
+        words.map { word ->
+            StudyCardItem(
+                wordId = word.id,
+                word = word.lemma,
+                phonetic = word.phoneticUk ?: word.phoneticUs ?: word.phonetic,
                 meanings = word.meanings,
                 exampleSentence = word.exampleSentence,
                 exampleTranslation = word.exampleTranslation,
