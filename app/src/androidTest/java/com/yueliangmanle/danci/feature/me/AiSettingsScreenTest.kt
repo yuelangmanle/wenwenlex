@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -55,10 +56,10 @@ class AiSettingsScreenTest {
             )
         }
 
-        composeRule.onNodeWithText("Base URL").assertIsDisplayed()
-        composeRule.onNodeWithText("模型").assertIsDisplayed()
-        composeRule.onNodeWithText("API Key").assertIsDisplayed()
-        composeRule.onNodeWithText("保存全局路由与开关").performClick()
+        composeRule.onNodeWithText("Base URL").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("模型").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("API Key").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("保存全局路由与开关").performScrollTo().performClick()
         assertTrue(saved)
     }
 }

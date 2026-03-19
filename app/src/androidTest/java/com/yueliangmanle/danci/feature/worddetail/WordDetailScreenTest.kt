@@ -4,6 +4,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
 import org.junit.Test
@@ -34,10 +35,10 @@ class WordDetailScreenTest {
             )
         }
 
-        composeRule.onNodeWithText("近义词").assertIsDisplayed()
-        composeRule.onNodeWithText("反义词").assertIsDisplayed()
-        composeRule.onNodeWithText("拼写相近词").assertIsDisplayed()
-        composeRule.onNodeWithText("单词变形").assertIsDisplayed()
-        composeRule.onNodeWithText("AI 助记").assertIsDisplayed()
+        composeRule.onNodeWithText("AI 助记").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("近义词").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("反义词").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("拼写相近词").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("单词变形").performScrollTo().assertIsDisplayed()
     }
 }
