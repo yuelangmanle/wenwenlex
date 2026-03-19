@@ -28,7 +28,7 @@ class NativeOfflineWordTtsEngineTest {
         val installDir = File(appContext.cacheDir, "native-pack-us").apply { mkdirs() }
         val now = Instant.parse("2026-03-19T12:00:00Z")
         val engine = NativeOfflineWordTtsEngine(
-            appContext = appContext,
+            context = appContext,
             voicePackRepository = FakeNativeVoicePackRepository(
                 packs = mutableListOf(
                     TestVoicePackFactory.voicePack(
