@@ -9,6 +9,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
@@ -25,15 +26,20 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
 import java.util.zip.ZipInputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 private const val INPUT_VOICE_PACK_ID = "voice_pack_id"
+private const val OUTPUT_ERROR_MESSAGE = "error_message"
 private const val VOICE_PACK_INSTALL_MANIFEST_FILE = "manifest.json"
 
 const val VOICE_PACK_DOWNLOAD_WORK_PREFIX = "voice_pack_download_"
 
 interface VoicePackDownloadController {
     suspend fun enqueue(voicePackId: String, allowCellular: Boolean)
+
+    suspend fun latestFailureMessage(voicePackId: String): String? = null
 }
 
 class VoicePackDownloadWorker(
@@ -64,9 +70,13 @@ class VoicePackDownloadWorker(
                 installedSizeBytes = installResult.installedSizeBytes,
             )
             Result.success()
-        } catch (_: Throwable) {
+        } catch (error: Throwable) {
             repository.updateVoicePackStatus(voicePackId, VoicePackStatus.BROKEN.storageValue)
-            Result.failure()
+            Result.failure(
+                workDataOf(
+                    OUTPUT_ERROR_MESSAGE to (error.message ?: "语音包安装失败，请重试。"),
+                ),
+            )
         }
     }
 }
@@ -89,6 +99,21 @@ class VoicePackDownloadScheduler(
             ),
         )
     }
+
+    override suspend fun latestFailureMessage(voicePackId: String): String? =
+        withContext(Dispatchers.IO) {
+            workManager.getWorkInfosForUniqueWork(uniqueWorkName(voicePackId))
+                .get()
+                .asSequence()
+                .filter { it.state == WorkInfo.State.FAILED }
+                .mapNotNull { workInfo ->
+                    workInfo.outputData
+                        .getString(OUTPUT_ERROR_MESSAGE)
+                        ?.trim()
+                        ?.takeIf(String::isNotEmpty)
+                }
+                .firstOrNull()
+        }
 }
 
 internal fun buildVoicePackDownloadWorkRequest(

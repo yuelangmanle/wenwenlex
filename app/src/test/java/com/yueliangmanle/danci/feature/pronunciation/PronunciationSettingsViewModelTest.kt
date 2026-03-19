@@ -116,14 +116,49 @@ class PronunciationSettingsViewModelTest {
         assertTrue(item.resourceHint.contains("512.00 MB"))
         assertTrue(item.resourceHint.contains("768 MB RAM"))
     }
+
+    @Test
+    fun loadUiStateExposesBrokenVoicePackFailureReason() = runTest {
+        val controller = FakeVoicePackDownloadController(
+            failureMessages = mapOf(
+                "en-us-offline-word-v1" to "原生语音包 manifest 缺少 entryFiles 声明。",
+            ),
+        )
+        val viewModel = PronunciationSettingsViewModel(
+            settingsRepository = FakeSettingsRepository(initial = AppSettings()),
+            wordAudioRepository = FakeWordAudioRepository(),
+            voicePackRepository = FakeVoicePackRepository(
+                mutableListOf(
+                    TestVoicePackFactory.voicePack(
+                        id = "en-us-offline-word-v1",
+                        name = "美式离线发音包",
+                        engineType = "sherpa_onnx",
+                        status = VoicePackStatus.BROKEN.storageValue,
+                    ),
+                ),
+            ),
+            voicePackDownloadController = controller,
+        )
+
+        val state = viewModel.loadUiState()
+        val item = state.voicePacks.single()
+
+        assertEquals("安装异常", item.statusLabel)
+        assertEquals("原生语音包 manifest 缺少 entryFiles 声明。", item.failureReason)
+    }
 }
 
-private class FakeVoicePackDownloadController : VoicePackDownloadController {
+private class FakeVoicePackDownloadController(
+    private val failureMessages: Map<String, String> = emptyMap(),
+) : VoicePackDownloadController {
     val calls = mutableListOf<Pair<String, Boolean>>()
 
     override suspend fun enqueue(voicePackId: String, allowCellular: Boolean) {
         calls += voicePackId to allowCellular
     }
+
+    override suspend fun latestFailureMessage(voicePackId: String): String? =
+        failureMessages[voicePackId]
 }
 
 private class FakeSettingsRepository(

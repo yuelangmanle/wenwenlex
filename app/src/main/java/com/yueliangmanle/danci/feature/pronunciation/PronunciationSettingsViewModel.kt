@@ -41,6 +41,7 @@ data class VoicePackItemUiState(
     val capabilitySummary: String,
     val resourceHint: String,
     val statusLabel: String,
+    val failureReason: String? = null,
     val isActive: Boolean,
     val isBusy: Boolean,
     val canActivate: Boolean,
@@ -60,7 +61,16 @@ class PronunciationSettingsViewModel(
     ): PronunciationSettingsUiState = withContext(Dispatchers.IO) {
         val settings = settingsRepository.getSettings()
         val cacheBytes = wordAudioRepository.cacheSizeBytes()
-        val voicePacks = voicePackRepository.getAllVoicePacks().map(::buildVoicePackItemUiState)
+        val voicePacks = voicePackRepository.getAllVoicePacks().map { pack ->
+            buildVoicePackItemUiState(
+                pack = pack,
+                failureReason = if (pack.status == VoicePackStatus.BROKEN.storageValue) {
+                    voicePackDownloadController.latestFailureMessage(pack.id)
+                } else {
+                    null
+                },
+            )
+        }
         PronunciationSettingsUiState(
             preferredAccent = settings.preferredPronunciationAccent,
             pronunciationMode = settings.pronunciationMode,
@@ -160,7 +170,10 @@ suspend fun loadPronunciationSettingsViewModel(context: Context): PronunciationS
         )
     }
 
-internal fun buildVoicePackItemUiState(pack: VoicePack): VoicePackItemUiState {
+internal fun buildVoicePackItemUiState(
+    pack: VoicePack,
+    failureReason: String? = null,
+): VoicePackItemUiState {
     val statusLabel = when (pack.status) {
         VoicePackStatus.READY.storageValue -> "已安装"
         VoicePackStatus.DOWNLOADING.storageValue -> "下载中"
@@ -199,6 +212,7 @@ internal fun buildVoicePackItemUiState(pack: VoicePack): VoicePackItemUiState {
         capabilitySummary = capabilitySummary,
         resourceHint = resourceHint,
         statusLabel = statusLabel,
+        failureReason = failureReason,
         isActive = pack.isActive,
         isBusy = isBusy,
         canActivate = isReady && !pack.isActive,

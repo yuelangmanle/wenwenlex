@@ -319,8 +319,19 @@ private fun VoicePackRow(
             Text(
                 if (pack.isActive) "${pack.statusLabel} · 当前已启用" else pack.statusLabel,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
+                color = if (pack.failureReason != null) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
             )
+            pack.failureReason?.let { reason ->
+                Text(
+                    reason,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
