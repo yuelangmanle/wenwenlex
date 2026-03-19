@@ -23,6 +23,7 @@ class PronunciationOrchestrator(
     private val offlineTtsEngine: OfflineTtsEngine,
     private val systemTtsEngine: SystemTtsEngine,
     private val telemetryRecorder: PlaybackTelemetryRecorder,
+    private val audioPlayer: suspend (String?) -> Boolean = ::playAudioFile,
 ) {
     suspend fun playWordById(
         wordId: Long,
@@ -68,7 +69,7 @@ class PronunciationOrchestrator(
         }
 
         wordAudioRepository.findCachedAsset(word.id, accent)?.let { asset ->
-            if (playAudioFile(asset.localPath)) {
+            if (audioPlayer(asset.localPath)) {
                 wordAudioRepository.markPlayed(asset)
                 telemetryRecorder.recordWordPlayback(
                     wordId = word.id,
@@ -86,6 +87,26 @@ class PronunciationOrchestrator(
             }
         }
 
+        wordAudioRepository.findNativeGeneratedAsset(word.id, accent)?.let { asset ->
+            val resolvedAccent = PronunciationAccent.fromStorageValue(asset.accent)
+            if (audioPlayer(asset.localPath)) {
+                wordAudioRepository.markPlayed(asset)
+                telemetryRecorder.recordWordPlayback(
+                    wordId = word.id,
+                    source = PlaybackSource.OFFLINE_NATIVE_GENERATED,
+                    accent = resolvedAccent,
+                    contextLabel = contextLabel,
+                    success = true,
+                )
+                return PlaybackResult(
+                    success = true,
+                    source = PlaybackSource.OFFLINE_NATIVE_GENERATED,
+                    accent = resolvedAccent,
+                    statusMessage = "已播放本地离线生成音频。",
+                )
+            }
+        }
+
         if (pronunciationMode == PronunciationMode.OFFLINE_FIRST) {
             playOfflineIfAvailable()?.let { return it }
         }
@@ -97,7 +118,7 @@ class PronunciationOrchestrator(
                     wordId = word.id,
                     candidate = candidate,
                 )
-                if (cachedAsset != null && playAudioFile(cachedAsset.localPath)) {
+                if (cachedAsset != null && audioPlayer(cachedAsset.localPath)) {
                     wordAudioRepository.markPlayed(cachedAsset)
                     telemetryRecorder.recordWordPlayback(
                         wordId = word.id,

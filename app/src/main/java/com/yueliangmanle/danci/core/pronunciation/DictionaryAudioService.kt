@@ -10,10 +10,10 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
-class DictionaryAudioService(
+open class DictionaryAudioService(
     private val baseUrl: String = "https://api.dictionaryapi.dev/api/v2/entries/en/",
 ) {
-    suspend fun resolveCandidate(
+    open suspend fun resolveCandidate(
         word: String,
         accent: PronunciationAccent,
     ): DictionaryAudioCandidate? = withContext(Dispatchers.IO) {
