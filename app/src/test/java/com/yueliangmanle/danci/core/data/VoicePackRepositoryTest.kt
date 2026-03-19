@@ -71,4 +71,63 @@ class VoicePackRepositoryTest {
         assertEquals("sherpa_onnx", pack.engineType)
         assertEquals(VoicePackStatus.NOT_INSTALLED.storageValue, pack.status)
     }
+
+    @Test
+    fun parseVoicePackManifestReadsNativeMetadataWithoutDroppingInstallState() {
+        val existing = mapOf(
+            "en-gb-offline-word-v1" to TestVoicePackFactory.voicePack(
+                id = "en-gb-offline-word-v1",
+                installDir = "/tmp/en-gb",
+                installedSizeBytes = 512_000_000L,
+                status = VoicePackStatus.READY.storageValue,
+            ),
+        )
+
+        val parsed = parseVoicePackManifest(
+            jsonText = """
+                {
+                  "voicePacks": [
+                    {
+                      "id": "en-gb-offline-word-v1",
+                      "name": "英式离线发音包",
+                      "locale": "en-GB",
+                      "accent": "uk",
+                      "engineType": "sherpa_onnx",
+                      "version": "1.3.0",
+                      "downloadUrl": "https://example.com/packs/en-gb-offline-word-v1.zip",
+                      "manifestUrl": "https://example.com/packs/en-gb-offline-word-v1-manifest.json",
+                      "archiveChecksum": "abc123",
+                      "native": {
+                        "engineFamily": "native_neural_tts",
+                        "modelFamily": "kokoro",
+                        "supportsImportedWords": true,
+                        "estimatedStorageBytes": 612345678,
+                        "estimatedRamMb": 768,
+                        "licenses": [
+                          "Apache-2.0",
+                          "MIT"
+                        ]
+                      }
+                    }
+                  ]
+                }
+            """.trimIndent(),
+            existingById = existing,
+            currentActiveId = "en-gb-offline-word-v1",
+            now = Instant.parse("2026-03-19T12:00:00Z"),
+        )
+
+        assertEquals(1, parsed.size)
+        val pack = parsed.single()
+        assertEquals("native_neural_tts", pack.engineFamily)
+        assertEquals("kokoro", pack.modelFamily)
+        assertTrue(pack.supportsImportedWords)
+        assertEquals(612345678L, pack.estimatedStorageBytes)
+        assertEquals(768, pack.estimatedRamMb)
+        assertEquals(listOf("Apache-2.0", "MIT"), pack.licenses)
+        assertEquals("/tmp/en-gb", pack.installDir)
+        assertEquals(512_000_000L, pack.installedSizeBytes)
+        assertEquals(VoicePackStatus.READY.storageValue, pack.status)
+        assertTrue(pack.isActive)
+    }
 }

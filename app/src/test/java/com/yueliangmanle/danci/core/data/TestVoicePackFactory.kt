@@ -19,6 +19,12 @@ object TestVoicePackFactory {
         installedSizeBytes: Long = 0L,
         status: String = VoicePackStatus.NOT_INSTALLED.storageValue,
         isActive: Boolean = false,
+        engineFamily: String? = null,
+        modelFamily: String? = null,
+        supportsImportedWords: Boolean = false,
+        estimatedStorageBytes: Long? = null,
+        estimatedRamMb: Int? = null,
+        licenses: List<String> = emptyList(),
         now: Instant = Instant.parse("2026-03-19T12:00:00Z"),
     ): VoicePack =
         VoicePack(
@@ -33,6 +39,12 @@ object TestVoicePackFactory {
             installedSizeBytes = installedSizeBytes,
             status = status,
             isActive = isActive,
+            engineFamily = engineFamily,
+            modelFamily = modelFamily,
+            supportsImportedWords = supportsImportedWords,
+            estimatedStorageBytes = estimatedStorageBytes,
+            estimatedRamMb = estimatedRamMb,
+            licenses = licenses,
             createdAt = now,
             updatedAt = now,
         )

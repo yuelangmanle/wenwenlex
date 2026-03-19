@@ -16,7 +16,12 @@ data class VoicePack(
     val installedSizeBytes: Long = 0,
     val status: String = VoicePackStatus.NOT_INSTALLED.storageValue,
     val isActive: Boolean = false,
+    val engineFamily: String? = null,
+    val modelFamily: String? = null,
+    val supportsImportedWords: Boolean = false,
+    val estimatedStorageBytes: Long? = null,
+    val estimatedRamMb: Int? = null,
+    val licenses: List<String> = emptyList(),
     val createdAt: Instant = Instant.EPOCH,
     val updatedAt: Instant = Instant.EPOCH,
 )
-
