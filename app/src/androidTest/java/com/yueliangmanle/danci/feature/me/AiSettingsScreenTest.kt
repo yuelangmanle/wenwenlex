@@ -24,27 +24,41 @@ class AiSettingsScreenTest {
             AiSettingsScreen(
                 state = AiSettingsUiState(
                     isEnabled = true,
-                    baseUrl = "https://api.openai.com/v1",
-                    model = "gpt-5-mini",
-                    apiKeyInput = "",
-                    hasApiKey = true,
                     enablePlanAdjustments = true,
                     enableSessionCheckpoints = true,
+                    editor = AiProfileEditorState(
+                        name = "默认档案",
+                        baseUrl = "https://api.openai.com/v1",
+                        model = "gpt-5-mini",
+                        apiKeyInput = "",
+                        hasSavedApiKey = true,
+                    ),
                 ),
                 onEnabledChange = {},
-                onBaseUrlChange = {},
-                onModelChange = {},
-                onApiKeyChange = {},
                 onPlanAdjustmentsChange = {},
                 onSessionCheckpointsChange = {},
-                onSaveClick = { saved = true },
+                onDefaultProfileChange = {},
+                onWordHelpProfileChange = {},
+                onPlanAdjustmentProfileChange = {},
+                onPhoneticFillProfileChange = {},
+                onSelectProfile = {},
+                onNewProfileClick = {},
+                onEditorNameChange = {},
+                onEditorBaseUrlChange = {},
+                onEditorModelChange = {},
+                onEditorApiKeyChange = {},
+                onEditorEnabledChange = {},
+                onSaveProfileClick = {},
+                onClearApiKeyClick = {},
+                onDeleteProfileClick = {},
+                onSaveGlobalClick = { saved = true },
             )
         }
 
         composeRule.onNodeWithText("Base URL").assertIsDisplayed()
         composeRule.onNodeWithText("模型").assertIsDisplayed()
         composeRule.onNodeWithText("API Key").assertIsDisplayed()
-        composeRule.onNodeWithText("保存 AI 配置").performClick()
+        composeRule.onNodeWithText("保存全局路由与开关").performClick()
         assertTrue(saved)
     }
 }

@@ -30,6 +30,7 @@ class MeScreenTest {
                 onExportBackupClick = {},
                 onRestoreBackupClick = {},
                 onOpenAiSettingsClick = {},
+                onOpenPronunciationSettingsClick = {},
             )
         }
 

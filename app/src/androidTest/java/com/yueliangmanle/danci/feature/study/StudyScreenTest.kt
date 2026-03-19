@@ -26,6 +26,7 @@ class StudyScreenTest {
                 ),
                 onFeedbackClick = {},
                 onOpenDetailClick = {},
+                onPlayPronunciationClick = {},
             )
         }
 
