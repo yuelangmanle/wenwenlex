@@ -1,0 +1,8 @@
+{
+  "id": "en-us-bridge-basic",
+  "name": "美式基础桥接包",
+  "locale": "en-US",
+  "accent": "us",
+  "engineType": "system_tts_bridge",
+  "description": "第一版桥接系统英语离线语音，便于后续替换为真正的本地推理模型。"
+}

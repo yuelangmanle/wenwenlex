@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
@@ -24,6 +25,7 @@ import com.yueliangmanle.danci.core.model.PronunciationMode
 @Composable
 fun PronunciationSettingsScreen(
     state: PronunciationSettingsUiState,
+    onRefreshCatalog: () -> Unit,
     onSelectAccent: (String) -> Unit,
     onSelectMode: (String) -> Unit,
     onAutoCacheChanged: (Boolean) -> Unit,
@@ -32,6 +34,8 @@ fun PronunciationSettingsScreen(
     onPreferOfflineLongTextChanged: (Boolean) -> Unit,
     onClearCacheClick: () -> Unit,
     onActivateVoicePack: (String) -> Unit,
+    onDownloadVoicePack: (String) -> Unit,
+    onRemoveVoicePack: (String) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -51,6 +55,22 @@ fun PronunciationSettingsScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                OutlinedButton(
+                    onClick = onRefreshCatalog,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("刷新语音包清单")
+                }
+                if (state.isLoading) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        CircularProgressIndicator()
+                        Text("正在处理发音设置…", style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
             }
         }
         OptionCard(
@@ -121,7 +141,7 @@ fun PronunciationSettingsScreen(
             ) {
                 Text("离线语音包", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "当前先把安装状态、激活和数据位准备好；后续接 GitHub Release 资产后可以一键下载挂载。",
+                    "当前支持桥接语音包的一键下载、安装、激活和删除；后续可继续接入真正的本地推理包。",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -135,6 +155,8 @@ fun PronunciationSettingsScreen(
                         VoicePackRow(
                             pack = pack,
                             onActivate = { onActivateVoicePack(pack.id) },
+                            onDownload = { onDownloadVoicePack(pack.id) },
+                            onRemove = { onRemoveVoicePack(pack.id) },
                         )
                     }
                 }
@@ -270,6 +292,8 @@ private fun ModeButtons(
 private fun VoicePackRow(
     pack: VoicePackItemUiState,
     onActivate: () -> Unit,
+    onDownload: () -> Unit,
+    onRemove: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -278,16 +302,41 @@ private fun VoicePackRow(
         ) {
             Text(pack.name, style = MaterialTheme.typography.titleMedium)
             Text(
-                "${pack.locale} · ${pack.statusLabel}",
+                "${pack.locale} · ${pack.versionLabel} · ${pack.engineLabel}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            OutlinedButton(
-                onClick = onActivate,
-                enabled = !pack.isActive,
+            Text(
+                if (pack.isActive) "${pack.statusLabel} · 当前已启用" else pack.statusLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Row(
                 modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(if (pack.isActive) "当前已启用" else "设为默认")
+                OutlinedButton(
+                    onClick = onDownload,
+                    enabled = pack.canDownload,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(if (pack.isBusy) "处理中…" else if (pack.canDownload) "下载/安装" else "已安装")
+                }
+                OutlinedButton(
+                    onClick = onActivate,
+                    enabled = pack.canActivate,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(if (pack.isActive) "当前已启用" else "设为默认")
+                }
+            }
+            if (pack.canDelete) {
+                OutlinedButton(
+                    onClick = onRemove,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("删除语音包")
+                }
             }
         }
     }

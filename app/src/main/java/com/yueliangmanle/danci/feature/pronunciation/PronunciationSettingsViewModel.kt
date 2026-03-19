@@ -9,7 +9,11 @@ import com.yueliangmanle.danci.core.data.buildVoicePackRepository
 import com.yueliangmanle.danci.core.data.buildWordAudioRepository
 import com.yueliangmanle.danci.core.model.PronunciationAccent
 import com.yueliangmanle.danci.core.model.PronunciationMode
+import com.yueliangmanle.danci.core.model.VoicePack
+import com.yueliangmanle.danci.core.model.VoicePackEngineType
 import com.yueliangmanle.danci.core.model.VoicePackStatus
+import com.yueliangmanle.danci.core.worker.VoicePackDownloadController
+import com.yueliangmanle.danci.core.worker.buildVoicePackDownloadController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -32,14 +36,21 @@ data class VoicePackItemUiState(
     val id: String,
     val name: String,
     val locale: String,
+    val versionLabel: String,
+    val engineLabel: String,
     val statusLabel: String,
     val isActive: Boolean,
+    val isBusy: Boolean,
+    val canActivate: Boolean,
+    val canDownload: Boolean,
+    val canDelete: Boolean,
 )
 
 class PronunciationSettingsViewModel(
     private val settingsRepository: SettingsRepository,
     private val wordAudioRepository: WordAudioRepository,
     private val voicePackRepository: VoicePackRepository,
+    private val voicePackDownloadController: VoicePackDownloadController,
 ) {
     suspend fun loadUiState(
         statusMessage: String? = null,
@@ -47,20 +58,7 @@ class PronunciationSettingsViewModel(
     ): PronunciationSettingsUiState = withContext(Dispatchers.IO) {
         val settings = settingsRepository.getSettings()
         val cacheBytes = wordAudioRepository.cacheSizeBytes()
-        val voicePacks = voicePackRepository.getAllVoicePacks().map { pack ->
-            VoicePackItemUiState(
-                id = pack.id,
-                name = pack.name,
-                locale = pack.locale,
-                statusLabel = when (pack.status) {
-                    VoicePackStatus.READY.storageValue -> "已安装"
-                    VoicePackStatus.DOWNLOADING.storageValue -> "下载中"
-                    VoicePackStatus.BROKEN.storageValue -> "异常"
-                    else -> "未安装"
-                },
-                isActive = pack.isActive,
-            )
-        }
+        val voicePacks = voicePackRepository.getAllVoicePacks().map(::buildVoicePackItemUiState)
         PronunciationSettingsUiState(
             preferredAccent = settings.preferredPronunciationAccent,
             pronunciationMode = settings.pronunciationMode,
@@ -78,6 +76,11 @@ class PronunciationSettingsViewModel(
             statusMessage = statusMessage,
             errorMessage = errorMessage,
         )
+    }
+
+    suspend fun refreshCatalog(): PronunciationSettingsUiState {
+        val syncedCount = voicePackRepository.refreshCatalog()
+        return loadUiState(statusMessage = "已同步 $syncedCount 个语音包。")
     }
 
     suspend fun updatePreferredAccent(accent: String): PronunciationSettingsUiState {
@@ -116,9 +119,32 @@ class PronunciationSettingsViewModel(
     }
 
     suspend fun activateVoicePack(id: String): PronunciationSettingsUiState {
+        val voicePack = voicePackRepository.getVoicePack(id)
+            ?: return loadUiState(errorMessage = "没有找到对应语音包。")
+        if (voicePack.status != VoicePackStatus.READY.storageValue) {
+            return loadUiState(errorMessage = "语音包尚未安装完成，暂时不能启用。")
+        }
         voicePackRepository.activateVoicePack(id)
         settingsRepository.updateActiveVoicePackId(id)
         return loadUiState(statusMessage = "已切换默认语音包。")
+    }
+
+    suspend fun downloadVoicePack(id: String): PronunciationSettingsUiState {
+        val settings = settingsRepository.getSettings()
+        voicePackDownloadController.enqueue(
+            voicePackId = id,
+            allowCellular = settings.allowCellularVoicePackDownload,
+        )
+        return loadUiState(statusMessage = "已开始下载并安装语音包。")
+    }
+
+    suspend fun removeVoicePack(id: String): PronunciationSettingsUiState {
+        val activeVoicePackId = settingsRepository.getSettings().activeVoicePackId
+        voicePackRepository.removeVoicePack(id)
+        if (activeVoicePackId == id) {
+            settingsRepository.updateActiveVoicePackId(null)
+        }
+        return loadUiState(statusMessage = "已移除语音包。")
     }
 }
 
@@ -128,5 +154,38 @@ suspend fun loadPronunciationSettingsViewModel(context: Context): PronunciationS
             settingsRepository = buildSettingsRepository(context.applicationContext),
             wordAudioRepository = buildWordAudioRepository(context.applicationContext),
             voicePackRepository = buildVoicePackRepository(context.applicationContext),
+            voicePackDownloadController = buildVoicePackDownloadController(context.applicationContext),
         )
     }
+
+internal fun buildVoicePackItemUiState(pack: VoicePack): VoicePackItemUiState {
+    val statusLabel = when (pack.status) {
+        VoicePackStatus.READY.storageValue -> "已安装"
+        VoicePackStatus.DOWNLOADING.storageValue -> "下载中"
+        VoicePackStatus.VERIFYING.storageValue -> "校验中"
+        VoicePackStatus.INSTALLING.storageValue -> "安装中"
+        VoicePackStatus.BROKEN.storageValue -> "安装异常"
+        else -> "未安装"
+    }
+    val isBusy = pack.status == VoicePackStatus.DOWNLOADING.storageValue ||
+        pack.status == VoicePackStatus.VERIFYING.storageValue ||
+        pack.status == VoicePackStatus.INSTALLING.storageValue
+    val isReady = pack.status == VoicePackStatus.READY.storageValue
+    val engineLabel = when (VoicePackEngineType.fromStorageValue(pack.engineType)) {
+        VoicePackEngineType.SYSTEM_TTS_BRIDGE -> "系统语音桥接"
+        VoicePackEngineType.SHERPA_ONNX -> "Sherpa ONNX"
+    }
+    return VoicePackItemUiState(
+        id = pack.id,
+        name = pack.name,
+        locale = pack.locale,
+        versionLabel = "v${pack.version}",
+        engineLabel = engineLabel,
+        statusLabel = statusLabel,
+        isActive = pack.isActive,
+        isBusy = isBusy,
+        canActivate = isReady && !pack.isActive,
+        canDownload = !isReady && !isBusy,
+        canDelete = isReady || pack.status == VoicePackStatus.BROKEN.storageValue,
+    )
+}

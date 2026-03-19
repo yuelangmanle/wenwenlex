@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 const val PRONUNCIATION_SETTINGS_ROUTE = "pronunciation_settings"
@@ -27,7 +28,7 @@ fun PronunciationSettingsRoute() {
         state = runCatching {
             val loaded = loadPronunciationSettingsViewModel(context)
             viewModel = loaded
-            loaded.loadUiState()
+            loaded.refreshCatalog()
         }.getOrElse { error ->
             PronunciationSettingsUiState(
                 errorMessage = error.message ?: "发音设置加载失败，请稍后重试。",
@@ -35,9 +36,25 @@ fun PronunciationSettingsRoute() {
         }
     }
 
+    LaunchedEffect(viewModel, state.voicePacks.map { "${it.id}:${it.statusLabel}:${it.isBusy}" }) {
+        val currentViewModel = viewModel ?: return@LaunchedEffect
+        if (!state.voicePacks.any(VoicePackItemUiState::isBusy)) {
+            return@LaunchedEffect
+        }
+        while (true) {
+            delay(1_500)
+            val refreshed = currentViewModel.loadUiState(statusMessage = state.statusMessage)
+            state = refreshed
+            if (!refreshed.voicePacks.any(VoicePackItemUiState::isBusy)) {
+                break
+            }
+        }
+    }
+
     fun launchAction(action: suspend PronunciationSettingsViewModel.() -> PronunciationSettingsUiState) {
         val currentViewModel = viewModel ?: return
         scope.launch {
+            state = state.copy(isLoading = true)
             state = runCatching {
                 currentViewModel.action()
             }.getOrElse { error ->
@@ -48,6 +65,9 @@ fun PronunciationSettingsRoute() {
 
     PronunciationSettingsScreen(
         state = state,
+        onRefreshCatalog = {
+            launchAction { refreshCatalog() }
+        },
         onSelectAccent = { accent ->
             launchAction { updatePreferredAccent(accent) }
         },
@@ -72,6 +92,11 @@ fun PronunciationSettingsRoute() {
         onActivateVoicePack = { packId ->
             launchAction { activateVoicePack(packId) }
         },
+        onDownloadVoicePack = { packId ->
+            launchAction { downloadVoicePack(packId) }
+        },
+        onRemoveVoicePack = { packId ->
+            launchAction { removeVoicePack(packId) }
+        },
     )
 }
-

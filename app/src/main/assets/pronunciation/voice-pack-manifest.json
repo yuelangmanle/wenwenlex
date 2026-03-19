@@ -1,0 +1,24 @@
+{
+  "voicePacks": [
+    {
+      "id": "en-gb-bridge-basic",
+      "name": "英式基础桥接包",
+      "locale": "en-GB",
+      "accent": "uk",
+      "engineType": "system_tts_bridge",
+      "version": "1",
+      "downloadUrl": "asset://pronunciation/packs/en-gb-bridge-basic",
+      "manifestUrl": "asset://pronunciation/packs/en-gb-bridge-basic/manifest.json"
+    },
+    {
+      "id": "en-us-bridge-basic",
+      "name": "美式基础桥接包",
+      "locale": "en-US",
+      "accent": "us",
+      "engineType": "system_tts_bridge",
+      "version": "1",
+      "downloadUrl": "asset://pronunciation/packs/en-us-bridge-basic",
+      "manifestUrl": "asset://pronunciation/packs/en-us-bridge-basic/manifest.json"
+    }
+  ]
+}

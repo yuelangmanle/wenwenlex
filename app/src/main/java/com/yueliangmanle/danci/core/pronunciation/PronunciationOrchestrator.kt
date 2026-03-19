@@ -13,6 +13,7 @@ import com.yueliangmanle.danci.core.data.buildWordRepository
 import com.yueliangmanle.danci.core.model.PlaybackResult
 import com.yueliangmanle.danci.core.model.PlaybackSource
 import com.yueliangmanle.danci.core.model.PronunciationAccent
+import com.yueliangmanle.danci.core.model.PronunciationMode
 import com.yueliangmanle.danci.core.model.Word
 import java.io.File
 import kotlinx.coroutines.Dispatchers
@@ -53,6 +54,22 @@ class PronunciationOrchestrator(
     ): PlaybackResult {
         val settings = settingsRepository.getSettings()
         val accent = accentOverride ?: PronunciationAccent.fromStorageValue(settings.preferredPronunciationAccent)
+        val pronunciationMode = PronunciationMode.fromStorageValue(settings.pronunciationMode)
+
+        suspend fun playOfflineIfAvailable(): PlaybackResult? {
+            val offlineResult = offlineTtsEngine.speakWord(word, accent)
+            if (offlineResult != null) {
+                telemetryRecorder.recordWordPlayback(
+                    wordId = word.id,
+                    source = PlaybackSource.OFFLINE_TTS,
+                    accent = accent,
+                    contextLabel = contextLabel,
+                    success = offlineResult.success,
+                    errorMessage = offlineResult.errorMessage,
+                )
+            }
+            return offlineResult
+        }
 
         wordAudioRepository.findCachedAsset(word.id, accent)?.let { asset ->
             if (playLocalFile(asset.localPath)) {
@@ -71,6 +88,10 @@ class PronunciationOrchestrator(
                     statusMessage = "已播放缓存词典音频。",
                 )
             }
+        }
+
+        if (pronunciationMode == PronunciationMode.OFFLINE_FIRST) {
+            playOfflineIfAvailable()?.let { return it }
         }
 
         if (!wordAudioRepository.isRemoteLookupCoolingDown(word.id, accent)) {
@@ -105,17 +126,8 @@ class PronunciationOrchestrator(
             }
         }
 
-        val offlineResult = offlineTtsEngine.speakWord(word, accent)
-        if (offlineResult != null) {
-            telemetryRecorder.recordWordPlayback(
-                wordId = word.id,
-                source = PlaybackSource.OFFLINE_TTS,
-                accent = accent,
-                contextLabel = contextLabel,
-                success = offlineResult.success,
-                errorMessage = offlineResult.errorMessage,
-            )
-            return offlineResult
+        if (pronunciationMode == PronunciationMode.DICTIONARY_FIRST) {
+            playOfflineIfAvailable()?.let { return it }
         }
 
         if (settings.fallbackToSystemTts && systemTtsEngine.speak(word.lemma, accent)) {
@@ -199,14 +211,17 @@ private suspend fun playLocalFile(localPath: String?): Boolean {
 
 fun buildPronunciationOrchestrator(context: Context): PronunciationOrchestrator {
     val appContext = context.applicationContext
+    val systemTtsEngine = SystemTtsEngine(appContext)
     return PronunciationOrchestrator(
         settingsRepository = buildSettingsRepository(appContext),
         wordRepository = buildWordRepository(appContext),
         wordAudioRepository = buildWordAudioRepository(appContext),
         dictionaryAudioService = DictionaryAudioService(),
-        offlineTtsEngine = OfflineTtsEngine(buildVoicePackRepository(appContext)),
-        systemTtsEngine = SystemTtsEngine(appContext),
+        offlineTtsEngine = OfflineTtsEngine(
+            voicePackRepository = buildVoicePackRepository(appContext),
+            bridgeSpeaker = systemTtsEngine,
+        ),
+        systemTtsEngine = systemTtsEngine,
         telemetryRecorder = PlaybackTelemetryRecorder(buildAiMemoryRepository(appContext)),
     )
 }
-

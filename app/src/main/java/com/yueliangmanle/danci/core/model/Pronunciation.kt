@@ -74,7 +74,8 @@ enum class VoicePackStatus(
 enum class VoicePackEngineType(
     val storageValue: String,
 ) {
-    SHERPA_ONNX("sherpa_onnx");
+    SHERPA_ONNX("sherpa_onnx"),
+    SYSTEM_TTS_BRIDGE("system_tts_bridge");
 
     companion object {
         fun fromStorageValue(value: String?): VoicePackEngineType =
@@ -99,4 +100,3 @@ data class PlaybackResult(
 const val DEFAULT_PRONUNCIATION_ACCENT = "uk"
 const val DEFAULT_PRONUNCIATION_MODE = "dictionary_first"
 const val DEFAULT_AUDIO_CACHE_LIMIT_MB = 300
-
