@@ -1,7 +1,6 @@
 package com.yueliangmanle.danci.core.pronunciation
 
 import android.content.Context
-import android.media.MediaPlayer
 import com.yueliangmanle.danci.core.data.SettingsRepository
 import com.yueliangmanle.danci.core.data.WordAudioRepository
 import com.yueliangmanle.danci.core.data.WordRepository
@@ -15,9 +14,6 @@ import com.yueliangmanle.danci.core.model.PlaybackSource
 import com.yueliangmanle.danci.core.model.PronunciationAccent
 import com.yueliangmanle.danci.core.model.PronunciationMode
 import com.yueliangmanle.danci.core.model.Word
-import java.io.File
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 class PronunciationOrchestrator(
     private val settingsRepository: SettingsRepository,
@@ -61,7 +57,7 @@ class PronunciationOrchestrator(
             if (offlineResult != null) {
                 telemetryRecorder.recordWordPlayback(
                     wordId = word.id,
-                    source = PlaybackSource.OFFLINE_TTS,
+                    source = offlineResult.source,
                     accent = accent,
                     contextLabel = contextLabel,
                     success = offlineResult.success,
@@ -72,7 +68,7 @@ class PronunciationOrchestrator(
         }
 
         wordAudioRepository.findCachedAsset(word.id, accent)?.let { asset ->
-            if (playLocalFile(asset.localPath)) {
+            if (playAudioFile(asset.localPath)) {
                 wordAudioRepository.markPlayed(asset)
                 telemetryRecorder.recordWordPlayback(
                     wordId = word.id,
@@ -101,7 +97,7 @@ class PronunciationOrchestrator(
                     wordId = word.id,
                     candidate = candidate,
                 )
-                if (cachedAsset != null && playLocalFile(cachedAsset.localPath)) {
+                if (cachedAsset != null && playAudioFile(cachedAsset.localPath)) {
                     wordAudioRepository.markPlayed(cachedAsset)
                     telemetryRecorder.recordWordPlayback(
                         wordId = word.id,
@@ -170,56 +166,24 @@ class PronunciationOrchestrator(
     suspend fun dictionaryCacheSizeBytes(): Long = wordAudioRepository.cacheSizeBytes()
 }
 
-private object AudioPlaybackController {
-    private var mediaPlayer: MediaPlayer? = null
-
-    suspend fun play(localPath: String): Boolean = withContext(Dispatchers.Main) {
-        val file = File(localPath)
-        if (!file.exists()) {
-            return@withContext false
-        }
-        mediaPlayer?.release()
-        val player = MediaPlayer()
-        mediaPlayer = player
-        runCatching {
-            player.setDataSource(localPath)
-            player.setOnPreparedListener { prepared ->
-                prepared.start()
-            }
-            player.setOnCompletionListener { completed ->
-                completed.release()
-                if (mediaPlayer === completed) {
-                    mediaPlayer = null
-                }
-            }
-            player.setOnErrorListener { failed, _, _ ->
-                failed.release()
-                if (mediaPlayer === failed) {
-                    mediaPlayer = null
-                }
-                true
-            }
-            player.prepareAsync()
-        }.isSuccess
-    }
-}
-
-private suspend fun playLocalFile(localPath: String?): Boolean {
-    val path = localPath?.takeIf(String::isNotBlank) ?: return false
-    return AudioPlaybackController.play(path)
-}
-
 fun buildPronunciationOrchestrator(context: Context): PronunciationOrchestrator {
     val appContext = context.applicationContext
     val systemTtsEngine = SystemTtsEngine(appContext)
+    val voicePackRepository = buildVoicePackRepository(appContext)
+    val wordAudioRepository = buildWordAudioRepository(appContext)
     return PronunciationOrchestrator(
         settingsRepository = buildSettingsRepository(appContext),
         wordRepository = buildWordRepository(appContext),
-        wordAudioRepository = buildWordAudioRepository(appContext),
+        wordAudioRepository = wordAudioRepository,
         dictionaryAudioService = DictionaryAudioService(),
         offlineTtsEngine = OfflineTtsEngine(
-            voicePackRepository = buildVoicePackRepository(appContext),
+            voicePackRepository = voicePackRepository,
             bridgeSpeaker = systemTtsEngine,
+            nativeWordTtsEngine = NativeOfflineWordTtsEngine(
+                context = appContext,
+                voicePackRepository = voicePackRepository,
+                wordAudioRepository = wordAudioRepository,
+            ),
         ),
         systemTtsEngine = systemTtsEngine,
         telemetryRecorder = PlaybackTelemetryRecorder(buildAiMemoryRepository(appContext)),
