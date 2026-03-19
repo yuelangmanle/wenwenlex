@@ -141,7 +141,7 @@ fun PronunciationSettingsScreen(
             ) {
                 Text("离线语音包", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "当前支持桥接语音包的一键下载、安装、激活和删除；后续可继续接入真正的本地推理包。",
+                    "支持桥接包和原生离线发音包的一键下载、安装、激活和删除；原生包会额外展示导入词书支持和资源占用提示。",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -304,6 +304,16 @@ private fun VoicePackRow(
             Text(
                 "${pack.locale} · ${pack.versionLabel} · ${pack.engineLabel}",
                 style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                pack.capabilitySummary,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                pack.resourceHint,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(

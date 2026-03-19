@@ -38,6 +38,8 @@ data class VoicePackItemUiState(
     val locale: String,
     val versionLabel: String,
     val engineLabel: String,
+    val capabilitySummary: String,
+    val resourceHint: String,
     val statusLabel: String,
     val isActive: Boolean,
     val isBusy: Boolean,
@@ -173,14 +175,29 @@ internal fun buildVoicePackItemUiState(pack: VoicePack): VoicePackItemUiState {
     val isReady = pack.status == VoicePackStatus.READY.storageValue
     val engineLabel = when (VoicePackEngineType.fromStorageValue(pack.engineType)) {
         VoicePackEngineType.SYSTEM_TTS_BRIDGE -> "系统语音桥接"
-        VoicePackEngineType.SHERPA_ONNX -> "Sherpa ONNX"
+        VoicePackEngineType.SHERPA_ONNX -> "原生离线发音"
     }
+    val capabilitySummary = when (VoicePackEngineType.fromStorageValue(pack.engineType)) {
+        VoicePackEngineType.SYSTEM_TTS_BRIDGE -> "依赖系统 TTS，不保证覆盖导入词书。"
+        VoicePackEngineType.SHERPA_ONNX -> {
+            if (pack.supportsImportedWords) {
+                "支持内置词书 + Excel 导入词书发音。"
+            } else {
+                "当前仅保证内置词书发音。"
+            }
+        }
+    }
+    val storageHint = pack.estimatedStorageBytes?.let { "%.2f MB".format(it / 1024f / 1024f) }
+    val ramHint = pack.estimatedRamMb?.let { "${it} MB RAM" }
+    val resourceHint = listOfNotNull(storageHint, ramHint).joinToString(" · ").ifBlank { "资源占用信息待补充" }
     return VoicePackItemUiState(
         id = pack.id,
         name = pack.name,
         locale = pack.locale,
         versionLabel = "v${pack.version}",
         engineLabel = engineLabel,
+        capabilitySummary = capabilitySummary,
+        resourceHint = resourceHint,
         statusLabel = statusLabel,
         isActive = pack.isActive,
         isBusy = isBusy,

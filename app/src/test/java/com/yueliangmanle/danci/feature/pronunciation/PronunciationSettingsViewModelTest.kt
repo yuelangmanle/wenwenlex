@@ -80,6 +80,42 @@ class PronunciationSettingsViewModelTest {
 
         assertEquals(listOf("en-gb-bridge-basic" to false), controller.calls)
     }
+
+    @Test
+    fun loadUiStateMapsNativeVoicePackCapabilitiesAndHints() = runTest {
+        val viewModel = PronunciationSettingsViewModel(
+            settingsRepository = FakeSettingsRepository(initial = AppSettings()),
+            wordAudioRepository = FakeWordAudioRepository(),
+            voicePackRepository = FakeVoicePackRepository(
+                mutableListOf(
+                    TestVoicePackFactory.voicePack(
+                        id = "en-us-offline-word-v1",
+                        name = "美式离线发音包",
+                        locale = "en-US",
+                        accent = "us",
+                        engineType = "sherpa_onnx",
+                        status = VoicePackStatus.READY.storageValue,
+                        isActive = true,
+                        engineFamily = "native_neural_tts",
+                        modelFamily = "kokoro",
+                        supportsImportedWords = true,
+                        estimatedStorageBytes = 512L * 1024L * 1024L,
+                        estimatedRamMb = 768,
+                        licenses = listOf("Apache-2.0"),
+                    ),
+                ),
+            ),
+            voicePackDownloadController = FakeVoicePackDownloadController(),
+        )
+
+        val state = viewModel.loadUiState()
+        val item = state.voicePacks.single()
+
+        assertEquals("原生离线发音", item.engineLabel)
+        assertTrue(item.capabilitySummary.contains("Excel 导入词书"))
+        assertTrue(item.resourceHint.contains("512.00 MB"))
+        assertTrue(item.resourceHint.contains("768 MB RAM"))
+    }
 }
 
 private class FakeVoicePackDownloadController : VoicePackDownloadController {
