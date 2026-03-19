@@ -15,13 +15,17 @@ import androidx.work.workDataOf
 import com.yueliangmanle.danci.core.data.VoicePackRepository
 import com.yueliangmanle.danci.core.data.buildVoicePackRepository
 import com.yueliangmanle.danci.core.model.VoicePack
+import com.yueliangmanle.danci.core.model.VoicePackEngineType
 import com.yueliangmanle.danci.core.model.VoicePackStatus
+import com.yueliangmanle.danci.core.pronunciation.LicenseManifestVerifier
+import com.yueliangmanle.danci.core.pronunciation.NativeVoicePackManifest
 import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
 import java.util.zip.ZipInputStream
+import org.json.JSONObject
 
 private const val INPUT_VOICE_PACK_ID = "voice_pack_id"
 private const val VOICE_PACK_INSTALL_MANIFEST_FILE = "manifest.json"
@@ -162,6 +166,10 @@ internal class VoicePackInstaller(
         check(File(installDir, VOICE_PACK_INSTALL_MANIFEST_FILE).exists()) {
             "语音包安装目录缺少 manifest.json。"
         }
+        validateInstalledVoicePack(
+            voicePack = voicePack,
+            installDir = installDir,
+        )
         return VoicePackInstallResult(
             installDir = installDir,
             installedSizeBytes = installDir.directorySizeBytes(),
@@ -263,10 +271,53 @@ private fun File.directorySizeBytes(): Long {
     return listFiles().orEmpty().sumOf(File::directorySizeBytes)
 }
 
+internal fun validateInstalledVoicePack(
+    voicePack: VoicePack,
+    installDir: File,
+) {
+    val manifestFile = File(installDir, VOICE_PACK_INSTALL_MANIFEST_FILE)
+    check(manifestFile.exists()) {
+        "语音包安装目录缺少 manifest.json。"
+    }
+
+    if (VoicePackEngineType.fromStorageValue(voicePack.engineType) != VoicePackEngineType.SHERPA_ONNX) {
+        return
+    }
+
+    val manifestJson = JSONObject(manifestFile.readText())
+    val nativeManifest = NativeVoicePackManifest.fromInstalledManifest(manifestJson)
+    check(!nativeManifest.isEmpty()) {
+        "原生语音包 manifest 缺少 native 元数据。"
+    }
+    LicenseManifestVerifier.requireValid(nativeManifest)
+
+    val entryFiles = manifestJson.optStringList("entryFiles")
+    check(entryFiles.isNotEmpty()) {
+        "原生语音包 manifest 缺少 entryFiles 声明。"
+    }
+    entryFiles.forEach { relativePath ->
+        check(File(installDir, relativePath).exists()) {
+            "原生语音包缺少核心文件: $relativePath"
+        }
+    }
+}
+
 private fun sha256(bytes: ByteArray): String =
     MessageDigest.getInstance("SHA-256")
         .digest(bytes)
         .joinToString("") { "%02x".format(it) }
+
+private fun JSONObject.optStringList(key: String): List<String> {
+    val items = optJSONArray(key) ?: return emptyList()
+    return buildList {
+        repeat(items.length()) { index ->
+            items.optString(index)
+                .trim()
+                .takeIf(String::isNotEmpty)
+                ?.let(::add)
+        }
+    }
+}
 
 fun buildVoicePackDownloadController(context: Context): VoicePackDownloadController =
     VoicePackDownloadScheduler(context.applicationContext)
