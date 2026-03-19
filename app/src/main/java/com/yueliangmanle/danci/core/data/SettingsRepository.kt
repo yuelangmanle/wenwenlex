@@ -12,6 +12,9 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import com.yueliangmanle.danci.core.model.DEFAULT_AUDIO_CACHE_LIMIT_MB
+import com.yueliangmanle.danci.core.model.DEFAULT_PRONUNCIATION_ACCENT
+import com.yueliangmanle.danci.core.model.DEFAULT_PRONUNCIATION_MODE
 
 data class AppSettings(
     val dailyGoal: Int = 20,
@@ -25,6 +28,14 @@ data class AppSettings(
     val phoneticFillProfileId: String? = null,
     val aiPlanAdjustmentEnabled: Boolean = true,
     val aiSessionCheckpointEnabled: Boolean = true,
+    val preferredPronunciationAccent: String = DEFAULT_PRONUNCIATION_ACCENT,
+    val pronunciationMode: String = DEFAULT_PRONUNCIATION_MODE,
+    val allowCellularVoicePackDownload: Boolean = false,
+    val autoCacheWordAudio: Boolean = true,
+    val audioCacheLimitMb: Int = DEFAULT_AUDIO_CACHE_LIMIT_MB,
+    val activeVoicePackId: String? = null,
+    val fallbackToSystemTts: Boolean = true,
+    val preferOfflineForLongText: Boolean = true,
     val reminderEnabled: Boolean = false,
     val reminderHour: Int = DEFAULT_REMINDER_HOUR,
     val reminderMinute: Int = DEFAULT_REMINDER_MINUTE,
@@ -57,6 +68,22 @@ interface SettingsRepository {
 
     suspend fun updateAiSessionCheckpointEnabled(enabled: Boolean)
 
+    suspend fun updatePreferredPronunciationAccent(accent: String)
+
+    suspend fun updatePronunciationMode(mode: String)
+
+    suspend fun updateAllowCellularVoicePackDownload(enabled: Boolean)
+
+    suspend fun updateAutoCacheWordAudio(enabled: Boolean)
+
+    suspend fun updateAudioCacheLimitMb(limitMb: Int)
+
+    suspend fun updateActiveVoicePackId(voicePackId: String?)
+
+    suspend fun updateFallbackToSystemTts(enabled: Boolean)
+
+    suspend fun updatePreferOfflineForLongText(enabled: Boolean)
+
     suspend fun updateReminderEnabled(enabled: Boolean)
 
     suspend fun updateReminderTime(hour: Int, minute: Int)
@@ -78,6 +105,14 @@ private object SettingsPreferencesKeys {
     val phoneticFillProfileId = stringPreferencesKey("phonetic_fill_profile_id")
     val aiPlanAdjustmentEnabled = booleanPreferencesKey("ai_plan_adjustment_enabled")
     val aiSessionCheckpointEnabled = booleanPreferencesKey("ai_session_checkpoint_enabled")
+    val preferredPronunciationAccent = stringPreferencesKey("preferred_pronunciation_accent")
+    val pronunciationMode = stringPreferencesKey("pronunciation_mode")
+    val allowCellularVoicePackDownload = booleanPreferencesKey("allow_cellular_voice_pack_download")
+    val autoCacheWordAudio = booleanPreferencesKey("auto_cache_word_audio")
+    val audioCacheLimitMb = intPreferencesKey("audio_cache_limit_mb")
+    val activeVoicePackId = stringPreferencesKey("active_voice_pack_id")
+    val fallbackToSystemTts = booleanPreferencesKey("fallback_to_system_tts")
+    val preferOfflineForLongText = booleanPreferencesKey("prefer_offline_for_long_text")
     val reminderEnabled = booleanPreferencesKey("reminder_enabled")
     val reminderHour = intPreferencesKey("reminder_hour")
     val reminderMinute = intPreferencesKey("reminder_minute")
@@ -100,6 +135,14 @@ class DataStoreSettingsRepository(
                 phoneticFillProfileId = preferences[SettingsPreferencesKeys.phoneticFillProfileId],
                 aiPlanAdjustmentEnabled = preferences[SettingsPreferencesKeys.aiPlanAdjustmentEnabled] ?: true,
                 aiSessionCheckpointEnabled = preferences[SettingsPreferencesKeys.aiSessionCheckpointEnabled] ?: true,
+                preferredPronunciationAccent = preferences[SettingsPreferencesKeys.preferredPronunciationAccent] ?: DEFAULT_PRONUNCIATION_ACCENT,
+                pronunciationMode = preferences[SettingsPreferencesKeys.pronunciationMode] ?: DEFAULT_PRONUNCIATION_MODE,
+                allowCellularVoicePackDownload = preferences[SettingsPreferencesKeys.allowCellularVoicePackDownload] ?: false,
+                autoCacheWordAudio = preferences[SettingsPreferencesKeys.autoCacheWordAudio] ?: true,
+                audioCacheLimitMb = preferences[SettingsPreferencesKeys.audioCacheLimitMb] ?: DEFAULT_AUDIO_CACHE_LIMIT_MB,
+                activeVoicePackId = preferences[SettingsPreferencesKeys.activeVoicePackId],
+                fallbackToSystemTts = preferences[SettingsPreferencesKeys.fallbackToSystemTts] ?: true,
+                preferOfflineForLongText = preferences[SettingsPreferencesKeys.preferOfflineForLongText] ?: true,
                 reminderEnabled = preferences[SettingsPreferencesKeys.reminderEnabled] ?: false,
                 reminderHour = preferences[SettingsPreferencesKeys.reminderHour] ?: DEFAULT_REMINDER_HOUR,
                 reminderMinute = preferences[SettingsPreferencesKeys.reminderMinute] ?: DEFAULT_REMINDER_MINUTE,
@@ -167,6 +210,54 @@ class DataStoreSettingsRepository(
     override suspend fun updateAiSessionCheckpointEnabled(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[SettingsPreferencesKeys.aiSessionCheckpointEnabled] = enabled
+        }
+    }
+
+    override suspend fun updatePreferredPronunciationAccent(accent: String) {
+        dataStore.edit { preferences ->
+            preferences[SettingsPreferencesKeys.preferredPronunciationAccent] =
+                accent.ifBlank { DEFAULT_PRONUNCIATION_ACCENT }
+        }
+    }
+
+    override suspend fun updatePronunciationMode(mode: String) {
+        dataStore.edit { preferences ->
+            preferences[SettingsPreferencesKeys.pronunciationMode] =
+                mode.ifBlank { DEFAULT_PRONUNCIATION_MODE }
+        }
+    }
+
+    override suspend fun updateAllowCellularVoicePackDownload(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[SettingsPreferencesKeys.allowCellularVoicePackDownload] = enabled
+        }
+    }
+
+    override suspend fun updateAutoCacheWordAudio(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[SettingsPreferencesKeys.autoCacheWordAudio] = enabled
+        }
+    }
+
+    override suspend fun updateAudioCacheLimitMb(limitMb: Int) {
+        dataStore.edit { preferences ->
+            preferences[SettingsPreferencesKeys.audioCacheLimitMb] = limitMb.coerceIn(50, 2048)
+        }
+    }
+
+    override suspend fun updateActiveVoicePackId(voicePackId: String?) {
+        updateNullableString(SettingsPreferencesKeys.activeVoicePackId, voicePackId)
+    }
+
+    override suspend fun updateFallbackToSystemTts(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[SettingsPreferencesKeys.fallbackToSystemTts] = enabled
+        }
+    }
+
+    override suspend fun updatePreferOfflineForLongText(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[SettingsPreferencesKeys.preferOfflineForLongText] = enabled
         }
     }
 

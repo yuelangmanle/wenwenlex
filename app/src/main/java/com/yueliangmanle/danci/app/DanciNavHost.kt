@@ -16,6 +16,8 @@ import com.yueliangmanle.danci.feature.home.HomeRoute
 import com.yueliangmanle.danci.feature.me.AiSettingsRoute
 import com.yueliangmanle.danci.feature.me.AI_SETTINGS_ROUTE
 import com.yueliangmanle.danci.feature.me.MeRoute
+import com.yueliangmanle.danci.feature.pronunciation.PRONUNCIATION_SETTINGS_ROUTE
+import com.yueliangmanle.danci.feature.pronunciation.PronunciationSettingsRoute
 import com.yueliangmanle.danci.feature.quiz.QuizRoute
 import com.yueliangmanle.danci.feature.quiz.quizRoute
 import com.yueliangmanle.danci.feature.study.StudyRoute
@@ -64,6 +66,9 @@ fun DanciNavHost(
                         onOpenAiSettingsClick = {
                             navController.navigate(AI_SETTINGS_ROUTE)
                         },
+                        onOpenPronunciationSettingsClick = {
+                            navController.navigate(PRONUNCIATION_SETTINGS_ROUTE)
+                        },
                     )
                 }
             }
@@ -98,6 +103,9 @@ fun DanciNavHost(
         }
         composable(route = AI_SETTINGS_ROUTE) {
             AiSettingsRoute()
+        }
+        composable(route = PRONUNCIATION_SETTINGS_ROUTE) {
+            PronunciationSettingsRoute()
         }
         composable(route = BOOK_IMPORT_ROUTE) {
             BookImportRoute(

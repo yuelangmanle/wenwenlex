@@ -9,14 +9,16 @@ import com.yueliangmanle.danci.core.database.entity.LearningRecordEntity
 import com.yueliangmanle.danci.core.database.entity.PhoneticEnrichmentJobEntity
 import com.yueliangmanle.danci.core.database.entity.StudyEventEntity
 import com.yueliangmanle.danci.core.database.entity.StudySessionEntity
+import com.yueliangmanle.danci.core.database.entity.VoicePackEntity
 import com.yueliangmanle.danci.core.database.entity.WordEntity
+import com.yueliangmanle.danci.core.database.entity.WordAudioAssetEntity
 import com.yueliangmanle.danci.core.model.AiMemorySummary
 import java.time.Instant
 
-const val BACKUP_VERSION = 2
+const val BACKUP_VERSION = 3
 const val MANIFEST_FILE_NAME = "manifest.json"
 const val PAYLOAD_FILE_NAME = "payload.json"
-val SUPPORTED_BACKUP_VERSIONS = setOf(1, BACKUP_VERSION)
+val SUPPORTED_BACKUP_VERSIONS = setOf(1, 2, BACKUP_VERSION)
 
 val REQUIRED_BACKUP_SECTIONS = listOf(
     "settings",
@@ -39,6 +41,8 @@ data class BackupSnapshot(
     val books: List<BookEntity> = emptyList(),
     val bookWords: List<BookWordEntity> = emptyList(),
     val words: List<WordEntity> = emptyList(),
+    val wordAudioAssets: List<WordAudioAssetEntity> = emptyList(),
+    val voicePacks: List<VoicePackEntity> = emptyList(),
     val importBatches: List<ImportBatchEntity> = emptyList(),
     val phoneticEnrichmentJobs: List<PhoneticEnrichmentJobEntity> = emptyList(),
     val learningRecords: List<LearningRecordEntity> = emptyList(),

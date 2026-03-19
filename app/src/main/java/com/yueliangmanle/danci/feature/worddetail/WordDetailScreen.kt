@@ -19,6 +19,8 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun WordDetailScreen(
     state: WordDetailUiState,
+    onPlayUkPronunciationClick: () -> Unit = {},
+    onPlayUsPronunciationClick: () -> Unit = {},
     onAiMemoryClick: () -> Unit = {},
     onAiContrastClick: () -> Unit = {},
     onExplainWordFormsClick: () -> Unit = {},
@@ -62,6 +64,23 @@ fun WordDetailScreen(
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    OutlinedButton(
+                        onClick = onPlayUkPronunciationClick,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("播放英式")
+                    }
+                    OutlinedButton(
+                        onClick = onPlayUsPronunciationClick,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("播放美式")
+                    }
+                }
                 if (state.meanings.isNotEmpty()) {
                     Text(
                         text = state.meanings.joinToString("；"),

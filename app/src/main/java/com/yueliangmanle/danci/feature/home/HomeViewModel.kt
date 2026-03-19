@@ -14,10 +14,13 @@ import com.yueliangmanle.danci.core.study.ReviewScheduler
 import com.yueliangmanle.danci.core.study.TodayTaskEngine
 import java.time.Instant
 import kotlin.math.max
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 data class HomeUiState(
     val isLoading: Boolean = false,
     val isAnalyzingPlan: Boolean = false,
+    val errorMessage: String? = null,
     val headline: String = "",
     val todayGoalCount: Int = 0,
     val completedCount: Int = 0,
@@ -83,6 +86,7 @@ class HomeViewModel(
     fun markAnalyzing(current: HomeUiState): HomeUiState =
         current.copy(
             isAnalyzingPlan = true,
+            errorMessage = null,
             aiSuggestionTitle = "AI 正在分析",
             aiSuggestion = "正在整理最近的学习表现和薄弱点，请稍候。",
             aiSuggestionMeta = null,
@@ -94,6 +98,7 @@ class HomeViewModel(
     ): HomeUiState =
         current.copy(
             isAnalyzingPlan = false,
+            errorMessage = null,
             aiSuggestionTitle = if (result.source == PlanSource.AI) {
                 "AI 计划调整"
             } else {
@@ -112,11 +117,13 @@ class HomeViewModel(
 }
 
 suspend fun loadHomeViewModel(context: Context): HomeViewModel {
-    syncBuiltInCatalogToDatabase(context)
-    val settings = buildSettingsRepository(context).getSettings()
-    val books = buildBookRepository(context).getAllBooks()
-    return HomeViewModel(
-        settings = settings,
-        books = books,
-    )
+    return withContext(Dispatchers.IO) {
+        syncBuiltInCatalogToDatabase(context)
+        val settings = buildSettingsRepository(context).getSettings()
+        val books = buildBookRepository(context).getAllBooks()
+        HomeViewModel(
+            settings = settings,
+            books = books,
+        )
+    }
 }

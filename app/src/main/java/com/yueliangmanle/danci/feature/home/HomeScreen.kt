@@ -59,6 +59,14 @@ fun HomeScreen(
         item {
             HeroCard(state = state)
         }
+        state.errorMessage?.let { message ->
+            item {
+                StatusCard(
+                    message = message,
+                    isError = true,
+                )
+            }
+        }
         item {
             StatsGrid(state = state)
         }
@@ -81,6 +89,28 @@ fun HomeScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun StatusCard(
+    message: String,
+    isError: Boolean,
+) {
+    Card(
+        modifier = Modifier
+            .padding(horizontal = 20.dp)
+            .fillMaxWidth(),
+    ) {
+        Text(
+            text = message,
+            modifier = Modifier.padding(16.dp),
+            color = if (isError) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.primary
+            },
+        )
     }
 }
 

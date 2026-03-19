@@ -21,6 +21,7 @@ fun StudyScreen(
     state: StudyUiState,
     onFeedbackClick: (CardFeedback) -> Unit,
     onOpenDetailClick: () -> Unit,
+    onPlayPronunciationClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -75,10 +76,35 @@ fun StudyScreen(
                     )
                 }
                 OutlinedButton(
+                    onClick = onPlayPronunciationClick,
+                ) {
+                    Text("播放发音")
+                }
+                OutlinedButton(
                     onClick = onOpenDetailClick,
                 ) {
                     Text("查看详情")
                 }
+            }
+        }
+        state.statusMessage?.let { message ->
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = message,
+                    modifier = Modifier.padding(16.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+        state.errorMessage?.let { message ->
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = message,
+                    modifier = Modifier.padding(16.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
         }
         if (state.checkpointTitle != null && state.checkpointSuggestion != null) {

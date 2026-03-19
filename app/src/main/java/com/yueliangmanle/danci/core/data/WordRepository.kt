@@ -57,8 +57,37 @@ class RoomWordRepository(
         wordDao.updateWord(word.asEntity())
     }
 
-    override suspend fun importWords(words: List<ImportedWord>): List<Long> =
-        words.map { importedWord -> insertWord(importedWord.asWord()) }
+    override suspend fun importWords(words: List<ImportedWord>): List<Long> {
+        if (words.isEmpty()) {
+            return emptyList()
+        }
+
+        val normalizedWords = words.map(ImportedWord::asWord)
+        val insertedIds = wordDao.insertWords(normalizedWords.map(Word::asEntity))
+        val idsByLemma = linkedMapOf<String, Long>()
+        val missingLemmas = linkedSetOf<String>()
+
+        normalizedWords.forEachIndexed { index, word ->
+            val insertedId = insertedIds[index]
+            if (insertedId != -1L) {
+                idsByLemma[word.lemma] = insertedId
+            } else if (word.lemma !in idsByLemma) {
+                missingLemmas += word.lemma
+            }
+        }
+
+        if (missingLemmas.isNotEmpty()) {
+            wordDao.getWordsByLemmas(missingLemmas.toList()).forEach { entity ->
+                idsByLemma[entity.lemma] = entity.id
+            }
+        }
+
+        return normalizedWords.map { word ->
+            requireNotNull(idsByLemma[word.lemma]) {
+                "Expected canonical word to exist for lemma=${word.lemma}"
+            }
+        }
+    }
 }
 
 internal fun WordEntity.asExternalModel(): Word =

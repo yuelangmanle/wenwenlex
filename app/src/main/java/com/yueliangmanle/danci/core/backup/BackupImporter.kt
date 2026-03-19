@@ -9,7 +9,9 @@ import com.yueliangmanle.danci.core.database.entity.LearningRecordEntity
 import com.yueliangmanle.danci.core.database.entity.PhoneticEnrichmentJobEntity
 import com.yueliangmanle.danci.core.database.entity.StudyEventEntity
 import com.yueliangmanle.danci.core.database.entity.StudySessionEntity
+import com.yueliangmanle.danci.core.database.entity.VoicePackEntity
 import com.yueliangmanle.danci.core.database.entity.WordEntity
+import com.yueliangmanle.danci.core.database.entity.WordAudioAssetEntity
 import com.yueliangmanle.danci.core.model.PHONETIC_SOURCE_EMPTY
 import com.yueliangmanle.danci.core.model.PHONETIC_SOURCE_LEGACY
 import com.yueliangmanle.danci.core.model.PHONETIC_STATUS_EMPTY
@@ -71,6 +73,8 @@ internal fun String.toBackupSnapshot(version: Int = BACKUP_VERSION): BackupSnaps
         books = json.getJSONArray("books").mapObjects(JSONObject::toBookEntity),
         bookWords = json.getJSONArray("book_words").mapObjects(JSONObject::toBookWordEntity),
         words = json.getJSONArray("words").mapObjects { toWordEntity(version) },
+        wordAudioAssets = json.optJSONArray("word_audio_assets").mapObjects(JSONObject::toWordAudioAssetEntity),
+        voicePacks = json.optJSONArray("voice_packs").mapObjects(JSONObject::toVoicePackEntity),
         importBatches = json.optJSONArray("import_batches").mapObjects(JSONObject::toImportBatchEntity),
         phoneticEnrichmentJobs = json.optJSONArray("phonetic_enrichment_jobs").mapObjects(JSONObject::toPhoneticEnrichmentJobEntity),
         learningRecords = json.getJSONArray("learning_records").mapObjects(JSONObject::toLearningRecordEntity),
@@ -93,6 +97,19 @@ internal fun JSONObject.toAppSettings(): AppSettings =
         phoneticFillProfileId = optNullableString("phonetic_fill_profile_id"),
         aiPlanAdjustmentEnabled = getBoolean("ai_plan_adjustment_enabled"),
         aiSessionCheckpointEnabled = getBoolean("ai_session_checkpoint_enabled"),
+        preferredPronunciationAccent = optNullableString("preferred_pronunciation_accent")
+            ?: com.yueliangmanle.danci.core.model.DEFAULT_PRONUNCIATION_ACCENT,
+        pronunciationMode = optNullableString("pronunciation_mode")
+            ?: com.yueliangmanle.danci.core.model.DEFAULT_PRONUNCIATION_MODE,
+        allowCellularVoicePackDownload = optBoolean("allow_cellular_voice_pack_download", false),
+        autoCacheWordAudio = optBoolean("auto_cache_word_audio", true),
+        audioCacheLimitMb = optInt(
+            "audio_cache_limit_mb",
+            com.yueliangmanle.danci.core.model.DEFAULT_AUDIO_CACHE_LIMIT_MB,
+        ),
+        activeVoicePackId = optNullableString("active_voice_pack_id"),
+        fallbackToSystemTts = optBoolean("fallback_to_system_tts", true),
+        preferOfflineForLongText = optBoolean("prefer_offline_for_long_text", true),
         reminderEnabled = optBoolean("reminder_enabled", false),
         reminderHour = optInt("reminder_hour", 21),
         reminderMinute = optInt("reminder_minute", 0),
@@ -169,6 +186,42 @@ internal fun JSONObject.toWordEntity(version: Int = BACKUP_VERSION): WordEntity 
         pronunciationUrl = optNullableString("pronunciation_url"),
     )
 }
+
+internal fun JSONObject.toWordAudioAssetEntity(): WordAudioAssetEntity =
+    WordAudioAssetEntity(
+        id = optLongOrNull("id") ?: 0L,
+        wordId = getLong("word_id"),
+        accent = optNullableString("accent") ?: "auto",
+        sourceType = optNullableString("source_type") ?: "dictionary_cache",
+        remoteUrl = optNullableString("remote_url"),
+        localPath = optNullableString("local_path"),
+        mimeType = optNullableString("mime_type"),
+        checksum = optNullableString("checksum"),
+        status = optNullableString("status") ?: "empty",
+        fetchedAt = optInstant("fetched_at"),
+        lastPlayedAt = optInstant("last_played_at"),
+        lastError = optNullableString("last_error"),
+        failureCount = optInt("failure_count", 0),
+    )
+
+internal fun JSONObject.toVoicePackEntity(): VoicePackEntity =
+    VoicePackEntity(
+        id = getString("id"),
+        name = getString("name"),
+        locale = optNullableString("locale") ?: "en-US",
+        accent = optNullableString("accent") ?: "auto",
+        engineType = optNullableString("engine_type") ?: "sherpa_onnx",
+        version = optNullableString("version") ?: "1",
+        downloadUrl = optNullableString("download_url"),
+        manifestUrl = optNullableString("manifest_url"),
+        installDir = optNullableString("install_dir"),
+        archiveChecksum = optNullableString("archive_checksum"),
+        installedSizeBytes = optLongOrNull("installed_size_bytes") ?: 0L,
+        status = optNullableString("status") ?: "not_installed",
+        isActive = optBoolean("is_active", false),
+        createdAt = optInstant("created_at") ?: java.time.Instant.EPOCH,
+        updatedAt = optInstant("updated_at") ?: java.time.Instant.EPOCH,
+    )
 
 internal fun JSONObject.toImportBatchEntity(): ImportBatchEntity =
     ImportBatchEntity(

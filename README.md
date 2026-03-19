@@ -16,6 +16,8 @@
 - [发版签名说明](docs/release-signing.md)
 - [v1.1 产品规格](docs/superpowers/specs/2026-03-19-v1.1-lexicon-import-ai-design.md)
 - [v1.1 实施计划](docs/superpowers/plans/2026-03-19-v1.1-lexicon-import-ai.md)
+- [v1.2 发音模块规格](docs/superpowers/specs/2026-03-19-v1.2-pronunciation-design.md)
+- [v1.2 发音模块计划](docs/superpowers/plans/2026-03-19-v1.2-pronunciation.md)
 
 ## 1.1 已实现能力
 
@@ -38,6 +40,15 @@
   - 雅思基础 `5026`
 - 本地 ZIP 备份与恢复，备份版本升级到 `v2`，兼容导入 `v1`
 - 每日提醒、本地 AI 摘要整理与 WorkManager 后台任务
+
+## 1.2 开发中能力
+
+- 发音模块数据库 `v3` 结构和备份位已开始接入
+- 发音设置页入口已加入“我的”页
+- 单词详情页新增英式 / 美式发音按钮
+- 学习页新增发音播放入口
+- 词典音频缓存仓库、播放调度器和系统 TTS 兜底骨架已开始落地
+- 离线语音包当前仍在接推理引擎和下载挂载流程
 
 ## 内置词库来源
 

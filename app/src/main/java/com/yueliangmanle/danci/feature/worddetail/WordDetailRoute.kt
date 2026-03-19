@@ -15,6 +15,8 @@ import com.yueliangmanle.danci.core.ai.buildAiStrategyCoordinator
 import com.yueliangmanle.danci.core.ai.resolveRuntimeSettingsForCapability
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
 import com.yueliangmanle.danci.core.model.AiCapability
+import com.yueliangmanle.danci.core.model.PronunciationAccent
+import com.yueliangmanle.danci.core.pronunciation.buildPronunciationOrchestrator
 import kotlinx.coroutines.launch
 
 fun wordDetailRoute(wordId: Long): String = "word_detail/$wordId"
@@ -29,6 +31,7 @@ fun WordDetailRoute(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val coordinator = remember(context) { buildAiStrategyCoordinator(context) }
+    val pronunciationOrchestrator = remember(context) { buildPronunciationOrchestrator(context) }
     var viewModel: WordDetailViewModel? by remember(context, wordId) {
         mutableStateOf(null)
     }
@@ -75,6 +78,34 @@ fun WordDetailRoute(
 
     WordDetailScreen(
         state = state,
+        onPlayUkPronunciationClick = {
+            viewModel ?: return@WordDetailScreen
+            scope.launch {
+                val result = pronunciationOrchestrator.playWordById(
+                    wordId = state.wordId,
+                    accentOverride = PronunciationAccent.UK,
+                    contextLabel = "word_detail",
+                )
+                state = state.copy(
+                    statusMessage = result.statusMessage,
+                    errorMessage = result.errorMessage,
+                )
+            }
+        },
+        onPlayUsPronunciationClick = {
+            viewModel ?: return@WordDetailScreen
+            scope.launch {
+                val result = pronunciationOrchestrator.playWordById(
+                    wordId = state.wordId,
+                    accentOverride = PronunciationAccent.US,
+                    contextLabel = "word_detail",
+                )
+                state = state.copy(
+                    statusMessage = result.statusMessage,
+                    errorMessage = result.errorMessage,
+                )
+            }
+        },
         onAiMemoryClick = {
             val currentViewModel = viewModel ?: return@WordDetailScreen
             currentViewModel.onAiMemoryClick()

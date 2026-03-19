@@ -37,6 +37,14 @@ class BackupRepository(
                     books = database.bookDao().getAllBooks(),
                     bookWords = database.bookDao().getAllBookWordCrossRefs(),
                     words = database.wordDao().getAllWords(),
+                    wordAudioAssets = database.wordAudioAssetDao().getAssetsBySource(
+                        sourceType = "dictionary_cache",
+                        status = "ready",
+                    ) + database.wordAudioAssetDao().getAssetsBySource(
+                        sourceType = "dictionary_remote",
+                        status = "failed",
+                    ),
+                    voicePacks = database.voicePackDao().getAllVoicePacks(),
                     importBatches = database.importBatchDao().getAllBatches(),
                     phoneticEnrichmentJobs = database.phoneticEnrichmentJobDao().getAllJobs(),
                     learningRecords = database.studyDao().getAllLearningRecords(),
@@ -74,10 +82,18 @@ class BackupRepository(
             database.studyDao().clearConfusionEdges()
             database.bookDao().clearBookWordCrossRefs()
             database.bookDao().clearBooks()
+            database.voicePackDao().clearVoicePacks()
+            database.wordAudioAssetDao().clearAssets()
             database.wordDao().clearWords()
 
             if (imported.snapshot.words.isNotEmpty()) {
                 database.wordDao().insertWords(imported.snapshot.words)
+            }
+            if (imported.snapshot.wordAudioAssets.isNotEmpty()) {
+                database.wordAudioAssetDao().upsertAssets(imported.snapshot.wordAudioAssets)
+            }
+            if (imported.snapshot.voicePacks.isNotEmpty()) {
+                database.voicePackDao().upsertVoicePacks(imported.snapshot.voicePacks)
             }
             if (imported.snapshot.aiProfiles.isNotEmpty()) {
                 database.aiProviderProfileDao().upsertProfiles(imported.snapshot.aiProfiles)
@@ -136,6 +152,14 @@ class BackupRepository(
         settingsRepository.updatePhoneticFillProfileId(settings.phoneticFillProfileId)
         settingsRepository.updateAiPlanAdjustmentEnabled(settings.aiPlanAdjustmentEnabled)
         settingsRepository.updateAiSessionCheckpointEnabled(settings.aiSessionCheckpointEnabled)
+        settingsRepository.updatePreferredPronunciationAccent(settings.preferredPronunciationAccent)
+        settingsRepository.updatePronunciationMode(settings.pronunciationMode)
+        settingsRepository.updateAllowCellularVoicePackDownload(settings.allowCellularVoicePackDownload)
+        settingsRepository.updateAutoCacheWordAudio(settings.autoCacheWordAudio)
+        settingsRepository.updateAudioCacheLimitMb(settings.audioCacheLimitMb)
+        settingsRepository.updateActiveVoicePackId(settings.activeVoicePackId)
+        settingsRepository.updateFallbackToSystemTts(settings.fallbackToSystemTts)
+        settingsRepository.updatePreferOfflineForLongText(settings.preferOfflineForLongText)
         settingsRepository.updateReminderEnabled(settings.reminderEnabled)
         settingsRepository.updateReminderTime(settings.reminderHour, settings.reminderMinute)
     }

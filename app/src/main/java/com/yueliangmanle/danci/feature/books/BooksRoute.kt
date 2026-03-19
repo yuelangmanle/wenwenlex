@@ -19,8 +19,15 @@ fun BooksRoute(
     }
 
     LaunchedEffect(context) {
-        val viewModel = loadBooksViewModel(context)
-        state = viewModel.loadUiState()
+        state = runCatching {
+            val viewModel = loadBooksViewModel(context)
+            viewModel.loadUiState()
+        }.getOrElse { error ->
+            BooksUiState(
+                statusMessage = "词书页加载失败，可以稍后重试。",
+                errorMessage = error.message ?: "词书页加载失败，请稍后重试。",
+            )
+        }
     }
 
     BooksScreen(

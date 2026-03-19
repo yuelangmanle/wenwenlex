@@ -13,7 +13,9 @@ import com.yueliangmanle.danci.core.database.dao.BookDao
 import com.yueliangmanle.danci.core.database.dao.ImportBatchDao
 import com.yueliangmanle.danci.core.database.dao.PhoneticEnrichmentJobDao
 import com.yueliangmanle.danci.core.database.dao.StudyDao
+import com.yueliangmanle.danci.core.database.dao.VoicePackDao
 import com.yueliangmanle.danci.core.database.dao.WordDao
+import com.yueliangmanle.danci.core.database.dao.WordAudioAssetDao
 import com.yueliangmanle.danci.core.database.entity.AiProviderProfileEntity
 import com.yueliangmanle.danci.core.database.entity.BookEntity
 import com.yueliangmanle.danci.core.database.entity.BookWordEntity
@@ -26,8 +28,10 @@ import com.yueliangmanle.danci.core.database.entity.PlanHistoryEntity
 import com.yueliangmanle.danci.core.database.entity.PhoneticEnrichmentJobEntity
 import com.yueliangmanle.danci.core.database.entity.StudyEventEntity
 import com.yueliangmanle.danci.core.database.entity.StudySessionEntity
+import com.yueliangmanle.danci.core.database.entity.VoicePackEntity
 import com.yueliangmanle.danci.core.database.entity.WeeklySummaryEntity
 import com.yueliangmanle.danci.core.database.entity.WordEntity
+import com.yueliangmanle.danci.core.database.entity.WordAudioAssetEntity
 import java.time.Instant
 
 @Database(
@@ -46,18 +50,22 @@ import java.time.Instant
         AiProviderProfileEntity::class,
         ImportBatchEntity::class,
         PhoneticEnrichmentJobEntity::class,
+        WordAudioAssetEntity::class,
+        VoicePackEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 @TypeConverters(DanciTypeConverters::class)
 abstract class DanciDatabase : RoomDatabase() {
     abstract fun wordDao(): WordDao
+    abstract fun wordAudioAssetDao(): WordAudioAssetDao
     abstract fun bookDao(): BookDao
     abstract fun studyDao(): StudyDao
     abstract fun aiProviderProfileDao(): AiProviderProfileDao
     abstract fun importBatchDao(): ImportBatchDao
     abstract fun phoneticEnrichmentJobDao(): PhoneticEnrichmentJobDao
+    abstract fun voicePackDao(): VoicePackDao
 }
 
 private const val DANCI_DB_NAME = "danci.db"
@@ -76,6 +84,7 @@ fun buildDanciDatabase(context: Context): DanciDatabase {
             DANCI_DB_NAME,
         )
             .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_2_3)
             .build().also { database ->
             DanciDatabaseHolder.instance = database
         }
@@ -148,6 +157,56 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
                 totalCount INTEGER NOT NULL,
                 completedCount INTEGER NOT NULL,
                 failedCount INTEGER NOT NULL,
+                createdAt INTEGER NOT NULL,
+                updatedAt INTEGER NOT NULL
+            )
+            """.trimIndent(),
+        )
+    }
+}
+
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS word_audio_assets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                wordId INTEGER NOT NULL,
+                accent TEXT NOT NULL,
+                sourceType TEXT NOT NULL,
+                remoteUrl TEXT,
+                localPath TEXT,
+                mimeType TEXT,
+                checksum TEXT,
+                status TEXT NOT NULL,
+                fetchedAt INTEGER,
+                lastPlayedAt INTEGER,
+                lastError TEXT,
+                failureCount INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY(wordId) REFERENCES words(id) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent(),
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_word_audio_assets_wordId ON word_audio_assets(wordId)")
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_word_audio_assets_wordId_accent_sourceType ON word_audio_assets(wordId, accent, sourceType)",
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS voice_packs (
+                id TEXT NOT NULL PRIMARY KEY,
+                name TEXT NOT NULL,
+                locale TEXT NOT NULL,
+                accent TEXT NOT NULL,
+                engineType TEXT NOT NULL,
+                version TEXT NOT NULL,
+                downloadUrl TEXT,
+                manifestUrl TEXT,
+                installDir TEXT,
+                archiveChecksum TEXT,
+                installedSizeBytes INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL,
+                isActive INTEGER NOT NULL DEFAULT 0,
                 createdAt INTEGER NOT NULL,
                 updatedAt INTEGER NOT NULL
             )

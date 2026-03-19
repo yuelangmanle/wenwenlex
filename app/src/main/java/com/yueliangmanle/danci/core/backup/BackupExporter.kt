@@ -9,7 +9,9 @@ import com.yueliangmanle.danci.core.database.entity.LearningRecordEntity
 import com.yueliangmanle.danci.core.database.entity.PhoneticEnrichmentJobEntity
 import com.yueliangmanle.danci.core.database.entity.StudyEventEntity
 import com.yueliangmanle.danci.core.database.entity.StudySessionEntity
+import com.yueliangmanle.danci.core.database.entity.VoicePackEntity
 import com.yueliangmanle.danci.core.database.entity.WordEntity
+import com.yueliangmanle.danci.core.database.entity.WordAudioAssetEntity
 import com.yueliangmanle.danci.core.model.AiMemorySummary
 import com.yueliangmanle.danci.core.model.ConfusionEdge
 import com.yueliangmanle.danci.core.model.DailySummary
@@ -46,6 +48,8 @@ class BackupExporter(
         "ai_profiles",
         "books",
         "words",
+        "word_audio_assets",
+        "voice_packs",
         "import_batches",
         "phonetic_enrichment_jobs",
         "study_data",
@@ -82,6 +86,8 @@ internal fun BackupSnapshot.toJson(): JSONObject =
         .put("books", JSONArray(books.map(BookEntity::toJson)))
         .put("book_words", JSONArray(bookWords.map(BookWordEntity::toJson)))
         .put("words", JSONArray(words.map(WordEntity::toJson)))
+        .put("word_audio_assets", JSONArray(wordAudioAssets.map(WordAudioAssetEntity::toJson)))
+        .put("voice_packs", JSONArray(voicePacks.map(VoicePackEntity::toJson)))
         .put("import_batches", JSONArray(importBatches.map(ImportBatchEntity::toJson)))
         .put("phonetic_enrichment_jobs", JSONArray(phoneticEnrichmentJobs.map(PhoneticEnrichmentJobEntity::toJson)))
         .put("learning_records", JSONArray(learningRecords.map(LearningRecordEntity::toJson)))
@@ -102,6 +108,14 @@ internal fun AppSettings.toJson(): JSONObject =
         .put("phonetic_fill_profile_id", phoneticFillProfileId)
         .put("ai_plan_adjustment_enabled", aiPlanAdjustmentEnabled)
         .put("ai_session_checkpoint_enabled", aiSessionCheckpointEnabled)
+        .put("preferred_pronunciation_accent", preferredPronunciationAccent)
+        .put("pronunciation_mode", pronunciationMode)
+        .put("allow_cellular_voice_pack_download", allowCellularVoicePackDownload)
+        .put("auto_cache_word_audio", autoCacheWordAudio)
+        .put("audio_cache_limit_mb", audioCacheLimitMb)
+        .put("active_voice_pack_id", activeVoicePackId)
+        .put("fallback_to_system_tts", fallbackToSystemTts)
+        .put("prefer_offline_for_long_text", preferOfflineForLongText)
         .put("reminder_enabled", reminderEnabled)
         .put("reminder_hour", reminderHour)
         .put("reminder_minute", reminderMinute)
@@ -162,6 +176,40 @@ internal fun WordEntity.toJson(): JSONObject =
         .put("tags", JSONArray(tags))
         .put("frequency_rank", frequencyRank)
         .put("pronunciation_url", pronunciationUrl)
+
+internal fun WordAudioAssetEntity.toJson(): JSONObject =
+    JSONObject()
+        .put("id", id)
+        .put("word_id", wordId)
+        .put("accent", accent)
+        .put("source_type", sourceType)
+        .put("remote_url", remoteUrl)
+        .put("local_path", localPath)
+        .put("mime_type", mimeType)
+        .put("checksum", checksum)
+        .put("status", status)
+        .put("fetched_at", fetchedAt.toBackupString())
+        .put("last_played_at", lastPlayedAt.toBackupString())
+        .put("last_error", lastError)
+        .put("failure_count", failureCount)
+
+internal fun VoicePackEntity.toJson(): JSONObject =
+    JSONObject()
+        .put("id", id)
+        .put("name", name)
+        .put("locale", locale)
+        .put("accent", accent)
+        .put("engine_type", engineType)
+        .put("version", version)
+        .put("download_url", downloadUrl)
+        .put("manifest_url", manifestUrl)
+        .put("install_dir", installDir)
+        .put("archive_checksum", archiveChecksum)
+        .put("installed_size_bytes", installedSizeBytes)
+        .put("status", status)
+        .put("is_active", isActive)
+        .put("created_at", createdAt.toBackupString())
+        .put("updated_at", updatedAt.toBackupString())
 
 internal fun ImportBatchEntity.toJson(): JSONObject =
     JSONObject()

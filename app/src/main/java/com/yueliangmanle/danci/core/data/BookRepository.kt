@@ -1,6 +1,7 @@
 package com.yueliangmanle.danci.core.data
 
 import android.content.Context
+import androidx.room.withTransaction
 import com.yueliangmanle.danci.core.database.dao.BookDao
 import com.yueliangmanle.danci.core.database.buildDanciDatabase
 import com.yueliangmanle.danci.core.database.entity.BookEntity
@@ -11,8 +12,12 @@ import com.yueliangmanle.danci.core.model.Book
 import com.yueliangmanle.danci.core.model.Word
 import java.io.InputStream
 import java.time.Instant
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 interface BookRepository {
@@ -181,41 +186,54 @@ fun parseBuiltInCatalog(inputStream: InputStream): List<BuiltInBookCatalogItem> 
     }
 }
 
+private val builtInCatalogSyncMutex = Mutex()
+
 suspend fun syncBuiltInCatalogToDatabase(context: Context) {
-    val appContext = context.applicationContext
-    val bookRepository = buildBookRepository(appContext)
-    val wordRepository = buildWordRepository(appContext)
-    val catalog = appContext.assets.open("books/manifest.json").use(::parseBuiltInCatalog)
-    catalog.forEach { item ->
-        val existingBook = bookRepository.getBook(item.id)
-        val needsSync = existingBook == null ||
-            existingBook.wordCount != item.wordCount ||
-            bookRepository.countWords(item.id) != item.wordCount
-        if (!needsSync) {
-            return@forEach
-        }
-        val importedBook = appContext.assets.open("books/${item.assetName}").use(JsonBookImporter()::parse)
-        val wordIds = wordRepository.importWords(importedBook.words)
-        bookRepository.upsertBook(
-            Book(
-                id = item.id,
-                title = item.title,
-                description = item.description,
-                language = "en",
-                category = "exam",
-                sourceType = "builtin",
-                wordCount = wordIds.size,
-                createdAt = Instant.EPOCH,
-                updatedAt = Instant.now(),
-            ),
-        )
-        bookRepository.clearBookWordLinks(item.id)
-        wordIds.forEachIndexed { index, wordId ->
-            bookRepository.addWordToBook(
-                bookId = item.id,
-                wordId = wordId,
-                sortOrder = index,
-            )
+    withContext(Dispatchers.IO) {
+        builtInCatalogSyncMutex.withLock {
+            val appContext = context.applicationContext
+            val database = buildDanciDatabase(appContext)
+            val bookDao = database.bookDao()
+            val wordRepository = RoomWordRepository(database.wordDao())
+            val catalog = appContext.assets.open("books/manifest.json").use(::parseBuiltInCatalog)
+
+            catalog.forEach { item ->
+                val existingBook = bookDao.getBookById(item.id)
+                val needsSync = existingBook == null ||
+                    existingBook.wordCount != item.wordCount ||
+                    bookDao.countWordsForBook(item.id) != item.wordCount
+                if (!needsSync) {
+                    return@forEach
+                }
+
+                val importedBook = appContext.assets.open("books/${item.assetName}").use(JsonBookImporter()::parse)
+                database.withTransaction {
+                    val wordIds = wordRepository.importWords(importedBook.words)
+                    bookDao.insertBook(
+                        Book(
+                            id = item.id,
+                            title = item.title,
+                            description = item.description,
+                            language = "en",
+                            category = "exam",
+                            sourceType = "builtin",
+                            wordCount = wordIds.size,
+                            createdAt = Instant.EPOCH,
+                            updatedAt = Instant.now(),
+                        ).asEntity(),
+                    )
+                    bookDao.clearBookWordCrossRefsForBook(item.id)
+                    bookDao.insertBookWordCrossRefs(
+                        wordIds.mapIndexed { index, wordId ->
+                            BookWordEntity(
+                                bookId = item.id,
+                                wordId = wordId,
+                                sortOrder = index,
+                            )
+                        },
+                    )
+                }
+            }
         }
     }
 }

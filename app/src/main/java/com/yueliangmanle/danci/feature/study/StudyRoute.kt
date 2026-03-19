@@ -12,6 +12,7 @@ import com.yueliangmanle.danci.core.ai.buildAiStrategyCoordinator
 import com.yueliangmanle.danci.core.ai.loadCurrentPlanSnapshot
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
 import com.yueliangmanle.danci.core.model.AiCapability
+import com.yueliangmanle.danci.core.pronunciation.buildPronunciationOrchestrator
 import kotlinx.coroutines.launch
 
 @Composable
@@ -23,6 +24,7 @@ fun StudyRoute(
     val settingsRepository = remember(context) {
         buildSettingsRepository(context)
     }
+    val pronunciationOrchestrator = remember(context) { buildPronunciationOrchestrator(context) }
     var viewModel: StudyViewModel? by remember(context) { mutableStateOf(null) }
     var state by remember(viewModel) {
         mutableStateOf(StudyUiState())
@@ -58,6 +60,18 @@ fun StudyRoute(
         onOpenDetailClick = {
             viewModel?.openCurrentWordDetail()
             onOpenDetailClick(state.currentWordId)
+        },
+        onPlayPronunciationClick = {
+            scope.launch {
+                val result = pronunciationOrchestrator.playWordById(
+                    wordId = state.currentWordId,
+                    contextLabel = "study",
+                )
+                state = state.copy(
+                    statusMessage = result.statusMessage,
+                    errorMessage = result.errorMessage,
+                )
+            }
         },
     )
 }

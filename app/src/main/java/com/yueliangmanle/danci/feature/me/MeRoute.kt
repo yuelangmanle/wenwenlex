@@ -21,6 +21,7 @@ const val AI_SETTINGS_ROUTE = "ai_settings"
 @Composable
 fun MeRoute(
     onOpenAiSettingsClick: () -> Unit = {},
+    onOpenPronunciationSettingsClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -74,5 +75,6 @@ fun MeRoute(
             launchAction { restoreLatestBackup() }
         },
         onOpenAiSettingsClick = onOpenAiSettingsClick,
+        onOpenPronunciationSettingsClick = onOpenPronunciationSettingsClick,
     )
 }

@@ -36,6 +36,7 @@ fun MeScreen(
     onExportBackupClick: () -> Unit,
     onRestoreBackupClick: () -> Unit,
     onOpenAiSettingsClick: () -> Unit,
+    onOpenPronunciationSettingsClick: () -> Unit,
 ) {
     if (state.isLoading) {
         Box(
@@ -87,6 +88,10 @@ fun MeScreen(
             isWorking = state.isWorking,
             onOpenAiSettingsClick = onOpenAiSettingsClick,
         )
+        PronunciationSettingsCard(
+            isWorking = state.isWorking,
+            onOpenPronunciationSettingsClick = onOpenPronunciationSettingsClick,
+        )
         state.statusMessage?.let { message ->
             Card(modifier = Modifier.fillMaxWidth()) {
                 Text(
@@ -95,6 +100,36 @@ fun MeScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PronunciationSettingsCard(
+    isWorking: Boolean,
+    onOpenPronunciationSettingsClick: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "发音与朗读",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = "管理英式 / 美式偏好、词典音频缓存、系统朗读兜底和后续离线语音包。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(
+                onClick = onOpenPronunciationSettingsClick,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isWorking,
+            ) {
+                Text("打开发音设置")
             }
         }
     }

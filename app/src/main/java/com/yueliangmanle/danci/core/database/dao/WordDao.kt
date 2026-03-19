@@ -22,6 +22,9 @@ interface WordDao {
     @Query("SELECT * FROM words WHERE lemma = :lemma LIMIT 1")
     suspend fun getWordByLemma(lemma: String): WordEntity?
 
+    @Query("SELECT * FROM words WHERE lemma IN (:lemmas)")
+    suspend fun getWordsByLemmas(lemmas: List<String>): List<WordEntity>
+
     @Query("SELECT * FROM words WHERE id IN (:wordIds) ORDER BY lemma ASC")
     suspend fun getWordsByIds(wordIds: List<Long>): List<WordEntity>
 

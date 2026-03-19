@@ -56,17 +56,18 @@ fun BooksScreen(
         }
         state.statusMessage?.let { message ->
             item {
-                Card(
-                    modifier = Modifier
-                        .padding(horizontal = 20.dp)
-                        .fillMaxWidth(),
-                ) {
-                    Text(
-                        text = message,
-                        modifier = Modifier.padding(16.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
+                StatusCard(
+                    message = message,
+                    isError = false,
+                )
+            }
+        }
+        state.errorMessage?.let { message ->
+            item {
+                StatusCard(
+                    message = message,
+                    isError = true,
+                )
             }
         }
         item {
@@ -220,6 +221,28 @@ private fun EmptyState(text: String) {
             text = text,
             modifier = Modifier.padding(16.dp),
             style = MaterialTheme.typography.bodyMedium,
+        )
+    }
+}
+
+@Composable
+private fun StatusCard(
+    message: String,
+    isError: Boolean,
+) {
+    Card(
+        modifier = Modifier
+            .padding(horizontal = 20.dp)
+            .fillMaxWidth(),
+    ) {
+        Text(
+            text = message,
+            modifier = Modifier.padding(16.dp),
+            color = if (isError) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.primary
+            },
         )
     }
 }

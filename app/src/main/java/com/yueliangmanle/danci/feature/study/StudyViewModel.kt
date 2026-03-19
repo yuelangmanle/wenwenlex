@@ -34,6 +34,8 @@ data class StudyUiState(
     val checkpointTitle: String? = null,
     val checkpointSuggestion: String? = null,
     val checkpointSourceLabel: String? = null,
+    val statusMessage: String? = null,
+    val errorMessage: String? = null,
 )
 
 data class SessionCheckpointRequest(

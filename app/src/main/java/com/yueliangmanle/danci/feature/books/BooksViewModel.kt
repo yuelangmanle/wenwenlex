@@ -9,12 +9,15 @@ import com.yueliangmanle.danci.core.data.buildSettingsRepository
 import com.yueliangmanle.danci.core.data.parseBuiltInCatalog
 import com.yueliangmanle.danci.core.data.syncBuiltInCatalogToDatabase
 import com.yueliangmanle.danci.core.model.Book
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 data class BooksUiState(
     val isLoading: Boolean = false,
     val builtInBooks: List<BookListItem> = emptyList(),
     val importedBooks: List<BookListItem> = emptyList(),
     val statusMessage: String? = null,
+    val errorMessage: String? = null,
 )
 
 data class BookListItem(
@@ -68,13 +71,15 @@ class BooksViewModel(
 }
 
 suspend fun loadBooksViewModel(context: Context): BooksViewModel {
-    syncBuiltInCatalogToDatabase(context)
-    val builtInCatalog = context.assets.open("books/manifest.json").use(::parseBuiltInCatalog)
-    return BooksViewModel(
-        bookRepository = buildBookRepository(context),
-        settingsRepository = buildSettingsRepository(context),
-        builtInCatalog = builtInCatalog,
-    )
+    return withContext(Dispatchers.IO) {
+        syncBuiltInCatalogToDatabase(context)
+        val builtInCatalog = context.assets.open("books/manifest.json").use(::parseBuiltInCatalog)
+        BooksViewModel(
+            bookRepository = buildBookRepository(context),
+            settingsRepository = buildSettingsRepository(context),
+            builtInCatalog = builtInCatalog,
+        )
+    }
 }
 
 private fun Book.asUiModel(

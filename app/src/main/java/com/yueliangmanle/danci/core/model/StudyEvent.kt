@@ -24,6 +24,7 @@ object StudyEventType {
     const val QUIZ_STARTED = "quiz_started"
     const val QUIZ_ANSWERED = "quiz_answered"
     const val AI_ACTION = "ai_action"
+    const val AUDIO_PLAYED = "audio_played"
 }
 
 fun studyEventMetadataOf(vararg entries: Pair<String, Any?>): String? =
