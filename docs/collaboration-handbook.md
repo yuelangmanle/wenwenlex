@@ -11,8 +11,8 @@
 
 - 项目名称：`文文Lex`
 - 仓库地址：[yuelangmanle/wenwenlex](https://github.com/yuelangmanle/wenwenlex)
-- 当前正式版本：`1.1`
-- 当前正式发布：`2026-03-19` 已发布 `v1.1`
+- 当前正式版本：`1.2`
+- 当前正式发布：`2026-03-19` 已发布 `v1.2`
 - 平台：Android
 - 开发语言：Kotlin
 - UI 技术：Jetpack Compose
@@ -48,6 +48,8 @@
 - 发版签名说明：[release-signing.md](./release-signing.md)
 - `v1.1` 产品规格：[2026-03-19-v1.1-lexicon-import-ai-design.md](./superpowers/specs/2026-03-19-v1.1-lexicon-import-ai-design.md)
 - `v1.1` 实施计划：[2026-03-19-v1.1-lexicon-import-ai.md](./superpowers/plans/2026-03-19-v1.1-lexicon-import-ai.md)
+- `v1.2` 发音模块规格：[2026-03-19-v1.2-pronunciation-design.md](./superpowers/specs/2026-03-19-v1.2-pronunciation-design.md)
+- `v1.2` 发音模块计划：[2026-03-19-v1.2-pronunciation.md](./superpowers/plans/2026-03-19-v1.2-pronunciation.md)
 - 发布页面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
 - 构建页面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 
@@ -230,7 +232,7 @@ README.md               项目入口说明
 3. 看 [CHANGELOG.md](../CHANGELOG.md)
 4. 看 [.github/workflows/android-ci.yml](../.github/workflows/android-ci.yml)
 5. 看 [.github/workflows/android-release.yml](../.github/workflows/android-release.yml)
-6. 如涉及词库、导入或 AI 路由，再看 `v1.1` 规格与实施计划
+6. 如涉及词库、导入或 AI 路由，再看 `v1.1` 规格；如涉及发音与朗读，再看 `v1.2` 规格与实施计划
 
 ## 12. 每轮迭代收尾清单
 
