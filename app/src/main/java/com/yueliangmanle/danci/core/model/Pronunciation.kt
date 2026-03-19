@@ -32,6 +32,9 @@ enum class PlaybackSource(
 ) {
     DICTIONARY_CACHE("dictionary_cache", "缓存词典音频"),
     DICTIONARY_REMOTE("dictionary_remote", "在线词典音频"),
+    OFFLINE_NATIVE_CACHE("offline_native_cache", "离线原生缓存音频"),
+    OFFLINE_NATIVE_GENERATED("offline_native_generated", "离线原生生成音频"),
+    ONLINE_PREBUILT_CACHE("online_prebuilt_cache", "在线预生成缓存音频"),
     OFFLINE_TTS("offline_tts", "离线语音包朗读"),
     SYSTEM_TTS("system_tts", "系统朗读");
 

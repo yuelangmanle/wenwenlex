@@ -22,6 +22,17 @@ private val REMOTE_LOOKUP_COOLDOWN: Duration = Duration.ofDays(7)
 
 interface WordAudioRepository {
     suspend fun findCachedAsset(wordId: Long, accent: PronunciationAccent): WordAudioAsset?
+    suspend fun findNativeGeneratedAsset(
+        wordId: Long,
+        accent: PronunciationAccent,
+    ): WordAudioAsset? = null
+    suspend fun cacheNativeGeneratedAudio(
+        wordId: Long,
+        accent: PronunciationAccent,
+        normalizedWord: String,
+        sourceFile: File,
+        mimeType: String = "audio/wav",
+    ): WordAudioAsset? = null
     suspend fun isRemoteLookupCoolingDown(wordId: Long, accent: PronunciationAccent): Boolean
     suspend fun cacheDictionaryAudio(
         wordId: Long,
@@ -65,6 +76,70 @@ class RoomWordAudioRepository(
                 asset.status == WordAudioAssetStatus.READY.storageValue &&
                     asset.localPath?.let(::File)?.exists() == true
             }
+    }
+
+    override suspend fun findNativeGeneratedAsset(
+        wordId: Long,
+        accent: PronunciationAccent,
+    ): WordAudioAsset? {
+        val candidates = mutableListOf<WordAudioAssetEntity>()
+        dao.findLatestAsset(
+            wordId,
+            accent.storageValue,
+            PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue,
+        )?.let(candidates::add)
+        if (accent != PronunciationAccent.AUTO) {
+            dao.findLatestAsset(
+                wordId,
+                PronunciationAccent.AUTO.storageValue,
+                PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue,
+            )?.let(candidates::add)
+        }
+        return candidates
+            .map(WordAudioAssetEntity::asExternalModel)
+            .firstOrNull { asset ->
+                asset.status == WordAudioAssetStatus.READY.storageValue &&
+                    asset.localPath?.let(::File)?.exists() == true
+            }
+    }
+
+    override suspend fun cacheNativeGeneratedAudio(
+        wordId: Long,
+        accent: PronunciationAccent,
+        normalizedWord: String,
+        sourceFile: File,
+        mimeType: String,
+    ): WordAudioAsset? {
+        if (normalizedWord.isBlank() || !sourceFile.exists()) {
+            return null
+        }
+        val targetFile = buildGeneratedCacheFile(normalizedWord, accent)
+        if (sourceFile.absolutePath != targetFile.absolutePath) {
+            sourceFile.copyTo(targetFile, overwrite = true)
+        }
+        val checksum = sha256(targetFile.readBytes())
+        val existing = dao.findLatestAsset(
+            wordId = wordId,
+            accent = accent.storageValue,
+            sourceType = PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue,
+        )
+        val entity = WordAudioAssetEntity(
+            id = existing?.id ?: 0L,
+            wordId = wordId,
+            accent = accent.storageValue,
+            sourceType = PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue,
+            remoteUrl = null,
+            localPath = targetFile.absolutePath,
+            mimeType = mimeType,
+            checksum = checksum,
+            status = WordAudioAssetStatus.READY.storageValue,
+            fetchedAt = nowProvider(),
+            lastPlayedAt = existing?.lastPlayedAt,
+            lastError = null,
+            failureCount = 0,
+        )
+        val insertedId = dao.upsertAsset(entity)
+        return entity.copy(id = insertedId.takeIf { it > 0 } ?: entity.id).asExternalModel()
     }
 
     override suspend fun isRemoteLookupCoolingDown(
@@ -199,6 +274,18 @@ class RoomWordAudioRepository(
         appContext.filesDir,
         "audio-cache/words/$wordId/${accent.storageValue}.mp3",
     )
+
+    private fun buildGeneratedCacheFile(
+        normalizedWord: String,
+        accent: PronunciationAccent,
+    ): File {
+        val target = File(
+            appContext.filesDir,
+            "audio-cache/generated/${accent.storageValue}/$normalizedWord.wav",
+        )
+        target.parentFile?.mkdirs()
+        return target
+    }
 }
 
 private fun sha256(bytes: ByteArray): String =
