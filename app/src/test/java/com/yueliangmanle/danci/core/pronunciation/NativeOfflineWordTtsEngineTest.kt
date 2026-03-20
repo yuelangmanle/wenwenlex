@@ -131,16 +131,16 @@ private class FakeNativeVoicePackRepository(
         packs.firstOrNull { it.id == id }
 
     override suspend fun getActiveVoicePack(): com.yueliangmanle.danci.core.model.VoicePack? =
-        packs.firstOrNull { it.isActive }
+        packs.filter { it.isActive }.singleOrNull()
 
     override suspend fun getActiveVoicePack(
         accent: PronunciationAccent,
     ): com.yueliangmanle.danci.core.model.VoicePack? =
-        packs.firstOrNull { pack ->
-            pack.isActive && (
-                accent == PronunciationAccent.AUTO ||
-                    PronunciationAccent.fromStorageValue(pack.accent) == accent
-                )
+        when (accent) {
+            PronunciationAccent.AUTO -> getActiveVoicePack()
+            else -> packs.firstOrNull { pack ->
+                pack.isActive && PronunciationAccent.fromStorageValue(pack.accent) == accent
+            }
         }
 
     override suspend fun activateVoicePack(id: String) = Unit

@@ -22,7 +22,12 @@ private const val INSTALLED_VOICE_PACK_MANIFEST_FILE = "manifest.json"
 interface VoicePackRepository {
     suspend fun getAllVoicePacks(): List<VoicePack>
     suspend fun getVoicePack(id: String): VoicePack?
-    suspend fun getActiveVoicePack(): VoicePack?
+    suspend fun getActiveVoicePack(): VoicePack? =
+        getAllVoicePacks()
+            .asSequence()
+            .filter { it.isActive }
+            .singleOrNull()
+
     suspend fun getActiveVoicePack(accent: PronunciationAccent): VoicePack? =
         when (accent) {
             PronunciationAccent.AUTO -> getActiveVoicePack()
@@ -63,9 +68,9 @@ class RoomVoicePackRepository(
             ?.let { hydrateRuntimeMetadata(it) }
 
     override suspend fun getActiveVoicePack(): VoicePack? =
-        dao.getActiveVoicePack()
-            ?.asExternalModel()
-            ?.let { hydrateRuntimeMetadata(it) }
+        resolveSingleActiveVoicePack(
+            dao.getAllVoicePacks(),
+        )
 
     override suspend fun getActiveVoicePack(accent: PronunciationAccent): VoicePack? =
         when (accent) {
@@ -212,6 +217,16 @@ class RoomVoicePackRepository(
                 .also(LicenseManifestVerifier::requireValid)
         }.getOrNull()
     }
+
+    private fun resolveSingleActiveVoicePack(
+        entities: List<VoicePackEntity>,
+    ): VoicePack? =
+        entities
+            .asSequence()
+            .filter { it.isActive }
+            .singleOrNull()
+            ?.asExternalModel()
+            ?.let { hydrateRuntimeMetadata(it) }
 }
 
 internal fun parseVoicePackManifest(

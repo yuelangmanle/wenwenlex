@@ -3,15 +3,16 @@ package com.yueliangmanle.danci.core.data
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.yueliangmanle.danci.core.database.DanciDatabase
+import com.yueliangmanle.danci.core.model.PronunciationAccent
 import com.yueliangmanle.danci.core.model.VoicePackStatus
 import java.time.Instant
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import kotlinx.coroutines.test.runTest
 
 @RunWith(RobolectricTestRunner::class)
 class VoicePackRepositoryTest {
@@ -197,6 +198,54 @@ class VoicePackRepositoryTest {
             val packs = repository.getAllVoicePacks()
             assertNull(packs.firstOrNull { it.id == "en-gb-offline-word-v1" })
             assertTrue(packs.single { it.id == "en-us-offline-word-v1" }.isActive)
+        }
+    }
+
+    @Test
+    fun getActiveVoicePack_withAutoAccentReturnsNullWhenMultipleAccentPacksAreActive() = runTest {
+        withRepository { repository ->
+            repository.upsertVoicePack(
+                TestVoicePackFactory.voicePack(
+                    id = "en-gb-offline-word-v1",
+                    locale = "en-GB",
+                    accent = "uk",
+                    status = VoicePackStatus.READY.storageValue,
+                ),
+            )
+            repository.upsertVoicePack(
+                TestVoicePackFactory.voicePack(
+                    id = "en-us-offline-word-v1",
+                    locale = "en-US",
+                    accent = "us",
+                    status = VoicePackStatus.READY.storageValue,
+                ),
+            )
+
+            repository.activateVoicePack("en-gb-offline-word-v1")
+            repository.activateVoicePack("en-us-offline-word-v1")
+
+            assertNull(repository.getActiveVoicePack(PronunciationAccent.AUTO))
+        }
+    }
+
+    @Test
+    fun getActiveVoicePack_withAutoAccentReturnsPackWhenOnlyOneActivePackExists() = runTest {
+        withRepository { repository ->
+            repository.upsertVoicePack(
+                TestVoicePackFactory.voicePack(
+                    id = "en-gb-offline-word-v1",
+                    locale = "en-GB",
+                    accent = "uk",
+                    status = VoicePackStatus.READY.storageValue,
+                ),
+            )
+
+            repository.activateVoicePack("en-gb-offline-word-v1")
+
+            assertEquals(
+                "en-gb-offline-word-v1",
+                repository.getActiveVoicePack(PronunciationAccent.AUTO)?.id,
+            )
         }
     }
 
