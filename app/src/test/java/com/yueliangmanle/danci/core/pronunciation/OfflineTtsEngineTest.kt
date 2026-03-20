@@ -3,14 +3,19 @@ package com.yueliangmanle.danci.core.pronunciation
 import androidx.test.core.app.ApplicationProvider
 import com.yueliangmanle.danci.core.data.TestVoicePackFactory
 import com.yueliangmanle.danci.core.data.VoicePackRepository
+import com.yueliangmanle.danci.core.data.WordAudioRepository
+import com.yueliangmanle.danci.core.model.PlaybackSource
 import com.yueliangmanle.danci.core.model.PronunciationAccent
 import com.yueliangmanle.danci.core.model.VoicePack
 import com.yueliangmanle.danci.core.model.VoicePackStatus
 import com.yueliangmanle.danci.core.model.Word
+import com.yueliangmanle.danci.core.model.WordAudioAsset
+import com.yueliangmanle.danci.core.model.WordAudioAssetStatus
 import java.io.File
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -45,6 +50,67 @@ class OfflineTtsEngineTest {
         assertNull(result)
         assertEquals(0, repository.globalRequests)
         assertEquals(listOf(PronunciationAccent.US), repository.accentRequests)
+    }
+
+    @Test
+    fun speakNativeWordIfAvailable_usesInjectedAudioPlayerForCachedNativeAudio() = runTest {
+        val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val nativeInstallDir = File(appContext.cacheDir, "offline-tts-native-pack").apply { mkdirs() }
+        val nativeCacheFile = File(appContext.cacheDir, "offline-tts-native-cache.wav").apply {
+            parentFile?.mkdirs()
+            writeBytes(byteArrayOf(0x01, 0x02, 0x03))
+        }
+        val repository = TrackingOfflineVoicePackRepository(
+            activeByAccent = mapOf(
+                PronunciationAccent.UK to TestVoicePackFactory.voicePack(
+                    id = "en-gb-offline-word-v1",
+                    accent = PronunciationAccent.UK.storageValue,
+                    engineType = "sherpa_onnx",
+                    status = VoicePackStatus.READY.storageValue,
+                    installDir = nativeInstallDir.absolutePath,
+                    isActive = true,
+                    modelFamily = "kokoro",
+                    version = "1.4",
+                ),
+            ),
+        )
+        val wordAudioRepository = FakeOfflineWordAudioRepository(
+            nativeGeneratedAsset = WordAudioAsset(
+                id = 1L,
+                wordId = 1L,
+                accent = PronunciationAccent.UK.storageValue,
+                sourceType = PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue,
+                localPath = nativeCacheFile.absolutePath,
+                status = WordAudioAssetStatus.READY.storageValue,
+            ),
+        )
+        val playerCalls = mutableListOf<String?>()
+        val engine = OfflineTtsEngine(
+            voicePackRepository = repository,
+            bridgeSpeaker = SystemTtsEngine(appContext),
+            nativeWordTtsEngine = NativeOfflineWordTtsEngine(
+                context = appContext,
+                voicePackRepository = repository,
+                wordAudioRepository = wordAudioRepository,
+                runtimeLoader = {
+                    error("cached native audio should not trigger runtime synthesis")
+                },
+            ),
+            audioPlayer = { path ->
+                playerCalls += path
+                true
+            },
+        )
+
+        val result = engine.speakNativeWordIfAvailable(
+            word = Word(id = 1L, lemma = "abandon"),
+            accent = PronunciationAccent.UK,
+        )
+
+        assertEquals(listOf(nativeCacheFile.absolutePath), playerCalls)
+        assertEquals(listOf(wordAudioRepository.nativeGeneratedAsset), wordAudioRepository.markedPlayed)
+        assertEquals(PlaybackSource.OFFLINE_NATIVE_GENERATED, result?.source)
+        assertTrue(result?.cacheHit == true)
     }
 }
 
@@ -102,4 +168,48 @@ private class TrackingOfflineVoicePackRepository(
     ) = Unit
 
     override fun voicePackRootDir(): File = File("/tmp")
+}
+
+private class FakeOfflineWordAudioRepository(
+    val nativeGeneratedAsset: WordAudioAsset,
+) : WordAudioRepository {
+    val markedPlayed = mutableListOf<WordAudioAsset>()
+
+    override suspend fun findCachedAsset(
+        wordId: Long,
+        accent: PronunciationAccent,
+    ): WordAudioAsset? = null
+
+    override suspend fun findNativeGeneratedAsset(
+        wordId: Long,
+        accent: PronunciationAccent,
+        expectedNamespace: String?,
+    ): WordAudioAsset? =
+        nativeGeneratedAsset.takeIf {
+            it.wordId == wordId && PronunciationAccent.fromStorageValue(it.accent) == accent
+        }
+
+    override suspend fun isRemoteLookupCoolingDown(
+        wordId: Long,
+        accent: PronunciationAccent,
+    ): Boolean = false
+
+    override suspend fun cacheDictionaryAudio(
+        wordId: Long,
+        candidate: com.yueliangmanle.danci.core.model.DictionaryAudioCandidate,
+    ): WordAudioAsset? = null
+
+    override suspend fun markRemoteLookupFailure(
+        wordId: Long,
+        accent: PronunciationAccent,
+        errorMessage: String,
+    ) = Unit
+
+    override suspend fun markPlayed(asset: WordAudioAsset) {
+        markedPlayed += asset
+    }
+
+    override suspend fun clearDictionaryCache(): Int = 0
+
+    override suspend fun cacheSizeBytes(): Long = 0L
 }

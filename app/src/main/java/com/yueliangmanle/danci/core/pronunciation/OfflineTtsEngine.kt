@@ -13,6 +13,7 @@ class OfflineTtsEngine(
     private val voicePackRepository: VoicePackRepository,
     private val bridgeSpeaker: SystemTtsEngine,
     private val nativeWordTtsEngine: NativeOfflineWordTtsEngine? = null,
+    private val audioPlayer: suspend (String?) -> Boolean = ::playAudioFile,
 ) {
     suspend fun speakNativeWordIfAvailable(
         word: Word,
@@ -28,7 +29,7 @@ class OfflineTtsEngine(
 
         val result = nativeWordTtsEngine?.synthesizeWord(word, accent) ?: return null
         val resolvedAccent = PronunciationAccent.fromStorageValue(result.asset.accent)
-        if (!playAudioFile(result.outputFile.absolutePath)) {
+        if (!audioPlayer(result.outputFile.absolutePath)) {
             return null
         }
         nativeWordTtsEngine.markPlayed(result.asset)

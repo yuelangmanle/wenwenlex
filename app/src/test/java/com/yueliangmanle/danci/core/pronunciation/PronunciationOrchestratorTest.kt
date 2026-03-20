@@ -85,6 +85,7 @@ class PronunciationOrchestratorTest {
                     wordAudioRepository = wordAudioRepository,
                     runtimeLoader = { FakeSherpaOnnxRuntime() },
                 ),
+                audioPlayer = { true },
             ),
             systemTtsEngine = systemTtsEngine,
             telemetryRecorder = PlaybackTelemetryRecorder(recorder),
@@ -148,6 +149,7 @@ class PronunciationOrchestratorTest {
             offlineTtsEngine = OfflineTtsEngine(
                 voicePackRepository = voicePackRepository,
                 bridgeSpeaker = systemTtsEngine,
+                audioPlayer = { true },
             ),
             systemTtsEngine = systemTtsEngine,
             telemetryRecorder = PlaybackTelemetryRecorder(recorder),
@@ -234,6 +236,7 @@ class PronunciationOrchestratorTest {
                         error("synthetic native failure")
                     },
                 ),
+                audioPlayer = { true },
             ),
             systemTtsEngine = SystemTtsEngine(appContext),
             telemetryRecorder = PlaybackTelemetryRecorder(recorder),
