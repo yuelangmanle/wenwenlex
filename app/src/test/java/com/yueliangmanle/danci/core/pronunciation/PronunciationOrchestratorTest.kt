@@ -39,9 +39,11 @@ class PronunciationOrchestratorTest {
         )
         val wordAudioRepository = FakeOrchestratorWordAudioRepository(nativeGeneratedAsset = nativeAsset)
         val dictionaryAudioService = CountingDictionaryAudioService(
-            candidate = DictionaryAudioCandidate(
-                url = "https://example.com/abandon.mp3",
-                accent = PronunciationAccent.UK,
+            candidates = listOf(
+                DictionaryAudioCandidate(
+                    url = "https://example.com/abandon.mp3",
+                    accent = PronunciationAccent.UK,
+                ),
             ),
         )
         val systemTtsEngine = SystemTtsEngine(appContext)
@@ -68,6 +70,71 @@ class PronunciationOrchestratorTest {
         assertEquals("已播放本地离线生成音频。", result.statusMessage)
         assertEquals(0, dictionaryAudioService.resolveCalls)
         assertEquals(nativeAsset, wordAudioRepository.markedPlayed.single())
+    }
+
+    @Test
+    fun orchestratorFallsBackToLaterRemoteCandidateWhenFirstDownloadFails() = runTest {
+        val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val word = Word(id = 99L, lemma = "abandon")
+        val remoteAsset = WordAudioAsset(
+            id = 2L,
+            wordId = word.id,
+            accent = PronunciationAccent.UK.storageValue,
+            sourceType = PlaybackSource.DICTIONARY_CACHE.storageValue,
+            localPath = "/tmp/remote-dictionary.wav",
+            status = WordAudioAssetStatus.READY.storageValue,
+        )
+        val wordAudioRepository = FakeOrchestratorWordAudioRepository(
+            nativeGeneratedAsset = null,
+            dictionaryAssetsByUrl = mapOf(
+                "https://source-b.example/abandon-uk.mp3" to remoteAsset,
+            ),
+        )
+        val dictionaryAudioService = CountingDictionaryAudioService(
+            candidates = listOf(
+                DictionaryAudioCandidate(
+                    url = "https://source-a.example/abandon-uk.mp3",
+                    accent = PronunciationAccent.UK,
+                    sourceLabel = "源A",
+                ),
+                DictionaryAudioCandidate(
+                    url = "https://source-b.example/abandon-uk.mp3",
+                    accent = PronunciationAccent.UK,
+                    sourceLabel = "有道词典",
+                ),
+            ),
+        )
+        val systemTtsEngine = SystemTtsEngine(appContext)
+        val orchestrator = PronunciationOrchestrator(
+            settingsRepository = FakeOrchestratorSettingsRepository(),
+            wordRepository = FakeOrchestratorWordRepository(word),
+            wordAudioRepository = wordAudioRepository,
+            dictionaryAudioService = dictionaryAudioService,
+            offlineTtsEngine = OfflineTtsEngine(
+                voicePackRepository = FakeOrchestratorVoicePackRepository(),
+                bridgeSpeaker = systemTtsEngine,
+            ),
+            systemTtsEngine = systemTtsEngine,
+            telemetryRecorder = PlaybackTelemetryRecorder(NoOpStudyEventRecorder),
+            audioPlayer = { true },
+        )
+
+        val result = orchestrator.playWord(
+            word = word,
+            accentOverride = PronunciationAccent.UK,
+        )
+
+        assertEquals(PlaybackSource.DICTIONARY_REMOTE, result.source)
+        assertEquals("已联网获取英式词典音频（有道词典）。", result.statusMessage)
+        assertEquals(
+            listOf(
+                "https://source-a.example/abandon-uk.mp3",
+                "https://source-b.example/abandon-uk.mp3",
+            ),
+            wordAudioRepository.cachedCandidateUrls,
+        )
+        assertEquals(1, dictionaryAudioService.resolveCalls)
+        assertEquals(remoteAsset, wordAudioRepository.markedPlayed.single())
     }
 }
 
@@ -122,8 +189,10 @@ private class FakeOrchestratorWordRepository(
 
 private class FakeOrchestratorWordAudioRepository(
     private val nativeGeneratedAsset: WordAudioAsset?,
+    private val dictionaryAssetsByUrl: Map<String, WordAudioAsset> = emptyMap(),
 ) : WordAudioRepository {
     val markedPlayed = mutableListOf<WordAudioAsset>()
+    val cachedCandidateUrls = mutableListOf<String>()
 
     override suspend fun findCachedAsset(
         wordId: Long,
@@ -143,7 +212,10 @@ private class FakeOrchestratorWordAudioRepository(
     override suspend fun cacheDictionaryAudio(
         wordId: Long,
         candidate: DictionaryAudioCandidate,
-    ): WordAudioAsset? = null
+    ): WordAudioAsset? {
+        cachedCandidateUrls += candidate.url
+        return dictionaryAssetsByUrl[candidate.url]
+    }
 
     override suspend fun markRemoteLookupFailure(
         wordId: Long,
@@ -192,16 +264,16 @@ private class FakeOrchestratorVoicePackRepository : VoicePackRepository {
 }
 
 private class CountingDictionaryAudioService(
-    private val candidate: DictionaryAudioCandidate?,
+    private val candidates: List<DictionaryAudioCandidate> = emptyList(),
 ) : DictionaryAudioService(baseUrl = "https://example.com/") {
     var resolveCalls: Int = 0
         private set
 
-    override suspend fun resolveCandidate(
+    override suspend fun resolveCandidates(
         word: String,
         accent: PronunciationAccent,
-    ): DictionaryAudioCandidate? {
+    ): List<DictionaryAudioCandidate> {
         resolveCalls += 1
-        return candidate
+        return candidates
     }
 }

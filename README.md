@@ -63,8 +63,10 @@
 - Sherpa ONNX Android runtime 脚手架与原生离线单词发音引擎骨架
 - 单词发音归一化与本地生成音频缓存，支持优先复用 native 生成结果
 - 发音调度器升级为：本地缓存优先、native 生成缓存次之，再回落在线词典和系统 TTS
+- 在线词典音频已支持多来源候选回退，当前默认接入 `Dictionary API` 和 `有道词典`
 - native 语音包安装阶段的 `licenses`、`entryFiles` 和 native metadata 校验
 - 发音设置页展示 native 语音包能力提示、资源占用和安装失败具体原因
+- 单词详情页与学习页会直接显示本次发音实际命中的在线来源提示
 
 ## 后续增强方向
 

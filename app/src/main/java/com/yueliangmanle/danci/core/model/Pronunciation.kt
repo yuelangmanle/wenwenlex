@@ -90,6 +90,7 @@ data class DictionaryAudioCandidate(
     val url: String,
     val accent: PronunciationAccent,
     val mimeType: String? = null,
+    val sourceLabel: String? = null,
 )
 
 data class PlaybackResult(
@@ -103,3 +104,18 @@ data class PlaybackResult(
 const val DEFAULT_PRONUNCIATION_ACCENT = "uk"
 const val DEFAULT_PRONUNCIATION_MODE = "dictionary_first"
 const val DEFAULT_AUDIO_CACHE_LIMIT_MB = 300
+
+fun buildRemoteDictionaryStatusMessage(
+    accent: PronunciationAccent,
+    sourceLabel: String? = null,
+): String {
+    val providerSuffix = sourceLabel
+        ?.trim()
+        ?.takeIf(String::isNotEmpty)
+        ?.let { "（$it）" }
+        .orEmpty()
+    return "已联网获取${accent.label}词典音频$providerSuffix。"
+}
+
+fun buildCachedDictionaryStatusMessage(accent: PronunciationAccent): String =
+    "已播放缓存${accent.label}词典音频。"

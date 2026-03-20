@@ -35,4 +35,22 @@ class StudyScreenTest {
         composeRule.onNodeWithText("模糊").assertIsDisplayed()
         composeRule.onNodeWithText("认识").assertIsDisplayed()
     }
+
+    @Test
+    fun studyScreenShowsDetailedPronunciationStatusMessage() {
+        composeRule.setContent {
+            StudyScreen(
+                state = StudyUiState(
+                    currentWord = "abandon",
+                    progressText = "1 / 10",
+                    statusMessage = "已联网获取英式词典音频（有道词典）。",
+                ),
+                onFeedbackClick = {},
+                onOpenDetailClick = {},
+                onPlayPronunciationClick = {},
+            )
+        }
+
+        composeRule.onNodeWithText("已联网获取英式词典音频（有道词典）。").assertIsDisplayed()
+    }
 }

@@ -9,6 +9,8 @@ import com.yueliangmanle.danci.core.data.buildSettingsRepository
 import com.yueliangmanle.danci.core.data.buildVoicePackRepository
 import com.yueliangmanle.danci.core.data.buildWordAudioRepository
 import com.yueliangmanle.danci.core.data.buildWordRepository
+import com.yueliangmanle.danci.core.model.buildCachedDictionaryStatusMessage
+import com.yueliangmanle.danci.core.model.buildRemoteDictionaryStatusMessage
 import com.yueliangmanle.danci.core.model.PlaybackResult
 import com.yueliangmanle.danci.core.model.PlaybackSource
 import com.yueliangmanle.danci.core.model.PronunciationAccent
@@ -69,20 +71,21 @@ class PronunciationOrchestrator(
         }
 
         wordAudioRepository.findCachedAsset(word.id, accent)?.let { asset ->
+            val resolvedAccent = PronunciationAccent.fromStorageValue(asset.accent)
             if (audioPlayer(asset.localPath)) {
                 wordAudioRepository.markPlayed(asset)
                 telemetryRecorder.recordWordPlayback(
                     wordId = word.id,
                     source = PlaybackSource.DICTIONARY_CACHE,
-                    accent = accent,
+                    accent = resolvedAccent,
                     contextLabel = contextLabel,
                     success = true,
                 )
                 return PlaybackResult(
                     success = true,
                     source = PlaybackSource.DICTIONARY_CACHE,
-                    accent = accent,
-                    statusMessage = "已播放缓存词典音频。",
+                    accent = resolvedAccent,
+                    statusMessage = buildCachedDictionaryStatusMessage(resolvedAccent),
                 )
             }
         }
@@ -112,28 +115,39 @@ class PronunciationOrchestrator(
         }
 
         if (!wordAudioRepository.isRemoteLookupCoolingDown(word.id, accent)) {
-            val candidate = dictionaryAudioService.resolveCandidate(word.lemma, accent)
-            if (candidate != null) {
-                val cachedAsset = wordAudioRepository.cacheDictionaryAudio(
-                    wordId = word.id,
-                    candidate = candidate,
-                )
-                if (cachedAsset != null && audioPlayer(cachedAsset.localPath)) {
-                    wordAudioRepository.markPlayed(cachedAsset)
-                    telemetryRecorder.recordWordPlayback(
+            val candidates = dictionaryAudioService.resolveCandidates(word.lemma, accent)
+            if (candidates.isNotEmpty()) {
+                for (candidate in candidates) {
+                    val cachedAsset = wordAudioRepository.cacheDictionaryAudio(
                         wordId = word.id,
-                        source = PlaybackSource.DICTIONARY_REMOTE,
-                        accent = accent,
-                        contextLabel = contextLabel,
-                        success = true,
+                        candidate = candidate,
                     )
-                    return PlaybackResult(
-                        success = true,
-                        source = PlaybackSource.DICTIONARY_REMOTE,
-                        accent = accent,
-                        statusMessage = "已联网获取词典音频。",
-                    )
+                    if (cachedAsset != null && audioPlayer(cachedAsset.localPath)) {
+                        val resolvedAccent = PronunciationAccent.fromStorageValue(cachedAsset.accent)
+                        wordAudioRepository.markPlayed(cachedAsset)
+                        telemetryRecorder.recordWordPlayback(
+                            wordId = word.id,
+                            source = PlaybackSource.DICTIONARY_REMOTE,
+                            accent = resolvedAccent,
+                            contextLabel = contextLabel,
+                            success = true,
+                        )
+                        return PlaybackResult(
+                            success = true,
+                            source = PlaybackSource.DICTIONARY_REMOTE,
+                            accent = resolvedAccent,
+                            statusMessage = buildRemoteDictionaryStatusMessage(
+                                accent = resolvedAccent,
+                                sourceLabel = candidate.sourceLabel,
+                            ),
+                        )
+                    }
                 }
+                wordAudioRepository.markRemoteLookupFailure(
+                    wordId = word.id,
+                    accent = accent,
+                    errorMessage = "在线词典音频候选均下载失败",
+                )
             } else {
                 wordAudioRepository.markRemoteLookupFailure(
                     wordId = word.id,

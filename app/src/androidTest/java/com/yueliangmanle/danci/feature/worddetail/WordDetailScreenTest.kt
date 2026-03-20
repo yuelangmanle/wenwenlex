@@ -41,4 +41,18 @@ class WordDetailScreenTest {
         composeRule.onNodeWithText("拼写相近词").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("单词变形").performScrollTo().assertIsDisplayed()
     }
+
+    @Test
+    fun wordDetailShowsDetailedPronunciationStatusMessage() {
+        composeRule.setContent {
+            WordDetailScreen(
+                state = WordDetailUiState(
+                    word = "abandon",
+                    statusMessage = "已联网获取英式词典音频（有道词典）。",
+                ),
+            )
+        }
+
+        composeRule.onNodeWithText("已联网获取英式词典音频（有道词典）。").assertIsDisplayed()
+    }
 }
