@@ -60,9 +60,8 @@ class NativeOfflineWordTtsEngine(
     }
 
     private suspend fun resolveInstalledNativePack(accent: PronunciationAccent): VoicePack? {
-        val activePack = voicePackRepository.getActiveVoicePack()
+        val activePack = voicePackRepository.getActiveVoicePack(accent)
             ?.takeIf(::isInstalledNativePack)
-            ?.takeIf { accent == PronunciationAccent.AUTO || resolveAccent(accent, it) == accent }
         if (activePack != null) {
             return activePack
         }

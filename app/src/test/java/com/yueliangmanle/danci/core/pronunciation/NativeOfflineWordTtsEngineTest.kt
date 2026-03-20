@@ -57,6 +57,59 @@ class NativeOfflineWordTtsEngineTest {
         assertTrue(result?.outputFile?.exists() == true)
         assertEquals(PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue, result?.asset?.sourceType)
     }
+
+    @Test
+    fun nativeEngine_prefersActivePackOfRequestedAccent() = runTest {
+        val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val inactiveUsDir = File(appContext.cacheDir, "native-pack-us-inactive").apply { mkdirs() }
+        val activeUkDir = File(appContext.cacheDir, "native-pack-uk-active").apply { mkdirs() }
+        val activeUsDir = File(appContext.cacheDir, "native-pack-us-active").apply { mkdirs() }
+        val now = Instant.parse("2026-03-19T12:00:00Z")
+        val engine = NativeOfflineWordTtsEngine(
+            context = appContext,
+            voicePackRepository = FakeNativeVoicePackRepository(
+                packs = mutableListOf(
+                    TestVoicePackFactory.voicePack(
+                        id = "en-us-offline-word-v0",
+                        accent = PronunciationAccent.US.storageValue,
+                        engineType = "sherpa_onnx",
+                        status = VoicePackStatus.READY.storageValue,
+                        installDir = inactiveUsDir.absolutePath,
+                        isActive = false,
+                    ),
+                    TestVoicePackFactory.voicePack(
+                        id = "en-gb-offline-word-v1",
+                        accent = PronunciationAccent.UK.storageValue,
+                        engineType = "sherpa_onnx",
+                        status = VoicePackStatus.READY.storageValue,
+                        installDir = activeUkDir.absolutePath,
+                        isActive = true,
+                    ),
+                    TestVoicePackFactory.voicePack(
+                        id = "en-us-offline-word-v1",
+                        accent = PronunciationAccent.US.storageValue,
+                        engineType = "sherpa_onnx",
+                        status = VoicePackStatus.READY.storageValue,
+                        installDir = activeUsDir.absolutePath,
+                        isActive = true,
+                    ),
+                ),
+            ),
+            wordAudioRepository = RoomWordAudioRepository(
+                appContext = appContext,
+                dao = FakeNativeWordAudioAssetDao(),
+                nowProvider = { now },
+            ),
+            runtimeLoader = { FakeSherpaOnnxRuntime() },
+        )
+
+        val result = engine.synthesizeWord(
+            word = Word(id = 9L, lemma = "colour"),
+            accent = PronunciationAccent.US,
+        )
+
+        assertEquals("en-us-offline-word-v1", result?.voicePack?.id)
+    }
 }
 
 private class FakeSherpaOnnxRuntime : SherpaOnnxRuntime {
@@ -79,6 +132,16 @@ private class FakeNativeVoicePackRepository(
 
     override suspend fun getActiveVoicePack(): com.yueliangmanle.danci.core.model.VoicePack? =
         packs.firstOrNull { it.isActive }
+
+    override suspend fun getActiveVoicePack(
+        accent: PronunciationAccent,
+    ): com.yueliangmanle.danci.core.model.VoicePack? =
+        packs.firstOrNull { pack ->
+            pack.isActive && (
+                accent == PronunciationAccent.AUTO ||
+                    PronunciationAccent.fromStorageValue(pack.accent) == accent
+                )
+        }
 
     override suspend fun activateVoicePack(id: String) = Unit
 

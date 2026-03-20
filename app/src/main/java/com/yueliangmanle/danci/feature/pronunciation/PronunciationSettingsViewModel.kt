@@ -138,7 +138,7 @@ class PronunciationSettingsViewModel(
         }
         voicePackRepository.activateVoicePack(id)
         settingsRepository.updateActiveVoicePackId(id)
-        return loadUiState(statusMessage = "已切换默认语音包。")
+        return loadUiState(statusMessage = "已启用该口音的语音包。")
     }
 
     suspend fun downloadVoicePack(id: String): PronunciationSettingsUiState {

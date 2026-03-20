@@ -7,6 +7,7 @@ import com.yueliangmanle.danci.core.database.dao.VoicePackDao
 import com.yueliangmanle.danci.core.database.entity.VoicePackEntity
 import com.yueliangmanle.danci.core.model.VoicePack
 import com.yueliangmanle.danci.core.model.VoicePackEngineType
+import com.yueliangmanle.danci.core.model.PronunciationAccent
 import com.yueliangmanle.danci.core.model.VoicePackStatus
 import com.yueliangmanle.danci.core.pronunciation.LicenseManifestVerifier
 import com.yueliangmanle.danci.core.pronunciation.NativeVoicePackManifest
@@ -22,6 +23,13 @@ interface VoicePackRepository {
     suspend fun getAllVoicePacks(): List<VoicePack>
     suspend fun getVoicePack(id: String): VoicePack?
     suspend fun getActiveVoicePack(): VoicePack?
+    suspend fun getActiveVoicePack(accent: PronunciationAccent): VoicePack? =
+        when (accent) {
+            PronunciationAccent.AUTO -> getActiveVoicePack()
+            else -> getAllVoicePacks().firstOrNull { pack ->
+                pack.isActive && PronunciationAccent.fromStorageValue(pack.accent) == accent
+            }
+        }
     suspend fun activateVoicePack(id: String)
     suspend fun upsertVoicePack(voicePack: VoicePack)
     suspend fun removeVoicePack(id: String)
@@ -59,13 +67,21 @@ class RoomVoicePackRepository(
             ?.asExternalModel()
             ?.let { hydrateRuntimeMetadata(it) }
 
+    override suspend fun getActiveVoicePack(accent: PronunciationAccent): VoicePack? =
+        when (accent) {
+            PronunciationAccent.AUTO -> getActiveVoicePack()
+            else -> dao.getActiveVoicePackForAccent(accent.storageValue)
+                ?.asExternalModel()
+                ?.let { hydrateRuntimeMetadata(it) }
+        }
+
     override suspend fun activateVoicePack(id: String) {
         val target = dao.getVoicePackById(id) ?: return
         if (target.status != VoicePackStatus.READY.storageValue) {
             return
         }
         database.withTransaction {
-            dao.activateVoicePack(id)
+            dao.activateVoicePackForAccent(id, target.accent)
         }
     }
 
@@ -74,20 +90,29 @@ class RoomVoicePackRepository(
     }
 
     override suspend fun removeVoicePack(id: String) {
-        dao.getVoicePackById(id)?.installDir?.let(::File)?.takeIf(File::exists)?.deleteRecursively()
-        dao.deleteVoicePackById(id)
+        val removedPack = dao.getVoicePackById(id) ?: return
+        removedPack.installDir?.let(::File)?.takeIf(File::exists)?.deleteRecursively()
+        database.withTransaction {
+            if (removedPack.isActive) {
+                dao.clearActiveVoicePackForAccent(removedPack.accent)
+            }
+            dao.deleteVoicePackById(id)
+        }
     }
 
     override suspend fun syncManifest(jsonText: String): Int {
         val now = Instant.now()
-        val existingById = dao.getAllVoicePacks()
+        val existingVoicePacks = dao.getAllVoicePacks()
             .map(VoicePackEntity::asExternalModel)
-            .associateBy(VoicePack::id)
-        val currentActiveId = dao.getActiveVoicePack()?.id
+        val existingById = existingVoicePacks.associateBy(VoicePack::id)
+        val currentActiveIdsByAccent = existingVoicePacks
+            .asSequence()
+            .filter { it.isActive }
+            .associate { it.accent to it.id }
         val voicePacks = parseVoicePackManifest(
             jsonText = jsonText,
             existingById = existingById,
-            currentActiveId = currentActiveId,
+            currentActiveIdsByAccent = currentActiveIdsByAccent,
             now = now,
         )
         if (voicePacks.isNotEmpty()) {
@@ -165,7 +190,7 @@ class RoomVoicePackRepository(
             parseVoicePackManifest(
                 jsonText = jsonText,
                 existingById = emptyMap(),
-                currentActiveId = null,
+                currentActiveIdsByAccent = emptyMap(),
                 now = Instant.EPOCH,
             )
                 .mapNotNull { voicePack ->
@@ -192,7 +217,7 @@ class RoomVoicePackRepository(
 internal fun parseVoicePackManifest(
     jsonText: String,
     existingById: Map<String, VoicePack>,
-    currentActiveId: String?,
+    currentActiveIdsByAccent: Map<String, String>,
     now: Instant,
 ): List<VoicePack> {
     val root = JSONObject(jsonText)
@@ -205,12 +230,13 @@ internal fun parseVoicePackManifest(
             return@repeat
         }
         val existing = existingById[id]
+        val accent = item.optString("accent").ifBlank { existing?.accent ?: "auto" }
         val nativeManifest = NativeVoicePackManifest.fromCatalogItem(item)
         voicePacks += VoicePack(
             id = id,
             name = item.optString("name").ifBlank { id },
             locale = item.optString("locale").ifBlank { "en-US" },
-            accent = item.optString("accent").ifBlank { "auto" },
+            accent = accent,
             engineType = item.optString("engineType").ifBlank { VoicePackEngineType.SHERPA_ONNX.storageValue },
             version = item.optString("version").ifBlank { "1" },
             downloadUrl = item.optString("downloadUrl").takeIf(String::isNotBlank) ?: existing?.downloadUrl,
@@ -219,7 +245,7 @@ internal fun parseVoicePackManifest(
             archiveChecksum = item.optString("archiveChecksum").takeIf(String::isNotBlank) ?: existing?.archiveChecksum,
             installedSizeBytes = existing?.installedSizeBytes ?: 0L,
             status = existing?.status ?: VoicePackStatus.NOT_INSTALLED.storageValue,
-            isActive = currentActiveId == id,
+            isActive = currentActiveIdsByAccent[accent] == id,
             engineFamily = nativeManifest.engineFamily ?: existing?.engineFamily,
             modelFamily = nativeManifest.modelFamily ?: existing?.modelFamily,
             supportsImportedWords = nativeManifest.supportsImportedWords || (existing?.supportsImportedWords == true),

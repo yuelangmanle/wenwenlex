@@ -1,11 +1,19 @@
 package com.yueliangmanle.danci.core.data
 
+import androidx.room.Room
+import androidx.test.core.app.ApplicationProvider
+import com.yueliangmanle.danci.core.database.DanciDatabase
 import com.yueliangmanle.danci.core.model.VoicePackStatus
 import java.time.Instant
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import kotlinx.coroutines.test.runTest
 
+@RunWith(RobolectricTestRunner::class)
 class VoicePackRepositoryTest {
     @Test
     fun parseVoicePackManifestPreservesExistingInstallState() {
@@ -35,7 +43,7 @@ class VoicePackRepositoryTest {
                 }
             """.trimIndent(),
             existingById = existing,
-            currentActiveId = "en-us-bridge-basic",
+            currentActiveIdsByAccent = mapOf("us" to "en-us-bridge-basic"),
             now = Instant.parse("2026-03-19T12:00:00Z"),
         )
 
@@ -60,7 +68,7 @@ class VoicePackRepositoryTest {
                 }
             """.trimIndent(),
             existingById = emptyMap(),
-            currentActiveId = null,
+            currentActiveIdsByAccent = emptyMap(),
             now = Instant.parse("2026-03-19T12:00:00Z"),
         )
 
@@ -113,7 +121,7 @@ class VoicePackRepositoryTest {
                 }
             """.trimIndent(),
             existingById = existing,
-            currentActiveId = "en-gb-offline-word-v1",
+            currentActiveIdsByAccent = mapOf("uk" to "en-gb-offline-word-v1"),
             now = Instant.parse("2026-03-19T12:00:00Z"),
         )
 
@@ -129,5 +137,93 @@ class VoicePackRepositoryTest {
         assertEquals(512_000_000L, pack.installedSizeBytes)
         assertEquals(VoicePackStatus.READY.storageValue, pack.status)
         assertTrue(pack.isActive)
+    }
+
+    @Test
+    fun activateVoicePack_keepsActivePackOfOtherAccent() = runTest {
+        withRepository { repository ->
+            repository.upsertVoicePack(
+                TestVoicePackFactory.voicePack(
+                    id = "en-gb-offline-word-v1",
+                    locale = "en-GB",
+                    accent = "uk",
+                    status = VoicePackStatus.READY.storageValue,
+                ),
+            )
+            repository.upsertVoicePack(
+                TestVoicePackFactory.voicePack(
+                    id = "en-us-offline-word-v1",
+                    locale = "en-US",
+                    accent = "us",
+                    status = VoicePackStatus.READY.storageValue,
+                ),
+            )
+
+            repository.activateVoicePack("en-gb-offline-word-v1")
+            repository.activateVoicePack("en-us-offline-word-v1")
+
+            val packs = repository.getAllVoicePacks()
+            assertTrue(packs.single { it.id == "en-gb-offline-word-v1" }.isActive)
+            assertTrue(packs.single { it.id == "en-us-offline-word-v1" }.isActive)
+        }
+    }
+
+    @Test
+    fun removeVoicePack_clearsOnlyRemovedAccentActiveState() = runTest {
+        withRepository { repository ->
+            repository.upsertVoicePack(
+                TestVoicePackFactory.voicePack(
+                    id = "en-gb-offline-word-v1",
+                    locale = "en-GB",
+                    accent = "uk",
+                    status = VoicePackStatus.READY.storageValue,
+                    installDir = tempInstallDir("en-gb-offline-word-v1"),
+                ),
+            )
+            repository.upsertVoicePack(
+                TestVoicePackFactory.voicePack(
+                    id = "en-us-offline-word-v1",
+                    locale = "en-US",
+                    accent = "us",
+                    status = VoicePackStatus.READY.storageValue,
+                    installDir = tempInstallDir("en-us-offline-word-v1"),
+                ),
+            )
+
+            repository.activateVoicePack("en-gb-offline-word-v1")
+            repository.activateVoicePack("en-us-offline-word-v1")
+            repository.removeVoicePack("en-gb-offline-word-v1")
+
+            val packs = repository.getAllVoicePacks()
+            assertNull(packs.firstOrNull { it.id == "en-gb-offline-word-v1" })
+            assertTrue(packs.single { it.id == "en-us-offline-word-v1" }.isActive)
+        }
+    }
+
+    private suspend fun withRepository(
+        block: suspend (RoomVoicePackRepository) -> Unit,
+    ) {
+        val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val database = Room.inMemoryDatabaseBuilder(appContext, DanciDatabase::class.java)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            block(
+                RoomVoicePackRepository(
+                    appContext = appContext,
+                    dao = database.voicePackDao(),
+                    database = database,
+                ),
+            )
+        } finally {
+            database.close()
+        }
+    }
+
+    private fun tempInstallDir(name: String): String {
+        val root = createTempDir(prefix = "voice-pack-test-")
+        val target = root.resolve(name)
+        target.mkdirs()
+        return target.absolutePath
     }
 }

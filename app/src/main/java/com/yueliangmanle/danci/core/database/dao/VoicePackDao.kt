@@ -23,11 +23,30 @@ interface VoicePackDao {
     @Query("SELECT * FROM voice_packs WHERE isActive = 1 LIMIT 1")
     suspend fun getActiveVoicePack(): VoicePackEntity?
 
-    @Query("UPDATE voice_packs SET isActive = CASE WHEN id = :id THEN 1 ELSE 0 END")
-    suspend fun activateVoicePack(id: String)
+    @Query("SELECT * FROM voice_packs WHERE isActive = 1 AND accent = :accent LIMIT 1")
+    suspend fun getActiveVoicePackForAccent(accent: String): VoicePackEntity?
+
+    @Query(
+        """
+        UPDATE voice_packs
+        SET isActive = CASE
+            WHEN id = :id THEN 1
+            WHEN accent = :accent THEN 0
+            ELSE isActive
+        END
+        WHERE accent = :accent OR id = :id
+        """,
+    )
+    suspend fun activateVoicePackForAccent(
+        id: String,
+        accent: String,
+    )
 
     @Query("UPDATE voice_packs SET isActive = 0")
     suspend fun clearActiveVoicePack()
+
+    @Query("UPDATE voice_packs SET isActive = 0 WHERE accent = :accent")
+    suspend fun clearActiveVoicePackForAccent(accent: String)
 
     @Query("DELETE FROM voice_packs WHERE id = :id")
     suspend fun deleteVoicePackById(id: String)

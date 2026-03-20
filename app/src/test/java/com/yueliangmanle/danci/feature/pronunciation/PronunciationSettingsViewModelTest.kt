@@ -175,6 +175,39 @@ class PronunciationSettingsViewModelTest {
         assertEquals("安装异常", item.statusLabel)
         assertEquals("原生语音包 manifest 缺少 entryFiles 声明。", item.failureReason)
     }
+
+    @Test
+    fun activateVoicePack_keepsOtherAccentActive() = runTest {
+        val viewModel = PronunciationSettingsViewModel(
+            settingsRepository = FakeSettingsRepository(initial = AppSettings()),
+            wordAudioRepository = FakeWordAudioRepository(),
+            voicePackRepository = FakeVoicePackRepository(
+                mutableListOf(
+                    TestVoicePackFactory.voicePack(
+                        id = "en-gb-offline-word-v1",
+                        locale = "en-GB",
+                        accent = "uk",
+                        engineType = "sherpa_onnx",
+                        status = VoicePackStatus.READY.storageValue,
+                        isActive = true,
+                    ),
+                    TestVoicePackFactory.voicePack(
+                        id = "en-us-offline-word-v1",
+                        locale = "en-US",
+                        accent = "us",
+                        engineType = "sherpa_onnx",
+                        status = VoicePackStatus.READY.storageValue,
+                    ),
+                ),
+            ),
+            voicePackDownloadController = FakeVoicePackDownloadController(),
+        )
+
+        val state = viewModel.activateVoicePack("en-us-offline-word-v1")
+
+        assertTrue(state.voicePacks.single { it.id == "en-gb-offline-word-v1" }.isActive)
+        assertTrue(state.voicePacks.single { it.id == "en-us-offline-word-v1" }.isActive)
+    }
 }
 
 private class FakeVoicePackDownloadController(
@@ -288,11 +321,29 @@ private class FakeVoicePackRepository(
     override suspend fun getActiveVoicePack(): com.yueliangmanle.danci.core.model.VoicePack? =
         packs.firstOrNull { it.isActive }
 
+    override suspend fun getActiveVoicePack(
+        accent: PronunciationAccent,
+    ): com.yueliangmanle.danci.core.model.VoicePack? =
+        packs.firstOrNull { pack ->
+            pack.isActive && (
+                accent == PronunciationAccent.AUTO ||
+                    PronunciationAccent.fromStorageValue(pack.accent) == accent
+                )
+        }
+
     override suspend fun activateVoicePack(id: String) {
         val index = packs.indexOfFirst { it.id == id }
         if (index < 0) return
+        val accent = packs[index].accent
         for (itemIndex in packs.indices) {
-            packs[itemIndex] = packs[itemIndex].copy(isActive = packs[itemIndex].id == id)
+            val pack = packs[itemIndex]
+            packs[itemIndex] = pack.copy(
+                isActive = when {
+                    pack.id == id -> true
+                    pack.accent == accent -> false
+                    else -> pack.isActive
+                },
+            )
         }
     }
 

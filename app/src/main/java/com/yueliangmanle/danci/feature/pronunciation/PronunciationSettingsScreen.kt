@@ -141,7 +141,7 @@ fun PronunciationSettingsScreen(
             ) {
                 Text("离线语音包", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "支持桥接包和原生离线发音包的一键下载、安装、激活和删除；原生包会额外展示导入词书支持和资源占用提示。",
+                    "支持桥接包和原生离线发音包的一键下载、安装、激活和删除；英式/美式口音可以分别启用对应语音包，原生包会额外展示导入词书支持和资源占用提示。",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -348,7 +348,7 @@ private fun VoicePackRow(
                     enabled = pack.canActivate,
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text(if (pack.isActive) "当前已启用" else "设为默认")
+                    Text(if (pack.isActive) "当前已启用" else "启用此口音")
                 }
             }
             if (pack.canDelete) {

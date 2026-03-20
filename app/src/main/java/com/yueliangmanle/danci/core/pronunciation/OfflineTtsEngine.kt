@@ -18,7 +18,7 @@ class OfflineTtsEngine(
         word: Word,
         accent: PronunciationAccent,
     ): PlaybackResult? {
-        val activePack = voicePackRepository.getActiveVoicePack() ?: return null
+        val activePack = voicePackRepository.getActiveVoicePack(accent) ?: return null
         if (activePack.status != VoicePackStatus.READY.storageValue) {
             return null
         }
