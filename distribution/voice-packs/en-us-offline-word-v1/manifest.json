@@ -1,0 +1,19 @@
+{
+  "id": "en-us-offline-word-v1",
+  "version": "1.3",
+  "entryFiles": [
+    "model/model.onnx",
+    "model/tokens.txt"
+  ],
+  "native": {
+    "engineFamily": "native_neural_tts",
+    "modelFamily": "sherpa_onnx_scaffold",
+    "supportsImportedWords": true,
+    "licenses": [
+      {
+        "name": "Distribution scaffold notice",
+        "file": "licenses/DISTRIBUTION-NOTICE.txt"
+      }
+    ]
+  }
+}

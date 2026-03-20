@@ -67,11 +67,13 @@
 - native 语音包安装阶段的 `licenses`、`entryFiles` 和 native metadata 校验
 - 发音设置页展示 native 语音包能力提示、资源占用和安装失败具体原因
 - 单词详情页与学习页会直接显示本次发音实际命中的在线来源提示
+- native 语音包正式分发链路已接入，GitHub Release 会同时上传 zip、manifest 和 checksum 资产
+- `Android CI` / `Android Release` 已接入 native 语音包发布资产自检，避免 catalog 与 Release 资产脱节
 
 ## 后续增强方向
 
 - 真正的本地离线 TTS 推理语音包
-- native 语音包正式发版与模型资产分发
+- 把当前 native scaffold 包替换为真实模型资产，并完成最终 runtime bridge 接线
 - 更丰富的在线词典音频源与缓存命中策略
 - 学习统计与发音使用数据的可视化面板
 
@@ -117,11 +119,13 @@
 3. 在 GitHub Actions 里运行 `Android Release` 工作流，并输入版本号，例如 `1.2`。
 4. 工作流会在云端完成：
    - 校验版本号格式
+   - 校验 native 语音包发布资产
    - 运行单元测试
    - 读取 GitHub Secrets 中的正式签名材料
    - 构建并校验 `release-signed APK`
+   - 打包 native 语音包 zip / manifest / checksum
    - 创建或更新 GitHub Release
-   - 上传安装包到 Release 下载页
+   - 上传安装包和 native 语音包资产到 Release 下载页
 5. 用户以后只需要去 Releases 页面看版本列表、更新日志和下载入口。
 
 ### 两种触发方式
@@ -134,7 +138,7 @@
 - 版本号固定使用一位小数，例如 `1.0`、`1.1`、`2.0`
 - 每次发版前必须先更新 `CHANGELOG.md`
 - Release 页面正文直接从 `CHANGELOG.md` 对应版本段落生成
-- 当前云端发布产物为 `release-signed APK`
+- 当前云端发布产物为 `release-signed APK` + native 语音包 Release 资产
 
 ## 签名密钥与 GitHub Secrets
 

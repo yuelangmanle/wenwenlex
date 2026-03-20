@@ -22,12 +22,18 @@
 `Android Release` 工作流会：
 
 1. 校验版本号格式
-2. 校验上述 4 个 secrets 是否齐全
-3. 解码 keystore
+2. 校验 native 语音包发布资产
+3. 打包 native 语音包 zip / manifest / checksum
 4. 运行单元测试
-5. 构建 `assembleRelease`
-6. 用 `apksigner verify` 校验 APK 签名
-7. 创建或更新 GitHub Release，并上传正式 APK
+5. 解码 keystore
+6. 构建 `assembleRelease`
+7. 用 `apksigner verify` 校验 APK 签名
+8. 创建或更新 GitHub Release，并上传正式 APK 与 native 语音包资产
+
+补充约定：
+
+- `distribution/voice-packs/` 中的目录会被打包为正式 Release 资产
+- 当前 native 语音包仍先使用 scaffold 模型文件占位，后续可直接替换为真实模型资产而不改发布流程
 
 ## 升级规则
 
@@ -40,3 +46,10 @@
 - 首发版本：`1.0`
 - 后续规则：每次增加 `0.1`
 - 进位规则：`1.9 -> 2.0`
+
+## 正式产物命名
+
+- APK：`wenwenlex-v<version>-release.apk`
+- native 语音包 zip：`wenwenlex-voice-pack-<packId>.zip`
+- native 语音包 manifest：`wenwenlex-voice-pack-<packId>-manifest.json`
+- native 语音包校验文件：`wenwenlex-voice-pack-checksums.txt`

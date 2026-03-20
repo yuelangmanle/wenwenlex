@@ -91,6 +91,98 @@ class VoicePackInstallerTest {
     }
 
     @Test
+    fun validateInstalledVoicePackRejectsMissingReferencedLicenseFile() {
+        val installDir = Files.createTempDirectory("voice-pack-native-test").toFile()
+        try {
+            installDir.resolve("manifest.json").writeText(
+                """
+                    {
+                      "id": "en-us-offline-word-v1",
+                      "entryFiles": ["model/model.onnx", "model/tokens.txt"],
+                      "native": {
+                        "engineFamily": "native_neural_tts",
+                        "modelFamily": "sherpa_onnx_scaffold",
+                        "supportsImportedWords": true,
+                        "licenses": [
+                          {
+                            "name": "Distribution scaffold notice",
+                            "file": "licenses/DISTRIBUTION-NOTICE.txt"
+                          }
+                        ]
+                      }
+                    }
+                """.trimIndent(),
+            )
+            installDir.resolve("model").mkdirs()
+            installDir.resolve("model/model.onnx").writeText("fake")
+            installDir.resolve("model/tokens.txt").writeText("fake")
+
+            var error: IllegalStateException? = null
+            try {
+                validateInstalledVoicePack(
+                    voicePack = TestVoicePackFactory.voicePack(
+                        id = "en-us-offline-word-v1",
+                        engineType = "sherpa_onnx",
+                        installDir = installDir.absolutePath,
+                        status = VoicePackStatus.READY.storageValue,
+                    ),
+                    installDir = installDir,
+                )
+                fail("Expected native pack validation to fail when referenced license file is missing.")
+            } catch (expected: IllegalStateException) {
+                error = expected
+            }
+
+            assertTrue(error?.message.orEmpty().contains("licenses/DISTRIBUTION-NOTICE.txt"))
+        } finally {
+            installDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun validateInstalledVoicePackAcceptsPackagedNativeReleaseStructure() {
+        val installDir = Files.createTempDirectory("voice-pack-native-test").toFile()
+        try {
+            installDir.resolve("manifest.json").writeText(
+                """
+                    {
+                      "id": "en-gb-offline-word-v1",
+                      "entryFiles": ["model/model.onnx", "model/tokens.txt"],
+                      "native": {
+                        "engineFamily": "native_neural_tts",
+                        "modelFamily": "sherpa_onnx_scaffold",
+                        "supportsImportedWords": true,
+                        "licenses": [
+                          {
+                            "name": "Distribution scaffold notice",
+                            "file": "licenses/DISTRIBUTION-NOTICE.txt"
+                          }
+                        ]
+                      }
+                    }
+                """.trimIndent(),
+            )
+            installDir.resolve("model").mkdirs()
+            installDir.resolve("licenses").mkdirs()
+            installDir.resolve("model/model.onnx").writeText("fake")
+            installDir.resolve("model/tokens.txt").writeText("fake")
+            installDir.resolve("licenses/DISTRIBUTION-NOTICE.txt").writeText("fake")
+
+            validateInstalledVoicePack(
+                voicePack = TestVoicePackFactory.voicePack(
+                    id = "en-gb-offline-word-v1",
+                    engineType = "sherpa_onnx",
+                    installDir = installDir.absolutePath,
+                    status = VoicePackStatus.READY.storageValue,
+                ),
+                installDir = installDir,
+            )
+        } finally {
+            installDir.deleteRecursively()
+        }
+    }
+
+    @Test
     fun validateInstalledVoicePackAcceptsNativeManifestWithEntryFilesAndLicenses() {
         val installDir = Files.createTempDirectory("voice-pack-native-test").toFile()
         try {

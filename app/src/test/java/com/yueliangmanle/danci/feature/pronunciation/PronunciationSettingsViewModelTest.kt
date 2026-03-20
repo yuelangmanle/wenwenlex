@@ -118,6 +118,35 @@ class PronunciationSettingsViewModelTest {
     }
 
     @Test
+    fun loadUiStateWarnsWhenNativeVoicePackIsDistributionScaffold() = runTest {
+        val viewModel = PronunciationSettingsViewModel(
+            settingsRepository = FakeSettingsRepository(initial = AppSettings()),
+            wordAudioRepository = FakeWordAudioRepository(),
+            voicePackRepository = FakeVoicePackRepository(
+                mutableListOf(
+                    TestVoicePackFactory.voicePack(
+                        id = "en-gb-offline-word-v1",
+                        name = "英式离线发音包",
+                        locale = "en-GB",
+                        accent = "uk",
+                        engineType = "sherpa_onnx",
+                        status = VoicePackStatus.NOT_INSTALLED.storageValue,
+                        modelFamily = "sherpa_onnx_scaffold",
+                        supportsImportedWords = true,
+                    ),
+                ),
+            ),
+            voicePackDownloadController = FakeVoicePackDownloadController(),
+        )
+
+        val state = viewModel.loadUiState()
+        val item = state.voicePacks.single()
+
+        assertTrue(item.capabilitySummary.contains("分发链路"))
+        assertTrue(item.capabilitySummary.contains("模型执行桥接"))
+    }
+
+    @Test
     fun loadUiStateExposesBrokenVoicePackFailureReason() = runTest {
         val controller = FakeVoicePackDownloadController(
             failureMessages = mapOf(

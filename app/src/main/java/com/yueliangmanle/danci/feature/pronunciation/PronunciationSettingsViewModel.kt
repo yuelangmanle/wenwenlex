@@ -193,10 +193,15 @@ internal fun buildVoicePackItemUiState(
     val capabilitySummary = when (VoicePackEngineType.fromStorageValue(pack.engineType)) {
         VoicePackEngineType.SYSTEM_TTS_BRIDGE -> "依赖系统 TTS，不保证覆盖导入词书。"
         VoicePackEngineType.SHERPA_ONNX -> {
-            if (pack.supportsImportedWords) {
+            val baseSummary = if (pack.supportsImportedWords) {
                 "支持内置词书 + Excel 导入词书发音。"
             } else {
                 "当前仅保证内置词书发音。"
+            }
+            if (pack.modelFamily?.contains("scaffold", ignoreCase = true) == true) {
+                "$baseSummary 当前为分发链路版，模型执行桥接仍在接入。"
+            } else {
+                baseSummary
             }
         }
     }

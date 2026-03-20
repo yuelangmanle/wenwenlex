@@ -19,6 +19,42 @@
       "version": "1",
       "downloadUrl": "asset://pronunciation/packs/en-us-bridge-basic",
       "manifestUrl": "asset://pronunciation/packs/en-us-bridge-basic/manifest.json"
+    },
+    {
+      "id": "en-gb-offline-word-v1",
+      "name": "英式离线发音包",
+      "locale": "en-GB",
+      "accent": "uk",
+      "engineType": "sherpa_onnx",
+      "version": "1.3",
+      "downloadUrl": "https://github.com/yuelangmanle/wenwenlex/releases/latest/download/wenwenlex-voice-pack-en-gb-offline-word-v1.zip",
+      "manifestUrl": "https://github.com/yuelangmanle/wenwenlex/releases/latest/download/wenwenlex-voice-pack-en-gb-offline-word-v1-manifest.json",
+      "native": {
+        "engineFamily": "native_neural_tts",
+        "modelFamily": "sherpa_onnx_scaffold",
+        "supportsImportedWords": true,
+        "licenses": [
+          "Distribution scaffold notice"
+        ]
+      }
+    },
+    {
+      "id": "en-us-offline-word-v1",
+      "name": "美式离线发音包",
+      "locale": "en-US",
+      "accent": "us",
+      "engineType": "sherpa_onnx",
+      "version": "1.3",
+      "downloadUrl": "https://github.com/yuelangmanle/wenwenlex/releases/latest/download/wenwenlex-voice-pack-en-us-offline-word-v1.zip",
+      "manifestUrl": "https://github.com/yuelangmanle/wenwenlex/releases/latest/download/wenwenlex-voice-pack-en-us-offline-word-v1-manifest.json",
+      "native": {
+        "engineFamily": "native_neural_tts",
+        "modelFamily": "sherpa_onnx_scaffold",
+        "supportsImportedWords": true,
+        "licenses": [
+          "Distribution scaffold notice"
+        ]
+      }
     }
   ]
 }

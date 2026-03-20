@@ -63,6 +63,7 @@ app/                    Android 应用主体
 docs/                   对接文档、规格和计划
 .github/workflows/      云端 CI 与 Release 工作流
 scripts/                版本号、更新日志和词库生成脚本
+distribution/           native 语音包发布源目录
 CHANGELOG.md            发版更新日志来源
 README.md               项目入口说明
 ```
@@ -133,6 +134,7 @@ README.md               项目入口说明
 
 `Android CI` 负责：
 
+- 校验 native 语音包发布资产
 - 运行单元测试
 - 构建 debug APK
 - 运行连接设备/模拟器测试
@@ -149,13 +151,15 @@ README.md               项目入口说明
 `Android Release` 负责：
 
 - 接收版本号输入，或通过 `v*` tag 触发
+- 校验 native 语音包发布资产
 - 运行单元测试
 - 校验 Release 签名 secrets
 - 构建 `release-signed APK`
 - 校验 APK 签名
+- 打包 native 语音包 zip / manifest / checksum
 - 从 `CHANGELOG.md` 提取对应版本日志
 - 创建或更新 GitHub Release
-- 上传正式安装包
+- 上传正式安装包与 native 语音包资产
 
 ### 8.4 正式发版前置检查
 
@@ -171,6 +175,9 @@ README.md               项目入口说明
 
 - 正式分发产物必须是 `release-signed APK`
 - 当前资产命名规则为：`wenwenlex-v<version>-release.apk`
+- native 语音包资产命名规则为：`wenwenlex-voice-pack-<packId>.zip`
+- native 语音包 manifest 命名规则为：`wenwenlex-voice-pack-<packId>-manifest.json`
+- native 语音包 checksum 命名规则为：`wenwenlex-voice-pack-checksums.txt`
 - Release 页面正文来源于 `CHANGELOG.md`
 - 禁止把 debug 包上传到正式 Release 页面替代正式包
 

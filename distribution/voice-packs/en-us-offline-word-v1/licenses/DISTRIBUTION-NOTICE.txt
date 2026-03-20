@@ -1,0 +1,2 @@
+This archive currently contains scaffold assets used to validate the GitHub Release distribution pipeline.
+Replace the placeholder model files with licensed production assets before enabling real offline synthesis.

@@ -325,6 +325,12 @@ internal fun validateInstalledVoicePack(
             "原生语音包缺少核心文件: $relativePath"
         }
     }
+
+    manifestJson.optReferencedLicenseFiles().forEach { relativePath ->
+        check(File(installDir, relativePath).exists()) {
+            "原生语音包缺少许可证文件: $relativePath"
+        }
+    }
 }
 
 private fun sha256(bytes: ByteArray): String =
@@ -337,6 +343,20 @@ private fun JSONObject.optStringList(key: String): List<String> {
     return buildList {
         repeat(items.length()) { index ->
             items.optString(index)
+                .trim()
+                .takeIf(String::isNotEmpty)
+                ?.let(::add)
+        }
+    }
+}
+
+private fun JSONObject.optReferencedLicenseFiles(): List<String> {
+    val nativeBlock = optJSONObject("native") ?: optJSONObject("runtime") ?: this
+    val licenses = nativeBlock.optJSONArray("licenses") ?: return emptyList()
+    return buildList {
+        repeat(licenses.length()) { index ->
+            val licenseObject = licenses.optJSONObject(index) ?: return@repeat
+            licenseObject.optString("file")
                 .trim()
                 .takeIf(String::isNotEmpty)
                 ?.let(::add)

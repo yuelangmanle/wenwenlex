@@ -12,6 +12,8 @@
 - 新增 native 离线单词发音引擎与本地文件播放能力，支持英式 / 美式原生包实时合成
 - 新增原生语音包安装校验测试和设置页坏包错误原因展示逻辑
 - 新增在线词典音频多来源候选排序与回退机制，当前默认接入 `Dictionary API` + `有道词典`
+- 新增 native 语音包发布源目录与打包脚本，支持从 `distribution/voice-packs/` 直接生成正式 Release 资产
+- 新增语音包发布资产自检脚本，当前会校验 catalog、zip 结构、`entryFiles` 和 Release 资产命名约定
 
 ### Changed
 
@@ -19,12 +21,15 @@
 - 发音设置页现在会展示 native 语音包能力摘要、资源占用提示，以及安装失败的具体原因
 - 离线语音引擎从仅支持 `system_tts_bridge` 升级为同时支持 `sherpa_onnx` 原生离线路径
 - 在线词典音频会按口音优先级和 provider 顺序逐个尝试，并把实际命中的来源写进详情页 / 学习页状态提示
+- 内置语音包 catalog 已补入英式 / 美式 native Release 条目，并固定指向 GitHub Releases `latest/download`
+- GitHub Actions 的 `Android CI` / `Android Release` 现在会先校验 native 语音包发布资产；正式 Release 会额外上传语音包 zip、manifest 与 checksum
 
 ### Fixed
 
 - 修复 `PronunciationOrchestratorTest` 因缺少 Robolectric runner 导致的云端单测失败
 - 修复 native 语音包安装阶段未校验 `licenses`、`entryFiles` 和 native metadata 的问题
 - 修复语音包安装异常时设置页只能看到“安装异常”而看不到具体失败原因的问题
+- 修复 native 语音包安装时没有校验 `licenses.file` 引用文件是否真实存在的问题
 
 ## [1.2] - 2026-03-19
 

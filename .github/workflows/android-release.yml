@@ -39,6 +39,9 @@ jobs:
       - name: Make release scripts executable
         run: chmod +x scripts/*.sh
 
+      - name: Validate native voice pack release assets
+        run: bash scripts/test_voice_pack_release_assets.sh
+
       - name: Resolve release metadata
         id: meta
         env:
@@ -142,6 +145,9 @@ jobs:
           mkdir -p release
           cp app/build/outputs/apk/release/app-release.apk "release/${{ steps.meta.outputs.apk_name }}"
 
+      - name: Package native voice pack assets
+        run: bash scripts/package_voice_packs.sh release
+
       - name: Prepare release notes
         run: |
           bash scripts/extract_changelog_section.sh "${{ steps.meta.outputs.version }}" CHANGELOG.md > release-notes.md
@@ -151,13 +157,19 @@ jobs:
             echo
             echo "- Asset: \`${{ steps.meta.outputs.apk_name }}\`"
             echo "- Build type: release-signed APK"
+            echo
+            cat release/voice-pack-assets.md
           } >> release-notes.md
 
-      - name: Upload release APK artifact
+      - name: Upload release assets artifact
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ steps.meta.outputs.apk_name }}
-          path: release/${{ steps.meta.outputs.apk_name }}
+          name: wenwenlex-release-assets-${{ steps.meta.outputs.tag }}
+          path: |
+            release/${{ steps.meta.outputs.apk_name }}
+            release/wenwenlex-voice-pack-*.zip
+            release/wenwenlex-voice-pack-*-manifest.json
+            release/wenwenlex-voice-pack-checksums.txt
           if-no-files-found: error
 
       - name: Upload build reports
@@ -178,21 +190,28 @@ jobs:
           VERSION: ${{ steps.meta.outputs.version }}
           APK_NAME: ${{ steps.meta.outputs.apk_name }}
         run: |
+          shopt -s nullglob
+          RELEASE_ASSETS=(
+            "release/$APK_NAME"
+            release/wenwenlex-voice-pack-*.zip
+            release/wenwenlex-voice-pack-*-manifest.json
+            release/wenwenlex-voice-pack-checksums.txt
+          )
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "release/$APK_NAME" --clobber
+            gh release upload "$TAG" "${RELEASE_ASSETS[@]}" --clobber
             gh release edit "$TAG" \
               --title "文文Lex $VERSION" \
               --notes-file release-notes.md \
               --latest
           else
             if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-              gh release create "$TAG" "release/$APK_NAME" \
+              gh release create "$TAG" "${RELEASE_ASSETS[@]}" \
                 --target "$GITHUB_SHA" \
                 --title "文文Lex $VERSION" \
                 --notes-file release-notes.md \
                 --latest
             else
-              gh release create "$TAG" "release/$APK_NAME" \
+              gh release create "$TAG" "${RELEASE_ASSETS[@]}" \
                 --verify-tag \
                 --title "文文Lex $VERSION" \
                 --notes-file release-notes.md \
