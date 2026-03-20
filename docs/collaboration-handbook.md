@@ -11,9 +11,9 @@
 
 - 项目名称：`文文Lex`
 - 仓库地址：[yuelangmanle/wenwenlex](https://github.com/yuelangmanle/wenwenlex)
-- 当前正式版本：`1.2`
-- 当前正式发布：`2026-03-19` 已发布 `v1.2`
-- 当前开发主线：`v1.3` 离线单词真实发音增强已在开发分支持续集成通过，待正式发版
+- 当前正式版本：`1.3`
+- 当前正式发布：`2026-03-20` 已发布 `v1.3`
+- 当前开发主线：`v1.4`，围绕真实模型资产替换、runtime bridge 完成和发音体验调优继续推进
 - 平台：Android
 - 开发语言：Kotlin
 - UI 技术：Jetpack Compose

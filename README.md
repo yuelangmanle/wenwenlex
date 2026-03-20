@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-- 当前正式版本：`1.2`
+- 当前正式版本：`1.3`
 - 版本规则：每次迭代递增 `0.1`，按 `1.0 -> 1.1 -> ... -> 1.9 -> 2.0` 进位
 - 正式发包界面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
 - 开发验证界面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
@@ -55,9 +55,9 @@
 - 首页与词书页已切回真实词库加载链路，不再停留在长时间转圈状态
 - 离线语音包当前先以 `system_tts_bridge` 方式落地，真正的本地模型推理包仍在后续迭代
 
-## 1.3 开发中能力
+## 1.3 已发布能力
 
-以下内容已经在开发分支落地并通过 GitHub Actions 云端 CI，但还没有正式发版：
+以下内容已经在 `2026-03-20` 随 `v1.3` 正式发版：
 
 - native 语音包运行时 metadata 合并，可从安装包 `manifest.json` 读取模型族、资源占用和许可证信息
 - Sherpa ONNX Android runtime 脚手架与原生离线单词发音引擎骨架
@@ -69,6 +69,7 @@
 - 单词详情页与学习页会直接显示本次发音实际命中的在线来源提示
 - native 语音包正式分发链路已接入，GitHub Release 会同时上传 zip、manifest 和 checksum 资产
 - `Android CI` / `Android Release` 已接入 native 语音包发布资产自检，避免 catalog 与 Release 资产脱节
+- 当前 native 语音包依然先发 scaffold 包，用于正式分发、安装校验与链路联调；真实模型资产将在后续版本替换
 
 ## 后续增强方向
 
@@ -103,7 +104,7 @@
 
 ### 日常升级
 
-1. 从 Releases 页面下载更高版本，例如 `1.2`、`1.3`。
+1. 从 Releases 页面下载更高版本，例如 `1.3`、`1.4`。
 2. 直接安装新 APK，Android 会覆盖旧版本，学习数据会保留。
 3. 升级前仍建议先在 App 里做一次本地备份。
 
@@ -116,7 +117,7 @@
 
 1. 在 [CHANGELOG.md](CHANGELOG.md) 里新增对应版本的小节，先写完整更新日志。
 2. 把代码推到目标分支。
-3. 在 GitHub Actions 里运行 `Android Release` 工作流，并输入版本号，例如 `1.2`。
+3. 在 GitHub Actions 里运行 `Android Release` 工作流，并输入版本号，例如 `1.3`。
 4. 工作流会在云端完成：
    - 校验版本号格式
    - 校验 native 语音包发布资产
@@ -131,7 +132,7 @@
 ### 两种触发方式
 
 - 推荐：GitHub 网页中手动运行 `Android Release`，输入版本号
-- 兼容：推送 `v1.2`、`v1.3` 这样的 tag，也会自动创建对应 Release
+- 兼容：推送 `v1.3`、`v1.4` 这样的 tag，也会自动创建对应 Release
 
 ## 版本与日志约束
 

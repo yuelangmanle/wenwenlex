@@ -2,7 +2,9 @@
 
 本项目使用人工维护的更新日志。每次发版前，必须先补齐对应版本记录，再运行云端 Release 工作流。
 
-## [Unreleased] - 2026-03-20
+## [Unreleased]
+
+## [1.3] - 2026-03-20
 
 ### Added
 
@@ -30,6 +32,12 @@
 - 修复 native 语音包安装阶段未校验 `licenses`、`entryFiles` 和 native metadata 的问题
 - 修复语音包安装异常时设置页只能看到“安装异常”而看不到具体失败原因的问题
 - 修复 native 语音包安装时没有校验 `licenses.file` 引用文件是否真实存在的问题
+
+### Notes
+
+- `1.3` 对应离线单词真实发音与 native 语音包正式分发链路的首个正式版本
+- 当前 GitHub Release 会同时分发 `release-signed APK`、native 语音包 zip、manifest 和 checksum
+- 当前 native 语音包仍先以内置 scaffold 资产打通分发链路；真实模型资产与最终 runtime bridge 属于后续迭代
 
 ## [1.2] - 2026-03-19
 
