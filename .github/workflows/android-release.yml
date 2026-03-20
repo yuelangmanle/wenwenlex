@@ -39,6 +39,9 @@ jobs:
       - name: Make release scripts executable
         run: chmod +x scripts/*.sh
 
+      - name: Fetch Sherpa ONNX Android JNI runtime
+        run: bash scripts/fetch_sherpa_onnx_android.sh v1.12.31
+
       - name: Validate native voice pack release assets
         run: bash scripts/test_voice_pack_release_assets.sh
 

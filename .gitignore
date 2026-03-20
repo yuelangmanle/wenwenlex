@@ -4,6 +4,9 @@
 .gradle/
 .kotlin/
 app/build/
+app/src/main/jniLibs/
+app/libs/sherpa-onnx-android-*.sha256
+app/libs/sherpa-onnx-android-version.txt
 output/
 release-local/
 local.properties
