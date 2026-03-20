@@ -120,8 +120,8 @@ jobs:
           test -n "$ANDROID_RELEASE_KEY_ALIAS" || { echo "Missing secret: $RELEASE_KEY_ALIAS_SECRET_NAME" >&2; exit 1; }
           test -n "$ANDROID_RELEASE_KEY_PASSWORD" || { echo "Missing secret: $RELEASE_KEY_PASSWORD_SECRET_NAME" >&2; exit 1; }
 
-      - name: Run unit tests
-        run: ./gradlew :app:testDebugUnitTest -PappVersionName=${{ steps.meta.outputs.version }}
+      - name: Run grouped unit tests
+        run: bash scripts/run_grouped_unit_tests.sh -PappVersionName=${{ steps.meta.outputs.version }}
 
       - name: Decode release keystore
         env:

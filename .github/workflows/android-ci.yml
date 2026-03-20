@@ -77,8 +77,8 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v5
 
-      - name: Run unit tests
-        run: ./gradlew :app:testDebugUnitTest
+      - name: Run grouped unit tests
+        run: bash scripts/run_grouped_unit_tests.sh
 
       - name: Assemble debug APK
         run: ./gradlew :app:assembleDebug
