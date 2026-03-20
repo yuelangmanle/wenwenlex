@@ -178,6 +178,7 @@ class PronunciationOrchestratorTest {
     fun playWord_fallsBackToDictionaryAfterNativeFailure_andRecordsFailureStage() = runTest {
         val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
         val word = Word(id = 18L, lemma = "colour")
+        val failingNativeInstallDir = File(appContext.cacheDir, "native-pack-uk-failing").apply { mkdirs() }
         val remoteAsset = WordAudioAsset(
             id = 3L,
             wordId = word.id,
@@ -208,7 +209,7 @@ class PronunciationOrchestratorTest {
                     accent = PronunciationAccent.UK.storageValue,
                     engineType = "sherpa_onnx",
                     status = com.yueliangmanle.danci.core.model.VoicePackStatus.READY.storageValue,
-                    installDir = File(appContext.cacheDir, "native-pack-uk-failing").absolutePath,
+                    installDir = failingNativeInstallDir.absolutePath,
                     isActive = true,
                     modelFamily = "kokoro",
                     version = "1.4",
