@@ -205,7 +205,7 @@ internal data class SherpaModelLayout(
                         file.name.startsWith("lexicon", ignoreCase = true) &&
                         file.extension.equals("txt", ignoreCase = true)
                 }
-                .distinctBy(File::absolutePath)
+                .distinctBy { it.absolutePath }
                 .joinToString(",") { it.absolutePath }
                 .ifBlank { null }
 
@@ -266,7 +266,7 @@ internal data class SherpaModelLayout(
                         ?.let { File(runtimeDir, it) }
                         ?.takeIf { it.exists() && it.isDirectory }
                 }
-            }.distinctBy(File::absolutePath)
+            }.distinctBy { it.absolutePath }
 
         private fun resolvePayloadFile(
             runtimeDir: File,
@@ -278,12 +278,12 @@ internal data class SherpaModelLayout(
             entryFiles.forEach { relativePath ->
                 val normalized = relativePath.replace('\\', '/')
                 if (suffixCandidates.any { normalized.endsWith(it, ignoreCase = true) }) {
-                    File(runtimeDir, normalized).takeIf(File::isFile)?.let { return it }
+                    File(runtimeDir, normalized).takeIf { it.isFile }?.let { return it }
                 }
             }
             candidateRoots.forEach { root ->
                 fileNameHints.forEach { name ->
-                    File(root, name).takeIf(File::isFile)?.let { return it }
+                    File(root, name).takeIf { it.isFile }?.let { return it }
                 }
             }
             return null
@@ -295,11 +295,11 @@ internal data class SherpaModelLayout(
             dirNameHints: List<String>,
         ): File? {
             dirNameHints.forEach { directoryName ->
-                File(runtimeDir, directoryName).takeIf(File::isDirectory)?.let { return it }
+                File(runtimeDir, directoryName).takeIf { it.isDirectory }?.let { return it }
             }
             candidateRoots.forEach { root ->
                 dirNameHints.forEach { directoryName ->
-                    File(root, directoryName).takeIf(File::isDirectory)?.let { return it }
+                    File(root, directoryName).takeIf { it.isDirectory }?.let { return it }
                 }
             }
             return null

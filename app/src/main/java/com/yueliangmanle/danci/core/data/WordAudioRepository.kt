@@ -244,7 +244,7 @@ class RoomWordAudioRepository(
             status = WordAudioAssetStatus.READY.storageValue,
         )
         assets.forEach { asset ->
-            asset.localPath?.let(::File)?.takeIf(File::exists)?.delete()
+            asset.localPath?.let(::File)?.takeIf { it.exists() }?.delete()
         }
         dao.deleteAssetsBySource(PlaybackSource.DICTIONARY_CACHE.storageValue)
         return assets.size
@@ -255,7 +255,7 @@ class RoomWordAudioRepository(
             sourceType = PlaybackSource.DICTIONARY_CACHE.storageValue,
             status = WordAudioAssetStatus.READY.storageValue,
         ).sumOf { asset ->
-            asset.localPath?.let(::File)?.takeIf(File::exists)?.length() ?: 0L
+            asset.localPath?.let(::File)?.takeIf { it.exists() }?.length() ?: 0L
         }
 
     private suspend fun downloadToFile(

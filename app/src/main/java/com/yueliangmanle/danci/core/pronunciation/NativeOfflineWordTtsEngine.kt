@@ -138,7 +138,7 @@ class NativeOfflineWordTtsEngine(
             expectedNamespace = namespace,
         ) ?: return null
         val outputFile = asset.localPath?.let(::File)
-            ?.takeIf(File::exists)
+            ?.takeIf { it.exists() }
             ?: return null
         return NativeWordSynthesisResult(
             asset = asset,

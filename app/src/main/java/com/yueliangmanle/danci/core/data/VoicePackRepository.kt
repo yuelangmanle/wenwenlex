@@ -103,7 +103,7 @@ class RoomVoicePackRepository(
 
     override suspend fun removeVoicePack(id: String) {
         val removedPack = dao.getVoicePackById(id) ?: return
-        removedPack.installDir?.let(::File)?.takeIf(File::exists)?.deleteRecursively()
+        removedPack.installDir?.let(::File)?.takeIf { it.exists() }?.deleteRecursively()
         database.withTransaction {
             if (removedPack.isActive) {
                 dao.clearActiveVoicePackForAccent(removedPack.accent)

@@ -132,7 +132,7 @@ class BackupRepository(
 
     fun latestBackupFile(): File? =
         backupDirectory()
-            .takeIf(File::exists)
+            .takeIf { it.exists() }
             ?.listFiles { file -> file.extension == "zip" }
             ?.maxByOrNull(File::lastModified)
 

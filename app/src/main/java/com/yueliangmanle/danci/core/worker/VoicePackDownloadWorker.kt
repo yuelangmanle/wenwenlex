@@ -209,13 +209,13 @@ internal class VoicePackInstaller(
         voicePack: VoicePack,
         archiveFile: File,
     ): String? {
-        val checksumsUrl = voicePack.checksumsUrl?.trim().takeIf(String::isNotEmpty)
+        val checksumsUrl = voicePack.checksumsUrl?.trim()?.takeIf { it.isNotEmpty() }
         if (checksumsUrl != null) {
             val checksumIndex = downloadChecksumIndex(checksumsUrl)
             return checksumIndex[archiveFile.name]
                 ?: error("Release checksum 清单中缺少 ${archiveFile.name}")
         }
-        return voicePack.archiveChecksum?.trim().takeIf(String::isNotEmpty)
+        return voicePack.archiveChecksum?.trim()?.takeIf { it.isNotEmpty() }
     }
 
     private fun installFromAssetDirectory(
