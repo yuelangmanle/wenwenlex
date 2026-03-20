@@ -5,14 +5,8 @@ import androidx.test.core.app.ApplicationProvider
 import com.yueliangmanle.danci.core.data.TestVoicePackFactory
 import com.yueliangmanle.danci.core.model.VoicePack
 import com.yueliangmanle.danci.core.model.VoicePackStatus
-import java.io.BufferedReader
 import java.io.File
-import java.io.InputStreamReader
-import java.io.OutputStream
-import java.net.ServerSocket
-import java.net.Socket
 import java.nio.file.Files
-import java.util.concurrent.Executors
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.test.runTest
@@ -394,10 +388,11 @@ class VoicePackInstallerTest {
             "licenses/DISTRIBUTION-NOTICE.txt" to "license".toByteArray(),
         )
         val archiveChecksum = sha256ForTest(archiveFile.readBytes())
-        val server = TestHttpServer(
+        val baseUrl = "https://voice-pack.test"
+        val remoteFetcher = FakeVoicePackRemoteFetcher(
             routes = mapOf(
-                "/$archiveName" to archiveFile.readBytes(),
-                "/voice-pack-checksums.txt" to "$archiveChecksum  $archiveName\n".toByteArray(),
+                "$baseUrl/$archiveName" to archiveFile.readBytes(),
+                "$baseUrl/voice-pack-checksums.txt" to "$archiveChecksum  $archiveName\n".toByteArray(),
             ),
         )
 
@@ -406,8 +401,8 @@ class VoicePackInstallerTest {
                 assetManager = appContext.assets,
                 cacheDir = cacheDir,
                 installRootDir = installRootDir,
+                remoteFetcher = remoteFetcher,
             )
-            val baseUrl = server.baseUrl
             val pack = VoicePack(
                 id = "en-us-offline-word-v1",
                 name = "美式离线发音包",
@@ -428,7 +423,6 @@ class VoicePackInstallerTest {
             }
             assertTrue(error?.message.orEmpty().contains("payload checksum"))
         } finally {
-            server.close()
             cacheDir.deleteRecursively()
             installRootDir.deleteRecursively()
         }
@@ -448,10 +442,11 @@ class VoicePackInstallerTest {
             "licenses/DISTRIBUTION-NOTICE.txt" to "fake-license".toByteArray(),
         )
         val archiveChecksum = sha256ForTest(archiveFile.readBytes())
-        val server = TestHttpServer(
+        val baseUrl = "https://voice-pack.test/downloads"
+        val remoteFetcher = FakeVoicePackRemoteFetcher(
             routes = mapOf(
-                "/downloads/$archiveName" to archiveFile.readBytes(),
-                "/downloads/voice-pack-checksums.txt" to """
+                "$baseUrl/$archiveName" to archiveFile.readBytes(),
+                "$baseUrl/voice-pack-checksums.txt" to """
                     $archiveChecksum  $archiveName
                     deadbeef  en-us-offline-word-v1.zip
                 """.trimIndent().toByteArray(),
@@ -463,8 +458,8 @@ class VoicePackInstallerTest {
                 assetManager = appContext.assets,
                 cacheDir = cacheDir,
                 installRootDir = installRootDir,
+                remoteFetcher = remoteFetcher,
             )
-            val baseUrl = "${server.baseUrl}/downloads"
             val statuses = mutableListOf<String>()
 
             installer.install(
@@ -491,7 +486,6 @@ class VoicePackInstallerTest {
                 statuses.distinct(),
             )
         } finally {
-            server.close()
             cacheDir.deleteRecursively()
             installRootDir.deleteRecursively()
         }
@@ -511,9 +505,10 @@ class VoicePackInstallerTest {
             "licenses/DISTRIBUTION-NOTICE.txt" to "fake-license".toByteArray(),
         )
         val archiveChecksum = sha256ForTest(archiveFile.readBytes())
-        val server = TestHttpServer(
+        val baseUrl = "https://voice-pack.test"
+        val remoteFetcher = FakeVoicePackRemoteFetcher(
             routes = mapOf(
-                "/$archiveName" to archiveFile.readBytes(),
+                "$baseUrl/$archiveName" to archiveFile.readBytes(),
             ),
         )
 
@@ -522,8 +517,8 @@ class VoicePackInstallerTest {
                 assetManager = appContext.assets,
                 cacheDir = cacheDir,
                 installRootDir = installRootDir,
+                remoteFetcher = remoteFetcher,
             )
-            val baseUrl = server.baseUrl
 
             installer.install(
                 voicePack = TestVoicePackFactory.voicePack(
@@ -540,7 +535,6 @@ class VoicePackInstallerTest {
                 onStatusChange = {},
             )
         } finally {
-            server.close()
             cacheDir.deleteRecursively()
             installRootDir.deleteRecursively()
         }
@@ -633,68 +627,12 @@ private fun validNativeManifest(
     """.trimIndent()
 }
 
-private class TestHttpServer(
+private class FakeVoicePackRemoteFetcher(
     private val routes: Map<String, ByteArray>,
-) : AutoCloseable {
-    private val serverSocket = ServerSocket(0)
-    private val executor = Executors.newSingleThreadExecutor { runnable ->
-        Thread(runnable, "voice-pack-test-server").apply {
-            isDaemon = true
-        }
-    }
-    @Volatile
-    private var running = true
+) : VoicePackRemoteFetcher {
+    override fun downloadBytes(remoteUrl: String): ByteArray =
+        routes[remoteUrl] ?: error("Missing fake remote payload for $remoteUrl")
 
-    val baseUrl: String = "http://127.0.0.1:${serverSocket.localPort}"
-
-    init {
-        executor.execute {
-            while (running) {
-                val socket = try {
-                    serverSocket.accept()
-                } catch (_: Exception) {
-                    break
-                }
-                socket.use(::handleConnection)
-            }
-        }
-    }
-
-    override fun close() {
-        running = false
-        serverSocket.close()
-        executor.shutdownNow()
-    }
-
-    private fun handleConnection(socket: Socket) {
-        val reader = BufferedReader(InputStreamReader(socket.getInputStream(), Charsets.UTF_8))
-        val requestLine = reader.readLine().orEmpty()
-        val path = requestLine.split(" ").getOrNull(1).orEmpty()
-        while (reader.readLine()?.isNotEmpty() == true) {
-            // consume request headers
-        }
-
-        val body = routes[path]
-        if (body == null) {
-            writeResponse(socket.getOutputStream(), 404, "Not Found".toByteArray())
-            return
-        }
-        writeResponse(socket.getOutputStream(), 200, body)
-    }
-
-    private fun writeResponse(
-        output: OutputStream,
-        statusCode: Int,
-        body: ByteArray,
-    ) {
-        val statusText = if (statusCode == 200) "OK" else "Not Found"
-        output.use { stream ->
-            stream.write("HTTP/1.1 $statusCode $statusText\r\n".toByteArray())
-            stream.write("Content-Length: ${body.size}\r\n".toByteArray())
-            stream.write("Connection: close\r\n".toByteArray())
-            stream.write("\r\n".toByteArray())
-            stream.write(body)
-            stream.flush()
-        }
-    }
+    override fun downloadText(remoteUrl: String): String =
+        downloadBytes(remoteUrl).toString(Charsets.UTF_8)
 }

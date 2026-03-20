@@ -152,10 +152,53 @@ internal data class VoicePackInstallResult(
     val installedSizeBytes: Long,
 )
 
+internal interface VoicePackRemoteFetcher {
+    fun downloadBytes(remoteUrl: String): ByteArray
+
+    fun downloadText(remoteUrl: String): String
+}
+
+private object HttpUrlConnectionVoicePackRemoteFetcher : VoicePackRemoteFetcher {
+    override fun downloadBytes(remoteUrl: String): ByteArray {
+        val connection = URL(remoteUrl).openConnection() as HttpURLConnection
+        try {
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 10_000
+            connection.readTimeout = 20_000
+            connection.instanceFollowRedirects = true
+            connection.connect()
+            check(connection.responseCode in 200..299) {
+                "语音包下载失败：HTTP ${connection.responseCode}"
+            }
+            return connection.inputStream.use { it.readBytes() }
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    override fun downloadText(remoteUrl: String): String {
+        val connection = URL(remoteUrl).openConnection() as HttpURLConnection
+        try {
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 10_000
+            connection.readTimeout = 20_000
+            connection.instanceFollowRedirects = true
+            connection.connect()
+            check(connection.responseCode in 200..299) {
+                "语音包校验清单下载失败：HTTP ${connection.responseCode}"
+            }
+            return connection.inputStream.bufferedReader().use { it.readText() }
+        } finally {
+            connection.disconnect()
+        }
+    }
+}
+
 internal class VoicePackInstaller(
     private val assetManager: AssetManager,
     private val cacheDir: File,
     private val installRootDir: File,
+    private val remoteFetcher: VoicePackRemoteFetcher = HttpUrlConnectionVoicePackRemoteFetcher,
 ) {
     suspend fun install(
         voicePack: VoicePack,
@@ -233,22 +276,9 @@ internal class VoicePackInstaller(
         remoteUrl: String,
         targetFile: File,
     ): String {
-        val connection = URL(remoteUrl).openConnection() as HttpURLConnection
-        try {
-            connection.requestMethod = "GET"
-            connection.connectTimeout = 10_000
-            connection.readTimeout = 20_000
-            connection.instanceFollowRedirects = true
-            connection.connect()
-            check(connection.responseCode in 200..299) {
-                "语音包下载失败：HTTP ${connection.responseCode}"
-            }
-            val bytes = connection.inputStream.use { it.readBytes() }
-            targetFile.outputStream().use { it.write(bytes) }
-            return sha256(bytes)
-        } finally {
-            connection.disconnect()
-        }
+        val bytes = remoteFetcher.downloadBytes(remoteUrl)
+        targetFile.outputStream().use { it.write(bytes) }
+        return sha256(bytes)
     }
 
     private fun downloadChecksumIndex(checksumsUrl: String): Map<String, String> {
@@ -271,20 +301,7 @@ internal class VoicePackInstaller(
                 .bufferedReader()
                 .use { it.readText() }
         } else {
-            val connection = URL(source).openConnection() as HttpURLConnection
-            try {
-                connection.requestMethod = "GET"
-                connection.connectTimeout = 10_000
-                connection.readTimeout = 20_000
-                connection.instanceFollowRedirects = true
-                connection.connect()
-                check(connection.responseCode in 200..299) {
-                    "语音包校验清单下载失败：HTTP ${connection.responseCode}"
-                }
-                connection.inputStream.bufferedReader().use { it.readText() }
-            } finally {
-                connection.disconnect()
-            }
+            remoteFetcher.downloadText(source)
         }
 
     private fun unzipArchive(
