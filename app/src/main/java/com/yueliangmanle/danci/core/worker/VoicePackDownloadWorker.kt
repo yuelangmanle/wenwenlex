@@ -367,6 +367,9 @@ internal fun validateInstalledVoicePack(
     check(!nativeManifest.isEmpty()) {
         "原生语音包 manifest 缺少 native 元数据。"
     }
+    check(nativeManifest.id == voicePack.id) {
+        "语音包 manifest 与目标语音包不匹配。"
+    }
     LicenseManifestVerifier.requireValid(nativeManifest)
 
     val entryFiles = nativeManifest.entryFiles
@@ -374,7 +377,8 @@ internal fun validateInstalledVoicePack(
         "原生语音包 manifest 缺少 entryFiles 声明。"
     }
     entryFiles.forEach { relativePath ->
-        check(File(installDir, relativePath).isFile) {
+        val file = resolveInstallFile(installDir, relativePath)
+        check(file.isFile) {
             "原生语音包缺少核心文件: $relativePath"
         }
     }
@@ -389,7 +393,7 @@ internal fun validateInstalledVoicePack(
         }
     }
     payloadChecksums.forEach { (relativePath, expectedSha256) ->
-        val file = File(installDir, relativePath)
+        val file = resolveInstallFile(installDir, relativePath)
         check(file.isFile) { "缺少 payload 文件: $relativePath" }
         check(sha256(file.readBytes()).equals(expectedSha256, ignoreCase = true)) {
             "payload checksum 校验失败: $relativePath"
@@ -399,10 +403,26 @@ internal fun validateInstalledVoicePack(
     nativeManifest.licenses
         .mapNotNull { license -> license.file?.trim()?.takeIf(String::isNotEmpty) }
         .forEach { relativePath ->
-        check(File(installDir, relativePath).exists()) {
+        check(resolveInstallFile(installDir, relativePath).isFile) {
             "原生语音包缺少许可证文件: $relativePath"
         }
     }
+}
+
+private fun resolveInstallFile(
+    installDir: File,
+    relativePath: String,
+): File {
+    val normalizedPath = relativePath.trim()
+    check(normalizedPath.isNotEmpty()) {
+        "检测到非法安装路径: $relativePath"
+    }
+    val rootPath = installDir.canonicalFile.toPath()
+    val target = File(installDir, normalizedPath).canonicalFile
+    check(target.toPath().startsWith(rootPath)) {
+        "检测到非法安装路径: $relativePath"
+    }
+    return target
 }
 
 private fun resolveArchiveFileName(voicePack: VoicePack): String =

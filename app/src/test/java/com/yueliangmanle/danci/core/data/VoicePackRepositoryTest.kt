@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.yueliangmanle.danci.core.database.DanciDatabase
 import com.yueliangmanle.danci.core.model.PronunciationAccent
 import com.yueliangmanle.danci.core.model.VoicePackStatus
+import com.yueliangmanle.danci.core.pronunciation.NativeVoicePackManifest
 import java.time.Instant
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -13,9 +14,56 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.json.JSONObject
 
 @RunWith(RobolectricTestRunner::class)
 class VoicePackRepositoryTest {
+    @Test
+    fun syncManifestPreservesChecksumsUrlAcrossDatabaseRoundTrip() = runTest {
+        withRepository { repository ->
+            repository.syncManifest(
+                """
+                    {
+                      "voicePacks": [
+                        {
+                          "id": "custom-offline-word-v1",
+                          "name": "自定义离线发音包",
+                          "locale": "en-US",
+                          "accent": "us",
+                          "engineType": "sherpa_onnx",
+                          "version": "1.4.0",
+                          "downloadUrl": "https://example.com/packs/custom-offline-word-v1.zip",
+                          "manifestUrl": "https://example.com/packs/custom-offline-word-v1-manifest.json",
+                          "checksumsUrl": "https://example.com/packs/custom-voice-pack-checksums.txt",
+                          "native": {
+                            "engineType": "native_neural_tts",
+                            "modelFamily": "kokoro",
+                            "modelVersion": "1.4.0",
+                            "packageFormatVersion": 2,
+                            "supportsImportedWords": true,
+                            "estimatedStorageBytes": 123,
+                            "estimatedRamMb": 456,
+                            "speakerProfile": "offline_word",
+                            "licenses": [
+                              {
+                                "name": "Distribution scaffold notice",
+                                "file": "licenses/DISTRIBUTION-NOTICE.txt"
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                """.trimIndent(),
+            )
+
+            assertEquals(
+                "https://example.com/packs/custom-voice-pack-checksums.txt",
+                repository.getVoicePack("custom-offline-word-v1")?.checksumsUrl,
+            )
+        }
+    }
+
     @Test
     fun refreshCatalogHydratesRuntimeChecksumsUrlForStoredVoicePack() = runTest {
         withRepository { repository ->
@@ -28,6 +76,26 @@ class VoicePackRepositoryTest {
                 pack?.checksumsUrl,
             )
         }
+    }
+
+    @Test
+    fun nativeManifestFromCatalogPrefersNativeBlockEngineType() {
+        val manifest = NativeVoicePackManifest.fromCatalogItem(
+            JSONObject(
+                """
+                    {
+                      "id": "en-gb-offline-word-v1",
+                      "engineType": "sherpa_onnx",
+                      "native": {
+                        "engineType": "native_neural_tts",
+                        "modelFamily": "kokoro"
+                      }
+                    }
+                """.trimIndent(),
+            ),
+        )
+
+        assertEquals("native_neural_tts", manifest.engineType)
     }
 
     @Test

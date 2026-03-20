@@ -203,6 +203,7 @@ internal fun VoicePackEntity.toJson(): JSONObject =
         .put("version", version)
         .put("download_url", downloadUrl)
         .put("manifest_url", manifestUrl)
+        .put("checksums_url", checksumsUrl)
         .put("install_dir", installDir)
         .put("archive_checksum", archiveChecksum)
         .put("installed_size_bytes", installedSizeBytes)

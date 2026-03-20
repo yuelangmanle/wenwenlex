@@ -46,7 +46,11 @@ data class NativeVoicePackManifest(
 
     companion object {
         fun fromCatalogItem(item: JSONObject): NativeVoicePackManifest =
-            fromJsonObject(item)
+            if (item.optJSONObject("native") != null || item.optJSONObject("runtime") != null) {
+                fromJsonObject(item)
+            } else {
+                NativeVoicePackManifest()
+            }
 
         fun fromInstalledManifest(item: JSONObject): NativeVoicePackManifest =
             fromJsonObject(item)

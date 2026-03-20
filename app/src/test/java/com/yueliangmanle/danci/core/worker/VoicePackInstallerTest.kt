@@ -144,6 +144,108 @@ class VoicePackInstallerTest {
     }
 
     @Test
+    fun validateInstalledVoicePackRejectsManifestIdMismatch() {
+        val installDir = Files.createTempDirectory("voice-pack-native-test").toFile()
+        try {
+            val modelChecksum = sha256ForTest("fake-model".toByteArray())
+            val tokensChecksum = sha256ForTest("fake-tokens".toByteArray())
+            installDir.resolve("manifest.json").writeText(
+                """
+                    {
+                      "id": "en-gb-offline-word-v1",
+                      "name": "英式离线发音包",
+                      "accent": "uk",
+                      "locale": "en-GB",
+                      "engineType": "native_neural_tts",
+                      "modelFamily": "kokoro",
+                      "modelVersion": "1.4.0",
+                      "packageFormatVersion": 2,
+                      "entryFiles": ["model/model.onnx", "model/tokens.txt"],
+                      "payloadChecksums": {
+                        "model/model.onnx": "$modelChecksum",
+                        "model/tokens.txt": "$tokensChecksum"
+                      },
+                      "estimatedStorageBytes": 123,
+                      "estimatedRamMb": 456,
+                      "speakerProfile": "offline_word",
+                      "licenses": [
+                        {
+                          "name": "Distribution scaffold notice",
+                          "file": "licenses/DISTRIBUTION-NOTICE.txt"
+                        }
+                      ]
+                    }
+                """.trimIndent(),
+            )
+            installDir.resolve("model").mkdirs()
+            installDir.resolve("licenses").mkdirs()
+            installDir.resolve("model/model.onnx").writeText("fake-model")
+            installDir.resolve("model/tokens.txt").writeText("fake-tokens")
+            installDir.resolve("licenses/DISTRIBUTION-NOTICE.txt").writeText("fake-license")
+
+            assertValidationFailure(
+                installDir = installDir,
+                expectedMessage = "不匹配",
+                voicePack = testVoicePack(
+                    installDir = installDir,
+                    id = "en-us-offline-word-v1",
+                    locale = "en-US",
+                    accent = "us",
+                ),
+            )
+        } finally {
+            installDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun validateInstalledVoicePackRejectsPayloadPathTraversal() {
+        val parentDir = Files.createTempDirectory("voice-pack-native-parent").toFile()
+        val installDir = File(parentDir, "install").apply { mkdirs() }
+        val outsideDir = File(parentDir, "escaped").apply { mkdirs() }
+        val outsideFile = File(outsideDir, "model.onnx").apply { writeText("escaped-model") }
+        val outsideChecksum = sha256ForTest(outsideFile.readBytes())
+        try {
+            installDir.resolve("manifest.json").writeText(
+                """
+                    {
+                      "id": "en-us-offline-word-v1",
+                      "name": "美式离线发音包",
+                      "accent": "us",
+                      "locale": "en-US",
+                      "engineType": "native_neural_tts",
+                      "modelFamily": "kokoro",
+                      "modelVersion": "1.4.0",
+                      "packageFormatVersion": 2,
+                      "entryFiles": ["../escaped/model.onnx"],
+                      "payloadChecksums": {
+                        "../escaped/model.onnx": "$outsideChecksum"
+                      },
+                      "estimatedStorageBytes": 123,
+                      "estimatedRamMb": 456,
+                      "speakerProfile": "offline_word",
+                      "licenses": [
+                        {
+                          "name": "Distribution scaffold notice",
+                          "file": "licenses/DISTRIBUTION-NOTICE.txt"
+                        }
+                      ]
+                    }
+                """.trimIndent(),
+            )
+            installDir.resolve("licenses").mkdirs()
+            installDir.resolve("licenses/DISTRIBUTION-NOTICE.txt").writeText("fake-license")
+
+            assertValidationFailure(
+                installDir = installDir,
+                expectedMessage = "非法",
+            )
+        } finally {
+            parentDir.deleteRecursively()
+        }
+    }
+
+    @Test
     fun validateInstalledVoicePackAcceptsPackagedNativeReleaseStructure() {
         val installDir = Files.createTempDirectory("voice-pack-native-test").toFile()
         try {
@@ -184,7 +286,12 @@ class VoicePackInstallerTest {
             installDir.resolve("licenses/DISTRIBUTION-NOTICE.txt").writeText("fake-license")
 
             validateInstalledVoicePack(
-                voicePack = testVoicePack(installDir),
+                voicePack = testVoicePack(
+                    installDir = installDir,
+                    id = "en-gb-offline-word-v1",
+                    locale = "en-GB",
+                    accent = "uk",
+                ),
                 installDir = installDir,
             )
         } finally {
@@ -233,7 +340,12 @@ class VoicePackInstallerTest {
             installDir.resolve("licenses/DISTRIBUTION-NOTICE.txt").writeText("fake-license")
 
             validateInstalledVoicePack(
-                voicePack = testVoicePack(installDir),
+                voicePack = testVoicePack(
+                    installDir = installDir,
+                    id = "en-gb-offline-word-v1",
+                    locale = "en-GB",
+                    accent = "uk",
+                ),
                 installDir = installDir,
             )
         } finally {
@@ -447,11 +559,12 @@ class VoicePackInstallerTest {
     private fun assertValidationFailure(
         installDir: File,
         expectedMessage: String,
+        voicePack: VoicePack = testVoicePack(installDir),
     ) {
         var error: IllegalStateException? = null
         try {
             validateInstalledVoicePack(
-                voicePack = testVoicePack(installDir),
+                voicePack = voicePack,
                 installDir = installDir,
             )
             fail("Expected native pack validation to fail.")
@@ -462,9 +575,16 @@ class VoicePackInstallerTest {
         assertTrue(error?.message.orEmpty().contains(expectedMessage))
     }
 
-    private fun testVoicePack(installDir: File) =
+    private fun testVoicePack(
+        installDir: File,
+        id: String = "en-us-offline-word-v1",
+        locale: String = "en-US",
+        accent: String = "us",
+    ) =
         TestVoicePackFactory.voicePack(
-            id = "en-us-offline-word-v1",
+            id = id,
+            locale = locale,
+            accent = accent,
             engineType = "sherpa_onnx",
             installDir = installDir.absolutePath,
             status = VoicePackStatus.READY.storageValue,

@@ -20,6 +20,11 @@ import org.json.JSONObject
 private const val VOICE_PACK_MANIFEST_ASSET_PATH = "pronunciation/voice-pack-manifest.json"
 private const val INSTALLED_VOICE_PACK_MANIFEST_FILE = "manifest.json"
 
+private data class BundledCatalogMetadata(
+    val voicePacksById: Map<String, VoicePack>,
+    val manifestsById: Map<String, NativeVoicePackManifest>,
+)
+
 interface VoicePackRepository {
     suspend fun getAllVoicePacks(): List<VoicePack>
     suspend fun getVoicePack(id: String): VoicePack?
@@ -173,39 +178,55 @@ class RoomVoicePackRepository(
         if (voicePacks.isEmpty()) {
             return emptyList()
         }
-        val catalogVoicePacksById = loadBundledCatalogVoicePacks()
+        val bundledCatalog = loadBundledCatalogMetadata()
         return voicePacks.map { voicePack ->
-            val catalogVoicePack = catalogVoicePacksById[voicePack.id]
+            val catalogVoicePack = bundledCatalog.voicePacksById[voicePack.id]
             voicePack.hydrateRuntimeMetadata(
                 catalogVoicePack = catalogVoicePack,
-                catalogManifest = catalogVoicePack?.toNativeVoicePackManifest(),
+                catalogManifest = bundledCatalog.manifestsById[voicePack.id],
                 installedManifest = loadInstalledRuntimeMetadata(voicePack),
             )
         }
     }
 
     private fun hydrateRuntimeMetadata(voicePack: VoicePack): VoicePack {
-        val catalogVoicePacksById = loadBundledCatalogVoicePacks()
-        val catalogVoicePack = catalogVoicePacksById[voicePack.id]
+        val bundledCatalog = loadBundledCatalogMetadata()
+        val catalogVoicePack = bundledCatalog.voicePacksById[voicePack.id]
         return voicePack.hydrateRuntimeMetadata(
             catalogVoicePack = catalogVoicePack,
-            catalogManifest = catalogVoicePack?.toNativeVoicePackManifest(),
+            catalogManifest = bundledCatalog.manifestsById[voicePack.id],
             installedManifest = loadInstalledRuntimeMetadata(voicePack),
         )
     }
 
-    private fun loadBundledCatalogVoicePacks(): Map<String, VoicePack> =
+    private fun loadBundledCatalogMetadata(): BundledCatalogMetadata =
         runCatching {
             val jsonText = appContext.assets.open(VOICE_PACK_MANIFEST_ASSET_PATH)
                 .bufferedReader()
                 .use { it.readText() }
-            parseVoicePackManifest(
+            val voicePacks = parseVoicePackManifest(
                 jsonText = jsonText,
                 existingById = emptyMap(),
                 currentActiveIdsByAccent = emptyMap(),
                 now = Instant.EPOCH,
-            ).associateBy(VoicePack::id)
-        }.getOrDefault(emptyMap())
+            )
+            val root = JSONObject(jsonText)
+            val items = root.optJSONArray("voicePacks") ?: JSONArray()
+            val manifestsById = buildMap {
+                repeat(items.length()) { index ->
+                    val item = items.optJSONObject(index) ?: return@repeat
+                    val id = item.optString("id").trim().takeIf(String::isNotEmpty) ?: return@repeat
+                    val manifest = NativeVoicePackManifest.fromCatalogItem(item)
+                    if (!manifest.isEmpty()) {
+                        put(id, manifest)
+                    }
+                }
+            }
+            BundledCatalogMetadata(
+                voicePacksById = voicePacks.associateBy(VoicePack::id),
+                manifestsById = manifestsById,
+            )
+        }.getOrDefault(BundledCatalogMetadata(emptyMap(), emptyMap()))
 
     private fun loadInstalledRuntimeMetadata(voicePack: VoicePack): NativeVoicePackManifest? {
         val installDir = voicePack.installDir?.trim().takeIf { !it.isNullOrEmpty() } ?: return null
@@ -286,7 +307,7 @@ internal fun VoicePackEntity.asExternalModel(): VoicePack =
         version = version,
         downloadUrl = downloadUrl,
         manifestUrl = manifestUrl,
-        checksumsUrl = null,
+        checksumsUrl = checksumsUrl,
         installDir = installDir,
         archiveChecksum = archiveChecksum,
         installedSizeBytes = installedSizeBytes,
@@ -312,6 +333,7 @@ internal fun VoicePack.asEntity(): VoicePackEntity =
         version = version,
         downloadUrl = downloadUrl,
         manifestUrl = manifestUrl,
+        checksumsUrl = checksumsUrl,
         installDir = installDir,
         archiveChecksum = archiveChecksum,
         installedSizeBytes = installedSizeBytes,

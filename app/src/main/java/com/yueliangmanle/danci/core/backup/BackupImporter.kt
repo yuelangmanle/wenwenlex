@@ -214,6 +214,7 @@ internal fun JSONObject.toVoicePackEntity(): VoicePackEntity =
         version = optNullableString("version") ?: "1",
         downloadUrl = optNullableString("download_url"),
         manifestUrl = optNullableString("manifest_url"),
+        checksumsUrl = optNullableString("checksums_url"),
         installDir = optNullableString("install_dir"),
         archiveChecksum = optNullableString("archive_checksum"),
         installedSizeBytes = optLongOrNull("installed_size_bytes") ?: 0L,

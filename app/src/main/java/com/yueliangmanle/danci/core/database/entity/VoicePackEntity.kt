@@ -14,6 +14,7 @@ data class VoicePackEntity(
     val version: String,
     val downloadUrl: String? = null,
     val manifestUrl: String? = null,
+    val checksumsUrl: String? = null,
     val installDir: String? = null,
     val archiveChecksum: String? = null,
     val installedSizeBytes: Long = 0,
@@ -22,4 +23,3 @@ data class VoicePackEntity(
     val createdAt: Instant = Instant.EPOCH,
     val updatedAt: Instant = Instant.EPOCH,
 )
-
