@@ -18,6 +18,8 @@
 - [v1.1 实施计划](docs/superpowers/plans/2026-03-19-v1.1-lexicon-import-ai.md)
 - [v1.2 发音模块规格](docs/superpowers/specs/2026-03-19-v1.2-pronunciation-design.md)
 - [v1.2 发音模块计划](docs/superpowers/plans/2026-03-19-v1.2-pronunciation.md)
+- [v1.3 离线单词真实发音规格](docs/superpowers/specs/2026-03-19-v1.3-offline-word-pronunciation-design.md)
+- [v1.3 离线单词真实发音计划](docs/superpowers/plans/2026-03-19-v1.3-offline-word-pronunciation.md)
 
 ## 1.1 已实现能力
 
@@ -38,7 +40,7 @@
   - 考研 `4796`
   - 高中 `3666`
   - 雅思基础 `5026`
-- 本地 ZIP 备份与恢复，备份版本升级到 `v2`，兼容导入 `v1`
+- 本地 ZIP 备份与恢复，备份版本升级到 `v3`，兼容导入 `v1` / `v2`
 - 每日提醒、本地 AI 摘要整理与 WorkManager 后台任务
 
 ## 1.2 已发布能力
@@ -53,9 +55,21 @@
 - 首页与词书页已切回真实词库加载链路，不再停留在长时间转圈状态
 - 离线语音包当前先以 `system_tts_bridge` 方式落地，真正的本地模型推理包仍在后续迭代
 
+## 1.3 开发中能力
+
+以下内容已经在开发分支落地并通过 GitHub Actions 云端 CI，但还没有正式发版：
+
+- native 语音包运行时 metadata 合并，可从安装包 `manifest.json` 读取模型族、资源占用和许可证信息
+- Sherpa ONNX Android runtime 脚手架与原生离线单词发音引擎骨架
+- 单词发音归一化与本地生成音频缓存，支持优先复用 native 生成结果
+- 发音调度器升级为：本地缓存优先、native 生成缓存次之，再回落在线词典和系统 TTS
+- native 语音包安装阶段的 `licenses`、`entryFiles` 和 native metadata 校验
+- 发音设置页展示 native 语音包能力提示、资源占用和安装失败具体原因
+
 ## 后续增强方向
 
 - 真正的本地离线 TTS 推理语音包
+- native 语音包正式发版与模型资产分发
 - 更丰富的在线词典音频源与缓存命中策略
 - 学习统计与发音使用数据的可视化面板
 

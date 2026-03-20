@@ -2,6 +2,28 @@
 
 本项目使用人工维护的更新日志。每次发版前，必须先补齐对应版本记录，再运行云端 Release 工作流。
 
+## [Unreleased] - 2026-03-20
+
+### Added
+
+- 新增原生离线语音包运行时 metadata 合并能力，可从已安装包 `manifest.json` 读取 `engineFamily`、`modelFamily`、资源占用和许可证信息
+- 新增 Sherpa ONNX Android runtime 脚手架、运行时抽象与拉取脚本，为 `v1.3` 真离线单词发音做准备
+- 新增单词发音归一化与本地生成音频缓存路径，支持把 native 合成结果持久化到 `audio-cache/generated/`
+- 新增 native 离线单词发音引擎与本地文件播放能力，支持英式 / 美式原生包实时合成
+- 新增原生语音包安装校验测试和设置页坏包错误原因展示逻辑
+
+### Changed
+
+- 发音调度器升级为优先命中“本地词典缓存 -> 本地 native 生成缓存 -> native 离线合成 -> 在线词典音频 -> 系统 TTS”链路
+- 发音设置页现在会展示 native 语音包能力摘要、资源占用提示，以及安装失败的具体原因
+- 离线语音引擎从仅支持 `system_tts_bridge` 升级为同时支持 `sherpa_onnx` 原生离线路径
+
+### Fixed
+
+- 修复 `PronunciationOrchestratorTest` 因缺少 Robolectric runner 导致的云端单测失败
+- 修复 native 语音包安装阶段未校验 `licenses`、`entryFiles` 和 native metadata 的问题
+- 修复语音包安装异常时设置页只能看到“安装异常”而看不到具体失败原因的问题
+
 ## [1.2] - 2026-03-19
 
 ### Added
