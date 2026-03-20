@@ -66,8 +66,11 @@ run_group \
   --tests "com.yueliangmanle.danci.core.pronunciation.WordPronunciationNormalizerTest"
 
 run_group \
-  "pronunciation unit tests: orchestrator path" \
-  --tests "com.yueliangmanle.danci.core.pronunciation.OfflineTtsEngineTest" \
+  "pronunciation unit tests: OfflineTtsEngineTest" \
+  --tests "com.yueliangmanle.danci.core.pronunciation.OfflineTtsEngineTest"
+
+run_group \
+  "pronunciation unit tests: PronunciationOrchestratorTest" \
   --tests "com.yueliangmanle.danci.core.pronunciation.PronunciationOrchestratorTest"
 
 run_group \
