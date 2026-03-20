@@ -2,16 +2,20 @@ package com.yueliangmanle.danci.core.worker
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
-import com.sun.net.httpserver.HttpServer
 import com.yueliangmanle.danci.core.data.TestVoicePackFactory
 import com.yueliangmanle.danci.core.model.VoicePack
 import com.yueliangmanle.danci.core.model.VoicePackStatus
+import java.io.BufferedReader
 import java.io.File
-import java.net.InetSocketAddress
+import java.io.InputStreamReader
+import java.io.OutputStream
+import java.net.ServerSocket
+import java.net.Socket
 import java.nio.file.Files
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
-import kotlin.test.assertFailsWith
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -391,19 +395,12 @@ class VoicePackInstallerTest {
             "licenses/DISTRIBUTION-NOTICE.txt" to "license".toByteArray(),
         )
         val archiveChecksum = sha256ForTest(archiveFile.readBytes())
-        val server = HttpServer.create(InetSocketAddress(0), 0)
-        server.createContext("/$archiveName") { exchange ->
-            exchange.sendResponseHeaders(200, archiveFile.length())
-            archiveFile.inputStream().use { input ->
-                exchange.responseBody.use { output -> input.copyTo(output) }
-            }
-        }
-        server.createContext("/voice-pack-checksums.txt") { exchange ->
-            val body = "$archiveChecksum  $archiveName\n".toByteArray()
-            exchange.sendResponseHeaders(200, body.size.toLong())
-            exchange.responseBody.use { output -> output.write(body) }
-        }
-        server.start()
+        val server = TestHttpServer(
+            routes = mapOf(
+                "/$archiveName" to archiveFile.readBytes(),
+                "/voice-pack-checksums.txt" to "$archiveChecksum  $archiveName\n".toByteArray(),
+            ),
+        )
 
         try {
             val installer = VoicePackInstaller(
@@ -411,7 +408,7 @@ class VoicePackInstallerTest {
                 cacheDir = cacheDir,
                 installRootDir = installRootDir,
             )
-            val baseUrl = "http://127.0.0.1:${server.address.port}"
+            val baseUrl = server.baseUrl
             val pack = VoicePack(
                 id = "en-us-offline-word-v1",
                 name = "美式离线发音包",
@@ -423,12 +420,16 @@ class VoicePackInstallerTest {
                 checksumsUrl = "$baseUrl/voice-pack-checksums.txt",
             )
 
-            val error = assertFailsWith<IllegalStateException> {
+            var error: IllegalStateException? = null
+            try {
                 installer.install(voicePack = pack, onStatusChange = {})
+                fail("Expected payload checksum mismatch to fail installation.")
+            } catch (expected: IllegalStateException) {
+                error = expected
             }
-            assertTrue(error.message!!.contains("payload checksum"))
+            assertTrue(error?.message.orEmpty().contains("payload checksum"))
         } finally {
-            server.stop(0)
+            server.close()
             cacheDir.deleteRecursively()
             installRootDir.deleteRecursively()
         }
@@ -448,22 +449,15 @@ class VoicePackInstallerTest {
             "licenses/DISTRIBUTION-NOTICE.txt" to "fake-license".toByteArray(),
         )
         val archiveChecksum = sha256ForTest(archiveFile.readBytes())
-        val server = HttpServer.create(InetSocketAddress(0), 0)
-        server.createContext("/downloads/$archiveName") { exchange ->
-            exchange.sendResponseHeaders(200, archiveFile.length())
-            archiveFile.inputStream().use { input ->
-                exchange.responseBody.use { output -> input.copyTo(output) }
-            }
-        }
-        server.createContext("/downloads/voice-pack-checksums.txt") { exchange ->
-            val body = """
-                $archiveChecksum  $archiveName
-                deadbeef  en-us-offline-word-v1.zip
-            """.trimIndent().toByteArray()
-            exchange.sendResponseHeaders(200, body.size.toLong())
-            exchange.responseBody.use { output -> output.write(body) }
-        }
-        server.start()
+        val server = TestHttpServer(
+            routes = mapOf(
+                "/downloads/$archiveName" to archiveFile.readBytes(),
+                "/downloads/voice-pack-checksums.txt" to """
+                    $archiveChecksum  $archiveName
+                    deadbeef  en-us-offline-word-v1.zip
+                """.trimIndent().toByteArray(),
+            ),
+        )
 
         try {
             val installer = VoicePackInstaller(
@@ -471,7 +465,7 @@ class VoicePackInstallerTest {
                 cacheDir = cacheDir,
                 installRootDir = installRootDir,
             )
-            val baseUrl = "http://127.0.0.1:${server.address.port}/downloads"
+            val baseUrl = "${server.baseUrl}/downloads"
             val statuses = mutableListOf<String>()
 
             installer.install(
@@ -498,7 +492,7 @@ class VoicePackInstallerTest {
                 statuses.distinct(),
             )
         } finally {
-            server.stop(0)
+            server.close()
             cacheDir.deleteRecursively()
             installRootDir.deleteRecursively()
         }
@@ -518,14 +512,11 @@ class VoicePackInstallerTest {
             "licenses/DISTRIBUTION-NOTICE.txt" to "fake-license".toByteArray(),
         )
         val archiveChecksum = sha256ForTest(archiveFile.readBytes())
-        val server = HttpServer.create(InetSocketAddress(0), 0)
-        server.createContext("/$archiveName") { exchange ->
-            exchange.sendResponseHeaders(200, archiveFile.length())
-            archiveFile.inputStream().use { input ->
-                exchange.responseBody.use { output -> input.copyTo(output) }
-            }
-        }
-        server.start()
+        val server = TestHttpServer(
+            routes = mapOf(
+                "/$archiveName" to archiveFile.readBytes(),
+            ),
+        )
 
         try {
             val installer = VoicePackInstaller(
@@ -533,7 +524,7 @@ class VoicePackInstallerTest {
                 cacheDir = cacheDir,
                 installRootDir = installRootDir,
             )
-            val baseUrl = "http://127.0.0.1:${server.address.port}"
+            val baseUrl = server.baseUrl
 
             installer.install(
                 voicePack = TestVoicePackFactory.voicePack(
@@ -550,7 +541,7 @@ class VoicePackInstallerTest {
                 onStatusChange = {},
             )
         } finally {
-            server.stop(0)
+            server.close()
             cacheDir.deleteRecursively()
             installRootDir.deleteRecursively()
         }
@@ -641,4 +632,67 @@ private fun validNativeManifest(
           ]
         }
     """.trimIndent()
+}
+
+private class TestHttpServer(
+    private val routes: Map<String, ByteArray>,
+) : AutoCloseable {
+    private val serverSocket = ServerSocket(0)
+    private val executor = Executors.newSingleThreadExecutor()
+    @Volatile
+    private var running = true
+
+    val baseUrl: String = "http://127.0.0.1:${serverSocket.localPort}"
+
+    init {
+        executor.execute {
+            while (running) {
+                val socket = try {
+                    serverSocket.accept()
+                } catch (_: Exception) {
+                    break
+                }
+                socket.use(::handleConnection)
+            }
+        }
+    }
+
+    override fun close() {
+        running = false
+        serverSocket.close()
+        executor.shutdownNow()
+        executor.awaitTermination(5, TimeUnit.SECONDS)
+    }
+
+    private fun handleConnection(socket: Socket) {
+        val reader = BufferedReader(InputStreamReader(socket.getInputStream(), Charsets.UTF_8))
+        val requestLine = reader.readLine().orEmpty()
+        val path = requestLine.split(" ").getOrNull(1).orEmpty()
+        while (reader.readLine()?.isNotEmpty() == true) {
+            // consume request headers
+        }
+
+        val body = routes[path]
+        if (body == null) {
+            writeResponse(socket.getOutputStream(), 404, "Not Found".toByteArray())
+            return
+        }
+        writeResponse(socket.getOutputStream(), 200, body)
+    }
+
+    private fun writeResponse(
+        output: OutputStream,
+        statusCode: Int,
+        body: ByteArray,
+    ) {
+        val statusText = if (statusCode == 200) "OK" else "Not Found"
+        output.use { stream ->
+            stream.write("HTTP/1.1 $statusCode $statusText\r\n".toByteArray())
+            stream.write("Content-Length: ${body.size}\r\n".toByteArray())
+            stream.write("Connection: close\r\n".toByteArray())
+            stream.write("\r\n".toByteArray())
+            stream.write(body)
+            stream.flush()
+        }
+    }
 }

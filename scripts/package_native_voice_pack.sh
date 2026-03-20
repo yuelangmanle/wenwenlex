@@ -36,6 +36,10 @@ if not isinstance(entry_files, list) or not entry_files:
     raise SystemExit("manifest.json 缺少非空 entryFiles。")
 
 native_block = manifest.get("native") or manifest.get("runtime") or manifest
+payload_checksums = native_block.get("payloadChecksums") or manifest.get("payloadChecksums")
+if not isinstance(payload_checksums, dict) or not payload_checksums:
+    raise SystemExit("manifest.json 缺少非空 payloadChecksums。")
+
 licenses = native_block.get("licenses")
 if not isinstance(licenses, list) or not licenses:
     raise SystemExit("manifest.json 缺少 native licenses 声明。")
@@ -56,6 +60,9 @@ for entry_file in entry_files:
     file_path = source_dir / relative_path.as_posix()
     if not file_path.is_file():
         raise SystemExit(f"entryFiles 中声明的文件不存在: {relative_path.as_posix()}")
+    expected_sha256 = payload_checksums.get(relative_path.as_posix())
+    if not isinstance(expected_sha256, str) or not expected_sha256.strip():
+        raise SystemExit(f"payloadChecksums 缺少 entryFiles 的校验值: {relative_path.as_posix()}")
 
 for license_item in licenses:
     if isinstance(license_item, dict) and license_item.get("file"):
@@ -63,6 +70,19 @@ for license_item in licenses:
         file_path = source_dir / relative_path.as_posix()
         if not file_path.is_file():
             raise SystemExit(f"licenses 中声明的文件不存在: {relative_path.as_posix()}")
+
+for relative_path_text, expected_sha256 in payload_checksums.items():
+    relative_path = normalize_relative_path(relative_path_text, "payloadChecksums")
+    if not isinstance(expected_sha256, str) or not expected_sha256.strip():
+        raise SystemExit(f"payloadChecksums 的 sha256 不能为空: {relative_path.as_posix()}")
+    file_path = source_dir / relative_path.as_posix()
+    if not file_path.is_file():
+        raise SystemExit(f"payloadChecksums 中声明的文件不存在: {relative_path.as_posix()}")
+    actual_sha256 = hashlib.sha256(file_path.read_bytes()).hexdigest()
+    if actual_sha256 != expected_sha256.lower():
+        raise SystemExit(
+            f"payloadChecksums 校验失败: {relative_path.as_posix()} expected={expected_sha256.lower()} actual={actual_sha256}"
+        )
 
 all_files = sorted(
     [path for path in source_dir.rglob("*") if path.is_file()],

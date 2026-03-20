@@ -3,11 +3,17 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-SOURCE_ROOT="$ROOT_DIR/distribution/voice-packs"
 PACKAGE_SCRIPT="$ROOT_DIR/scripts/package_native_voice_pack.sh"
 OUTPUT_DIR="${1:?usage: package_voice_packs.sh <output_dir>}"
+SOURCE_ROOT="${2:-}"
 CHECKSUM_FILE="$OUTPUT_DIR/wenwenlex-voice-pack-checksums.txt"
 ASSET_NOTES_FILE="$OUTPUT_DIR/voice-pack-assets.md"
+
+if [ -z "$SOURCE_ROOT" ]; then
+  SOURCE_ROOT="$(mktemp -d)"
+  trap 'rm -rf "$SOURCE_ROOT"' EXIT
+  bash "$ROOT_DIR/scripts/prepare_voice_pack_sources.sh" "$SOURCE_ROOT" >/dev/null
+fi
 
 mkdir -p "$OUTPUT_DIR"
 : > "$CHECKSUM_FILE"

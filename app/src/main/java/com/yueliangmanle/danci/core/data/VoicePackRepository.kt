@@ -397,6 +397,7 @@ private fun NativeVoicePackManifest.merge(other: NativeVoicePackManifest): Nativ
         estimatedStorageBytes = other.estimatedStorageBytes ?: estimatedStorageBytes,
         estimatedRamMb = other.estimatedRamMb ?: estimatedRamMb,
         speakerProfile = other.speakerProfile ?: speakerProfile,
+        speakerId = other.speakerId ?: speakerId,
         licenses = other.licenses.ifEmpty { licenses },
         supportsImportedWords = supportsImportedWords || other.supportsImportedWords,
     )

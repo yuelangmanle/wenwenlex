@@ -4,6 +4,36 @@
 
 ## [Unreleased]
 
+## [1.4] - 2026-03-20
+
+### Added
+
+- 新增 `scripts/prepare_voice_pack_sources.sh`，支持在 GitHub Actions 云端按固定上游 URL + `sha256` 拉取真实 Kokoro 模型资产并生成临时语音包源目录
+- 新增英式 / 美式两套真实原生离线单词发音包模板，正式切换到 `kokoro-en-v0_19` 上游模型，不再依赖仓库内 placeholder 模型文件
+- 新增 native pack `speakerId` 元数据，并把 UK / US pack 分别固定到 `bf_isabella (sid 8)` 与 `af_nicole (sid 2)`，确保双口音不是同一 speaker
+- 新增云端可复现的 pack 模板体系：`manifest.template.json + source.json + 本地分发说明`
+- 新增 `docs/release-v1.4-pronunciation-smoke.md`，用于记录 `1.4` 云端验证、Release 资产核对和后续真机补充验收
+
+### Changed
+
+- native 语音包正式从 `sherpa_onnx_scaffold` 切换到真实 `kokoro` 模型 metadata，catalog / 包内 manifest / Release checksum 三者保持一致
+- `scripts/package_voice_packs.sh`、`scripts/package_native_voice_pack.sh` 和 `scripts/test_voice_pack_release_assets.sh` 现在消费“云端准备好的临时源目录”，不再直接读取仓库中的 pack 二进制
+- `Android CI` / `Android Release` 工作流现在会先准备真实语音包源目录，再做 release asset 校验、单测、APK 构建与 Release 上传
+- `SherpaOnnxRuntime` 现在会读取 pack 内 `speakerId` 并传给 native runtime，保证英式 / 美式使用不同 speaker
+- 默认构建版本和 `Android Release` 工作流默认输入版本同步更新为 `1.4`
+
+### Fixed
+
+- 修复 Kotlin 2.0 下 `SherpaOnnxRuntime` 和 `VoicePackDownloadWorker` 的兼容性写法，恢复云端 Kotlin 编译
+- 修复 `VoicePackInstallerTest` 对 JDK `HttpServer` 和 `assertFailsWith` 的依赖问题，改为仓库内可控的最小 HTTP 测试桩
+- 修复 `PronunciationSettingsViewModelTest` 的本地 `suspend` 调用和 `FakeSherpaOnnxRuntime` 可见性问题，避免单测编译被测试代码本身拦住
+
+### Notes
+
+- `1.4` 的正式语音包仍然通过 GitHub Release 分发，但真实模型 payload 只在云端临时拉取和组装，不进入 git 仓库
+- 这次 release 的正式资产应包含：`release-signed APK`、UK / US 两个 voice pack zip、两个 manifest 资产，以及 `wenwenlex-voice-pack-checksums.txt`
+- 由于当前本地机器仍缺 Java runtime，`1.4` 的最终构建与发版验证以 GitHub Actions 为准
+
 ## [1.3] - 2026-03-20
 
 ### Added

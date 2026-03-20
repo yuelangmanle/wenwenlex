@@ -9,7 +9,7 @@ on:
       version:
         description: "Release version, for example 1.0"
         required: true
-        default: "1.3"
+        default: "1.4"
 
 permissions:
   contents: write
@@ -42,8 +42,11 @@ jobs:
       - name: Fetch Sherpa ONNX Android JNI runtime
         run: bash scripts/fetch_sherpa_onnx_android.sh v1.12.31
 
+      - name: Prepare native voice pack sources
+        run: bash scripts/prepare_voice_pack_sources.sh "$RUNNER_TEMP/voice-pack-sources"
+
       - name: Validate native voice pack release assets
-        run: bash scripts/test_voice_pack_release_assets.sh
+        run: bash scripts/test_voice_pack_release_assets.sh "$RUNNER_TEMP/voice-pack-sources"
 
       - name: Resolve release metadata
         id: meta
@@ -149,7 +152,7 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk "release/${{ steps.meta.outputs.apk_name }}"
 
       - name: Package native voice pack assets
-        run: bash scripts/package_voice_packs.sh release
+        run: bash scripts/package_voice_packs.sh release "$RUNNER_TEMP/voice-pack-sources"
 
       - name: Prepare release notes
         run: |

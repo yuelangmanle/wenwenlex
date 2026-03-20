@@ -1,0 +1,30 @@
+{
+  "id": "en-us-offline-word-v1",
+  "name": "美式离线发音包",
+  "accent": "us",
+  "locale": "en-US",
+  "engineType": "sherpa_onnx",
+  "version": "1.4",
+  "native": {
+    "engineType": "native_neural_tts",
+    "engineFamily": "native_neural_tts",
+    "modelFamily": "kokoro",
+    "modelVersion": "kokoro-en-v0_19",
+    "packageFormatVersion": 2,
+    "estimatedRamMb": 768,
+    "supportsImportedWords": true,
+    "speakerProfile": "Kokoro af_nicole",
+    "speakerId": 2,
+    "licenses": [
+      {
+        "spdx": "Apache-2.0",
+        "name": "Kokoro model license",
+        "file": "licenses/KOKORO-LICENSE.txt"
+      },
+      {
+        "name": "Distribution source notice",
+        "file": "licenses/DISTRIBUTION-NOTICE.txt"
+      }
+    ]
+  }
+}

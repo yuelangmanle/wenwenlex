@@ -81,7 +81,7 @@ internal class NativeSherpaRuntimeBridge : SherpaRuntimeBridge {
         }
 
         try {
-            val audio = tts.generate(text)
+            val audio = tts.generate(text, layout.speakerId)
             check(audio.samples.isNotEmpty()) { "Sherpa ONNX runtime returned empty audio samples." }
             check(audio.save(outputFile.absolutePath)) {
                 "Sherpa ONNX runtime failed to save wav file: ${outputFile.absolutePath}"
@@ -147,6 +147,7 @@ internal data class SherpaModelLayout(
     val lexicon: String?,
     val locale: String?,
     val numThreads: Int,
+    val speakerId: Int,
 ) {
     val language: String?
         get() = locale.toSherpaLanguage()
@@ -232,6 +233,7 @@ internal data class SherpaModelLayout(
                 lexicon = lexicon,
                 locale = manifest?.locale,
                 numThreads = if (kind == SherpaModelKind.VITS) 2 else 4,
+                speakerId = manifest?.speakerId ?: 0,
             )
         }
 

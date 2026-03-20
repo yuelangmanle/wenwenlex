@@ -178,7 +178,7 @@ class PronunciationSettingsViewModelTest {
 
     @Test
     fun loadUiState_mapsDownloadVerifyInstallRuntimeFailuresToDifferentMessages() = runTest {
-        fun stateFor(reason: String): VoicePackItemUiState {
+        suspend fun stateFor(reason: String): VoicePackItemUiState {
             val viewModel = PronunciationSettingsViewModel(
                 settingsRepository = FakeSettingsRepository(initial = AppSettings()),
                 wordAudioRepository = FakeWordAudioRepository(),

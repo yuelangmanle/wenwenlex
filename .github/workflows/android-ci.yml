@@ -34,8 +34,11 @@ jobs:
       - name: Fetch Sherpa ONNX Android JNI runtime
         run: bash scripts/fetch_sherpa_onnx_android.sh v1.12.31
 
+      - name: Prepare native voice pack sources
+        run: bash scripts/prepare_voice_pack_sources.sh "$RUNNER_TEMP/voice-pack-sources"
+
       - name: Validate native voice pack release assets
-        run: bash scripts/test_voice_pack_release_assets.sh
+        run: bash scripts/test_voice_pack_release_assets.sh "$RUNNER_TEMP/voice-pack-sources"
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -112,8 +115,11 @@ jobs:
       - name: Fetch Sherpa ONNX Android JNI runtime
         run: bash scripts/fetch_sherpa_onnx_android.sh v1.12.31
 
+      - name: Prepare native voice pack sources
+        run: bash scripts/prepare_voice_pack_sources.sh "$RUNNER_TEMP/voice-pack-sources"
+
       - name: Validate native voice pack release assets
-        run: bash scripts/test_voice_pack_release_assets.sh
+        run: bash scripts/test_voice_pack_release_assets.sh "$RUNNER_TEMP/voice-pack-sources"
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5

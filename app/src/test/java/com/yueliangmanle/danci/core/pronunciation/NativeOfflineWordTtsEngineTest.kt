@@ -159,7 +159,7 @@ class NativeOfflineWordTtsEngineTest {
     }
 }
 
-private class FakeSherpaOnnxRuntime : SherpaOnnxRuntime {
+internal class FakeSherpaOnnxRuntime : SherpaOnnxRuntime {
     override fun synthesizeWord(
         text: String,
         outputFile: File,

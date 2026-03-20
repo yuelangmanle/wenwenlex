@@ -82,6 +82,7 @@ class SherpaOnnxRuntimeTest {
 
         assertTrue(bridge.requests.single().text == "hello")
         assertTrue(bridge.requests.single().layout.kind == SherpaModelKind.KOKORO)
+        assertTrue(bridge.requests.single().layout.speakerId == 8)
         assertTrue(outputFile.exists())
         assertTrue(outputFile.length() > 44L)
     }
@@ -134,6 +135,7 @@ private fun createRuntimeDir(
           "modelFamily": "kokoro",
           "modelVersion": "1.4.0",
           "packageFormatVersion": 2,
+          "speakerId": 8,
           "entryFiles": [
             "${if (packageFormat == RuntimeFixturePackageFormat.MODEL_SUBDIRECTORY) "model/" else ""}model.onnx",
             "${if (packageFormat == RuntimeFixturePackageFormat.MODEL_SUBDIRECTORY) "model/" else ""}voices.bin",

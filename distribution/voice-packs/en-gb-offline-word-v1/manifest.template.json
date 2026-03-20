@@ -1,0 +1,30 @@
+{
+  "id": "en-gb-offline-word-v1",
+  "name": "英式离线发音包",
+  "accent": "uk",
+  "locale": "en-GB",
+  "engineType": "sherpa_onnx",
+  "version": "1.4",
+  "native": {
+    "engineType": "native_neural_tts",
+    "engineFamily": "native_neural_tts",
+    "modelFamily": "kokoro",
+    "modelVersion": "kokoro-en-v0_19",
+    "packageFormatVersion": 2,
+    "estimatedRamMb": 768,
+    "supportsImportedWords": true,
+    "speakerProfile": "Kokoro bf_isabella",
+    "speakerId": 8,
+    "licenses": [
+      {
+        "spdx": "Apache-2.0",
+        "name": "Kokoro model license",
+        "file": "licenses/KOKORO-LICENSE.txt"
+      },
+      {
+        "name": "Distribution source notice",
+        "file": "licenses/DISTRIBUTION-NOTICE.txt"
+      }
+    ]
+  }
+}

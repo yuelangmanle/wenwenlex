@@ -17,6 +17,7 @@ data class NativeVoicePackManifest(
     val estimatedStorageBytes: Long? = null,
     val estimatedRamMb: Int? = null,
     val speakerProfile: String? = null,
+    val speakerId: Int? = null,
     val licenses: List<NativeVoicePackLicense> = emptyList(),
     val supportsImportedWords: Boolean = false,
 ) {
@@ -35,6 +36,7 @@ data class NativeVoicePackManifest(
             estimatedStorageBytes == null &&
             estimatedRamMb == null &&
             speakerProfile == null &&
+            speakerId == null &&
             licenses.isEmpty() &&
             !supportsImportedWords
 
@@ -85,6 +87,8 @@ data class NativeVoicePackManifest(
                     ?: root.optNullableInt("estimatedRamMb"),
                 speakerProfile = nativeBlock.optSpeakerProfile("speakerProfile")
                     ?: root.optSpeakerProfile("speakerProfile"),
+                speakerId = nativeBlock?.optNullableInt("speakerId")
+                    ?: root.optNullableInt("speakerId"),
                 licenses = nativeBlock.optLicenseList("licenses").ifEmpty {
                     root.optLicenseList("licenses")
                 },

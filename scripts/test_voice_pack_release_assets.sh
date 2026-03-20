@@ -6,6 +6,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PACKAGE_SCRIPT="$ROOT_DIR/scripts/package_voice_packs.sh"
 CATALOG_PATH="$ROOT_DIR/app/src/main/assets/pronunciation/voice-pack-manifest.json"
 TMP_DIR="$(mktemp -d)"
+PREPARED_SOURCE_ROOT="${1:-$TMP_DIR/prepared}"
 
 cleanup() {
   rm -rf "$TMP_DIR"
@@ -13,9 +14,14 @@ cleanup() {
 
 trap cleanup EXIT
 
-bash "$PACKAGE_SCRIPT" "$TMP_DIR"
+if [ ! -d "$PREPARED_SOURCE_ROOT" ] || [ -z "$(find "$PREPARED_SOURCE_ROOT" -mindepth 1 -maxdepth 1 -type d -print -quit 2>/dev/null)" ]; then
+  bash "$ROOT_DIR/scripts/prepare_voice_pack_sources.sh" "$PREPARED_SOURCE_ROOT" >/dev/null
+fi
 
-python3 - "$CATALOG_PATH" "$TMP_DIR" <<'PY'
+bash "$PACKAGE_SCRIPT" "$TMP_DIR" "$PREPARED_SOURCE_ROOT"
+
+python3 - "$CATALOG_PATH" "$TMP_DIR" "$PREPARED_SOURCE_ROOT" <<'PY'
+import hashlib
 import json
 import pathlib
 import sys
@@ -24,6 +30,7 @@ import zipfile
 
 catalog_path = pathlib.Path(sys.argv[1])
 output_dir = pathlib.Path(sys.argv[2])
+prepared_root = pathlib.Path(sys.argv[3])
 catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
 checksum_path = output_dir / "wenwenlex-voice-pack-checksums.txt"
 
@@ -61,6 +68,16 @@ for pack in native_packs:
     assert packaged_manifest.get("id") == pack["id"], (
         f"{manifest_name} 的 id 与 catalog 不一致。"
     )
+    packaged_native = packaged_manifest.get("native") or packaged_manifest
+    catalog_native = pack.get("native") or pack
+    assert packaged_native.get("modelFamily") == catalog_native.get("modelFamily"), (
+        f"{manifest_name} 的 modelFamily 与 catalog 不一致。"
+    )
+    assert packaged_native.get("speakerId") == catalog_native.get("speakerId"), (
+        f"{manifest_name} 的 speakerId 与 catalog 不一致。"
+    )
+    prepared_pack_dir = prepared_root / pack["id"]
+    assert prepared_pack_dir.exists(), f"缺少准备后的源目录: {prepared_pack_dir}"
 
     with zipfile.ZipFile(archive_path) as archive:
         names = archive.namelist()
@@ -82,6 +99,21 @@ for pack in native_packs:
             )
             assert not relative_path.startswith(f"{pack['id']}/"), (
                 f"{archive_name} 不应把 pack 根目录名打进压缩包。"
+            )
+
+        payload_checksums = (
+            (manifest_from_zip.get("native") or {}).get("payloadChecksums")
+            or manifest_from_zip.get("payloadChecksums")
+            or {}
+        )
+        assert payload_checksums, f"{archive_name} manifest 缺少 payloadChecksums。"
+        for relative_path, expected_checksum in payload_checksums.items():
+            assert relative_path in names, (
+                f"{archive_name} payloadChecksums 声明了不存在的文件: {relative_path}"
+            )
+            actual_checksum = hashlib.sha256(archive.read(relative_path)).hexdigest()
+            assert actual_checksum == expected_checksum.lower(), (
+                f"{archive_name} payload checksum 不匹配: {relative_path}"
             )
 
 print("voice pack release assets OK")

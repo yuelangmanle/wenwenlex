@@ -1,0 +1,44 @@
+{
+  "upstream": {
+    "assetName": "kokoro-en-v0_19.tar.bz2",
+    "assetUrl": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-en-v0_19.tar.bz2",
+    "sha256": "912804855a04745fa77a30be545b3f9a5d15c4d66db00b88cbcd4921df605ac7",
+    "docsUrl": "https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/kokoro.html"
+  },
+  "payloadFiles": [
+    {
+      "source": "kokoro-en-v0_19/model.onnx",
+      "target": "model/model.onnx"
+    },
+    {
+      "source": "kokoro-en-v0_19/tokens.txt",
+      "target": "model/tokens.txt"
+    },
+    {
+      "source": "kokoro-en-v0_19/voices.bin",
+      "target": "model/voices.bin"
+    }
+  ],
+  "payloadDirectories": [
+    {
+      "source": "kokoro-en-v0_19/espeak-ng-data",
+      "target": "model/espeak-ng-data"
+    }
+  ],
+  "licenseFiles": [
+    {
+      "source": "kokoro-en-v0_19/LICENSE",
+      "target": "licenses/KOKORO-LICENSE.txt"
+    }
+  ],
+  "localFiles": [
+    {
+      "source": "README.txt",
+      "target": "README.txt"
+    },
+    {
+      "source": "licenses/DISTRIBUTION-NOTICE.txt",
+      "target": "licenses/DISTRIBUTION-NOTICE.txt"
+    }
+  ]
+}
