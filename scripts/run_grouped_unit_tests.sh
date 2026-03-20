@@ -70,8 +70,16 @@ run_group \
   --tests "com.yueliangmanle.danci.core.pronunciation.OfflineTtsEngineTest"
 
 run_group \
-  "pronunciation unit tests: PronunciationOrchestratorTest" \
-  --tests "com.yueliangmanle.danci.core.pronunciation.PronunciationOrchestratorTest"
+  "pronunciation unit tests: PronunciationOrchestratorTest cache path" \
+  --tests "com.yueliangmanle.danci.core.pronunciation.PronunciationOrchestratorTest.orchestratorUsesNativeGeneratedCacheBeforeRemoteDictionaryLookup"
+
+run_group \
+  "pronunciation unit tests: PronunciationOrchestratorTest remote fallback" \
+  --tests "com.yueliangmanle.danci.core.pronunciation.PronunciationOrchestratorTest.orchestratorFallsBackToLaterRemoteCandidateWhenFirstDownloadFails"
+
+run_group \
+  "pronunciation unit tests: PronunciationOrchestratorTest native failure fallback" \
+  --tests "com.yueliangmanle.danci.core.pronunciation.PronunciationOrchestratorTest.playWord_fallsBackToDictionaryAfterNativeFailure_andRecordsFailureStage"
 
 run_group \
   "pronunciation unit tests: native runtime path" \
