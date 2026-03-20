@@ -25,11 +25,14 @@ interface WordAudioRepository {
     suspend fun findNativeGeneratedAsset(
         wordId: Long,
         accent: PronunciationAccent,
+        expectedNamespace: String? = null,
     ): WordAudioAsset? = null
     suspend fun cacheNativeGeneratedAudio(
         wordId: Long,
         accent: PronunciationAccent,
         normalizedWord: String,
+        modelFamily: String,
+        packVersion: String,
         sourceFile: File,
         mimeType: String = "audio/wav",
     ): WordAudioAsset? = null
@@ -81,25 +84,29 @@ class RoomWordAudioRepository(
     override suspend fun findNativeGeneratedAsset(
         wordId: Long,
         accent: PronunciationAccent,
+        expectedNamespace: String?,
     ): WordAudioAsset? {
         val candidates = mutableListOf<WordAudioAssetEntity>()
-        dao.findLatestAsset(
+        candidates += dao.findAssetsForWordAccentAndSource(
             wordId,
             accent.storageValue,
             PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue,
-        )?.let(candidates::add)
+            WordAudioAssetStatus.READY.storageValue,
+        )
         if (accent != PronunciationAccent.AUTO) {
-            dao.findLatestAsset(
+            candidates += dao.findAssetsForWordAccentAndSource(
                 wordId,
                 PronunciationAccent.AUTO.storageValue,
                 PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue,
-            )?.let(candidates::add)
+                WordAudioAssetStatus.READY.storageValue,
+            )
         }
         return candidates
             .map(WordAudioAssetEntity::asExternalModel)
             .firstOrNull { asset ->
                 asset.status == WordAudioAssetStatus.READY.storageValue &&
-                    asset.localPath?.let(::File)?.exists() == true
+                    asset.localPath?.let(::File)?.exists() == true &&
+                    asset.matchesGeneratedNamespace(expectedNamespace)
             }
     }
 
@@ -107,13 +114,20 @@ class RoomWordAudioRepository(
         wordId: Long,
         accent: PronunciationAccent,
         normalizedWord: String,
+        modelFamily: String,
+        packVersion: String,
         sourceFile: File,
         mimeType: String,
     ): WordAudioAsset? {
         if (normalizedWord.isBlank() || !sourceFile.exists()) {
             return null
         }
-        val targetFile = buildGeneratedCacheFile(normalizedWord, accent)
+        val targetFile = buildGeneratedCacheFile(
+            normalizedWord = normalizedWord,
+            accent = accent,
+            modelFamily = modelFamily,
+            packVersion = packVersion,
+        )
         if (sourceFile.absolutePath != targetFile.absolutePath) {
             sourceFile.copyTo(targetFile, overwrite = true)
         }
@@ -278,14 +292,50 @@ class RoomWordAudioRepository(
     private fun buildGeneratedCacheFile(
         normalizedWord: String,
         accent: PronunciationAccent,
+        modelFamily: String,
+        packVersion: String,
     ): File {
+        val namespace = buildGeneratedNamespace(
+            accent = accent,
+            modelFamily = modelFamily,
+            packVersion = packVersion,
+        )
         val target = File(
             appContext.filesDir,
-            "audio-cache/generated/${accent.storageValue}/$normalizedWord.wav",
+            "audio-cache/generated/$namespace/$normalizedWord.wav",
         )
         target.parentFile?.mkdirs()
         return target
     }
+}
+
+internal fun buildGeneratedNamespace(
+    accent: PronunciationAccent,
+    modelFamily: String,
+    packVersion: String,
+): String =
+    listOf(
+        accent.storageValue,
+        sanitizeCacheSegment(modelFamily, fallback = "unknown-model"),
+        sanitizeCacheSegment(packVersion, fallback = "unknown-version"),
+    ).joinToString("/")
+
+private fun sanitizeCacheSegment(
+    value: String,
+    fallback: String,
+): String =
+    value.trim()
+        .takeIf(String::isNotBlank)
+        ?.replace(Regex("""[^a-zA-Z0-9._-]+"""), "_")
+        ?.lowercase()
+        ?: fallback
+
+private fun WordAudioAsset.matchesGeneratedNamespace(expectedNamespace: String?): Boolean {
+    if (expectedNamespace.isNullOrBlank()) {
+        return true
+    }
+    val normalizedPath = localPath.orEmpty().replace('\\', '/')
+    return normalizedPath.contains("/audio-cache/generated/$expectedNamespace/")
 }
 
 private fun sha256(bytes: ByteArray): String =

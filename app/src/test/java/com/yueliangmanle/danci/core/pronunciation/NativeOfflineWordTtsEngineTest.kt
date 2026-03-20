@@ -35,6 +35,8 @@ class NativeOfflineWordTtsEngineTest {
                         id = "en-us-offline-word-v1",
                         accent = PronunciationAccent.US.storageValue,
                         engineType = "sherpa_onnx",
+                        modelFamily = "kokoro",
+                        version = "1.4",
                         status = VoicePackStatus.READY.storageValue,
                         installDir = installDir.absolutePath,
                         isActive = true,
@@ -56,6 +58,7 @@ class NativeOfflineWordTtsEngineTest {
 
         assertTrue(result?.outputFile?.exists() == true)
         assertEquals(PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue, result?.asset?.sourceType)
+        assertTrue(result?.asset?.localPath.orEmpty().contains("/us/kokoro/1.4/"))
     }
 
     @Test
@@ -73,6 +76,8 @@ class NativeOfflineWordTtsEngineTest {
                         id = "en-us-offline-word-v0",
                         accent = PronunciationAccent.US.storageValue,
                         engineType = "sherpa_onnx",
+                        modelFamily = "kokoro",
+                        version = "1.3",
                         status = VoicePackStatus.READY.storageValue,
                         installDir = inactiveUsDir.absolutePath,
                         isActive = false,
@@ -81,6 +86,8 @@ class NativeOfflineWordTtsEngineTest {
                         id = "en-gb-offline-word-v1",
                         accent = PronunciationAccent.UK.storageValue,
                         engineType = "sherpa_onnx",
+                        modelFamily = "kokoro",
+                        version = "1.4",
                         status = VoicePackStatus.READY.storageValue,
                         installDir = activeUkDir.absolutePath,
                         isActive = true,
@@ -89,6 +96,8 @@ class NativeOfflineWordTtsEngineTest {
                         id = "en-us-offline-word-v1",
                         accent = PronunciationAccent.US.storageValue,
                         engineType = "sherpa_onnx",
+                        modelFamily = "kokoro",
+                        version = "1.4",
                         status = VoicePackStatus.READY.storageValue,
                         installDir = activeUsDir.absolutePath,
                         isActive = true,
@@ -109,6 +118,44 @@ class NativeOfflineWordTtsEngineTest {
         )
 
         assertEquals("en-us-offline-word-v1", result?.voicePack?.id)
+    }
+
+    @Test
+    fun importedBookWord_canBeSynthesizedAndCachedThroughSameNativePath() = runTest {
+        val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val installDir = File(appContext.cacheDir, "native-pack-uk").apply { mkdirs() }
+        val now = Instant.parse("2026-03-19T12:00:00Z")
+        val engine = NativeOfflineWordTtsEngine(
+            context = appContext,
+            voicePackRepository = FakeNativeVoicePackRepository(
+                packs = mutableListOf(
+                    TestVoicePackFactory.voicePack(
+                        id = "en-gb-offline-word-v1",
+                        accent = PronunciationAccent.UK.storageValue,
+                        engineType = "sherpa_onnx",
+                        modelFamily = "kokoro",
+                        version = "1.4",
+                        status = VoicePackStatus.READY.storageValue,
+                        installDir = installDir.absolutePath,
+                        isActive = true,
+                    ),
+                ),
+            ),
+            wordAudioRepository = RoomWordAudioRepository(
+                appContext = appContext,
+                dao = FakeNativeWordAudioAssetDao(),
+                nowProvider = { now },
+            ),
+            runtimeLoader = { FakeSherpaOnnxRuntime() },
+        )
+
+        val result = engine.synthesizeWord(
+            word = Word(id = 501L, lemma = "endeavour", meanings = listOf("努力")),
+            accent = PronunciationAccent.UK,
+        )
+
+        assertEquals("endeavour", result?.normalizedWord)
+        assertTrue(result?.asset?.localPath.orEmpty().contains("/uk/kokoro/1.4/"))
     }
 }
 
@@ -204,6 +251,24 @@ private class FakeNativeWordAudioAssetDao : WordAudioAssetDao {
     ): List<WordAudioAssetEntity> =
         assets
             .filter { it.wordId == wordId && it.sourceType == sourceType && it.status == status }
+
+    override suspend fun findAssetsForWordAccentAndSource(
+        wordId: Long,
+        accent: String,
+        sourceType: String,
+        status: String,
+    ): List<WordAudioAssetEntity> =
+        assets
+            .filter {
+                it.wordId == wordId &&
+                    it.accent == accent &&
+                    it.sourceType == sourceType &&
+                    it.status == status
+            }
+            .sortedWith(
+                compareByDescending<WordAudioAssetEntity> { it.lastPlayedAt ?: it.fetchedAt ?: Instant.EPOCH }
+                    .thenByDescending(WordAudioAssetEntity::id),
+            )
 
     override suspend fun getAssetsBySource(
         sourceType: String,

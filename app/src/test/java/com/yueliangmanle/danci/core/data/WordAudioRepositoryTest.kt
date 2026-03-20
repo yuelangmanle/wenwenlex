@@ -10,6 +10,7 @@ import java.io.File
 import java.time.Instant
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -21,7 +22,7 @@ class WordAudioRepositoryTest {
     fun repositoryFindsNativeGeneratedAssetBeforeRemoteLookup() = runTest {
         val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
         val now = Instant.parse("2026-03-19T12:00:00Z")
-        val localFile = File(appContext.filesDir, "audio-cache/generated/uk/test.wav").apply {
+        val localFile = File(appContext.filesDir, "audio-cache/generated/uk/kokoro/1.4/test.wav").apply {
             parentFile?.mkdirs()
             writeBytes(byteArrayOf(0x01, 0x02, 0x03))
         }
@@ -48,6 +49,7 @@ class WordAudioRepositoryTest {
         val asset = repository.findNativeGeneratedAsset(
             wordId = 42L,
             accent = PronunciationAccent.UK,
+            expectedNamespace = "uk/kokoro/1.4",
         )
 
         assertEquals(PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue, asset?.sourceType)
@@ -55,7 +57,44 @@ class WordAudioRepositoryTest {
     }
 
     @Test
-    fun repositoryCachesNativeGeneratedAudioIntoManagedPath() = runTest {
+    fun findNativeGeneratedAssetIgnoresOldPackVersionCache() = runTest {
+        val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val now = Instant.parse("2026-03-19T12:00:00Z")
+        val oldVersionFile = File(appContext.filesDir, "audio-cache/generated/uk/kokoro/1.3/hello.wav").apply {
+            parentFile?.mkdirs()
+            writeBytes(byteArrayOf(0x01, 0x02, 0x03))
+        }
+        val dao = FakeWordAudioAssetDao().apply {
+            upsertAsset(
+                WordAudioAssetEntity(
+                    id = 2L,
+                    wordId = 42L,
+                    accent = PronunciationAccent.UK.storageValue,
+                    sourceType = PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue,
+                    localPath = oldVersionFile.absolutePath,
+                    mimeType = "audio/wav",
+                    status = WordAudioAssetStatus.READY.storageValue,
+                    fetchedAt = now,
+                ),
+            )
+        }
+        val repository = RoomWordAudioRepository(
+            appContext = appContext,
+            dao = dao,
+            nowProvider = { now },
+        )
+
+        val asset = repository.findNativeGeneratedAsset(
+            wordId = 42L,
+            accent = PronunciationAccent.UK,
+            expectedNamespace = "uk/kokoro/1.4",
+        )
+
+        assertNull(asset)
+    }
+
+    @Test
+    fun repositoryCachesNativeGeneratedAudioIntoVersionedManagedPath() = runTest {
         val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
         val now = Instant.parse("2026-03-19T12:00:00Z")
         val sourceFile = File(appContext.cacheDir, "native-source.wav").apply {
@@ -73,11 +112,13 @@ class WordAudioRepositoryTest {
             wordId = 7L,
             accent = PronunciationAccent.US,
             normalizedWord = "don't",
+            modelFamily = "kokoro",
+            packVersion = "1.4",
             sourceFile = sourceFile,
         )
 
         assertEquals(PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue, asset?.sourceType)
-        assertTrue(asset?.localPath.orEmpty().contains("audio-cache/generated/us/don't.wav"))
+        assertTrue(asset?.localPath.orEmpty().contains("audio-cache/generated/us/kokoro/1.4/don't.wav"))
         assertTrue(asset?.localPath?.let(::File)?.exists() == true)
     }
 }
@@ -123,6 +164,24 @@ private class FakeWordAudioAssetDao : WordAudioAssetDao {
         assets
             .filter {
                 it.wordId == wordId &&
+                    it.sourceType == sourceType &&
+                    it.status == status
+            }
+            .sortedWith(
+                compareByDescending<WordAudioAssetEntity> { it.lastPlayedAt ?: it.fetchedAt ?: Instant.EPOCH }
+                    .thenByDescending(WordAudioAssetEntity::id),
+            )
+
+    override suspend fun findAssetsForWordAccentAndSource(
+        wordId: Long,
+        accent: String,
+        sourceType: String,
+        status: String,
+    ): List<WordAudioAssetEntity> =
+        assets
+            .filter {
+                it.wordId == wordId &&
+                    it.accent == accent &&
                     it.sourceType == sourceType &&
                     it.status == status
             }

@@ -44,6 +44,20 @@ interface WordAudioAssetDao {
     @Query(
         """
         SELECT * FROM word_audio_assets
+        WHERE wordId = :wordId AND accent = :accent AND sourceType = :sourceType AND status = :status
+        ORDER BY COALESCE(lastPlayedAt, fetchedAt) DESC, id DESC
+        """,
+    )
+    suspend fun findAssetsForWordAccentAndSource(
+        wordId: Long,
+        accent: String,
+        sourceType: String,
+        status: String,
+    ): List<WordAudioAssetEntity>
+
+    @Query(
+        """
+        SELECT * FROM word_audio_assets
         WHERE sourceType = :sourceType AND status = :status
         ORDER BY COALESCE(lastPlayedAt, fetchedAt) ASC, id ASC
         """,
@@ -62,4 +76,3 @@ interface WordAudioAssetDao {
     @Query("DELETE FROM word_audio_assets")
     suspend fun clearAssets()
 }
-

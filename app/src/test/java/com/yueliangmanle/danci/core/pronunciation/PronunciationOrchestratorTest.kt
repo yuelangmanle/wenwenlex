@@ -2,7 +2,6 @@ package com.yueliangmanle.danci.core.pronunciation
 
 import androidx.test.core.app.ApplicationProvider
 import com.yueliangmanle.danci.core.data.AppSettings
-import com.yueliangmanle.danci.core.data.NoOpStudyEventRecorder
 import com.yueliangmanle.danci.core.data.SettingsRepository
 import com.yueliangmanle.danci.core.data.TestVoicePackFactory
 import com.yueliangmanle.danci.core.data.VoicePackRepository
@@ -11,14 +10,19 @@ import com.yueliangmanle.danci.core.data.WordRepository
 import com.yueliangmanle.danci.core.model.DictionaryAudioCandidate
 import com.yueliangmanle.danci.core.model.PlaybackSource
 import com.yueliangmanle.danci.core.model.PronunciationAccent
+import com.yueliangmanle.danci.core.model.StudyEvent
 import com.yueliangmanle.danci.core.model.Word
 import com.yueliangmanle.danci.core.model.WordAudioAsset
 import com.yueliangmanle.danci.core.model.WordAudioAssetStatus
+import com.yueliangmanle.danci.core.model.metadataEntries
+import java.io.File
+import java.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -29,12 +33,16 @@ class PronunciationOrchestratorTest {
     fun orchestratorUsesNativeGeneratedCacheBeforeRemoteDictionaryLookup() = runTest {
         val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
         val word = Word(id = 42L, lemma = "abandon")
+        val nativeFile = File(appContext.cacheDir, "native-generated.wav").apply {
+            parentFile?.mkdirs()
+            writeBytes(byteArrayOf(0x01, 0x02, 0x03))
+        }
         val nativeAsset = WordAudioAsset(
             id = 1L,
             wordId = word.id,
             accent = PronunciationAccent.UK.storageValue,
             sourceType = PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue,
-            localPath = "/tmp/native-generated.wav",
+            localPath = nativeFile.absolutePath,
             status = WordAudioAssetStatus.READY.storageValue,
         )
         val wordAudioRepository = FakeOrchestratorWordAudioRepository(nativeGeneratedAsset = nativeAsset)
@@ -47,18 +55,41 @@ class PronunciationOrchestratorTest {
             ),
         )
         val systemTtsEngine = SystemTtsEngine(appContext)
+        val voicePackRepository = FakeOrchestratorVoicePackRepository(
+            packs = mutableListOf(
+                TestVoicePackFactory.voicePack(
+                    id = "en-gb-offline-word-v1",
+                    accent = PronunciationAccent.UK.storageValue,
+                    engineType = "sherpa_onnx",
+                    status = com.yueliangmanle.danci.core.model.VoicePackStatus.READY.storageValue,
+                    installDir = File(appContext.cacheDir, "native-pack-uk").absolutePath,
+                    isActive = true,
+                    modelFamily = "kokoro",
+                    version = "1.4",
+                ),
+            ),
+        )
+        val recorder = RecordingStudyEventRecorder()
         val orchestrator = PronunciationOrchestrator(
             settingsRepository = FakeOrchestratorSettingsRepository(),
             wordRepository = FakeOrchestratorWordRepository(word),
             wordAudioRepository = wordAudioRepository,
+            voicePackRepository = voicePackRepository,
             dictionaryAudioService = dictionaryAudioService,
             offlineTtsEngine = OfflineTtsEngine(
-                voicePackRepository = FakeOrchestratorVoicePackRepository(),
+                voicePackRepository = voicePackRepository,
                 bridgeSpeaker = systemTtsEngine,
+                nativeWordTtsEngine = NativeOfflineWordTtsEngine(
+                    context = appContext,
+                    voicePackRepository = voicePackRepository,
+                    wordAudioRepository = wordAudioRepository,
+                    runtimeLoader = { FakeSherpaOnnxRuntime() },
+                ),
             ),
             systemTtsEngine = systemTtsEngine,
-            telemetryRecorder = PlaybackTelemetryRecorder(NoOpStudyEventRecorder),
+            telemetryRecorder = PlaybackTelemetryRecorder(recorder),
             audioPlayer = { true },
+            nowProvider = { Instant.parse("2026-03-20T10:00:00Z") },
         )
 
         val result = orchestrator.playWord(
@@ -70,6 +101,7 @@ class PronunciationOrchestratorTest {
         assertEquals("已播放本地离线生成音频。", result.statusMessage)
         assertEquals(0, dictionaryAudioService.resolveCalls)
         assertEquals(nativeAsset, wordAudioRepository.markedPlayed.single())
+        assertEquals("true", recorder.events.single().metadataEntries()["cache_hit"])
     }
 
     @Test
@@ -105,18 +137,22 @@ class PronunciationOrchestratorTest {
             ),
         )
         val systemTtsEngine = SystemTtsEngine(appContext)
+        val voicePackRepository = FakeOrchestratorVoicePackRepository()
+        val recorder = RecordingStudyEventRecorder()
         val orchestrator = PronunciationOrchestrator(
             settingsRepository = FakeOrchestratorSettingsRepository(),
             wordRepository = FakeOrchestratorWordRepository(word),
             wordAudioRepository = wordAudioRepository,
+            voicePackRepository = voicePackRepository,
             dictionaryAudioService = dictionaryAudioService,
             offlineTtsEngine = OfflineTtsEngine(
-                voicePackRepository = FakeOrchestratorVoicePackRepository(),
+                voicePackRepository = voicePackRepository,
                 bridgeSpeaker = systemTtsEngine,
             ),
             systemTtsEngine = systemTtsEngine,
-            telemetryRecorder = PlaybackTelemetryRecorder(NoOpStudyEventRecorder),
+            telemetryRecorder = PlaybackTelemetryRecorder(recorder),
             audioPlayer = { true },
+            nowProvider = { Instant.parse("2026-03-20T10:00:00Z") },
         )
 
         val result = orchestrator.playWord(
@@ -135,6 +171,95 @@ class PronunciationOrchestratorTest {
         )
         assertEquals(1, dictionaryAudioService.resolveCalls)
         assertEquals(remoteAsset, wordAudioRepository.markedPlayed.single())
+        assertEquals("dictionary_remote", recorder.events.single().metadataEntries()["resolved_source"])
+    }
+
+    @Test
+    fun playWord_fallsBackToDictionaryAfterNativeFailure_andRecordsFailureStage() = runTest {
+        val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val word = Word(id = 18L, lemma = "colour")
+        val remoteAsset = WordAudioAsset(
+            id = 3L,
+            wordId = word.id,
+            accent = PronunciationAccent.UK.storageValue,
+            sourceType = PlaybackSource.DICTIONARY_CACHE.storageValue,
+            localPath = "/tmp/colour-remote.wav",
+            status = WordAudioAssetStatus.READY.storageValue,
+        )
+        val wordAudioRepository = FakeOrchestratorWordAudioRepository(
+            nativeGeneratedAsset = null,
+            dictionaryAssetsByUrl = mapOf(
+                "https://source-b.example/colour-uk.mp3" to remoteAsset,
+            ),
+        )
+        val dictionaryAudioService = CountingDictionaryAudioService(
+            candidates = listOf(
+                DictionaryAudioCandidate(
+                    url = "https://source-b.example/colour-uk.mp3",
+                    accent = PronunciationAccent.UK,
+                    sourceLabel = "有道词典",
+                ),
+            ),
+        )
+        val voicePackRepository = FakeOrchestratorVoicePackRepository(
+            packs = mutableListOf(
+                TestVoicePackFactory.voicePack(
+                    id = "en-gb-offline-word-v1",
+                    accent = PronunciationAccent.UK.storageValue,
+                    engineType = "sherpa_onnx",
+                    status = com.yueliangmanle.danci.core.model.VoicePackStatus.READY.storageValue,
+                    installDir = File(appContext.cacheDir, "native-pack-uk-failing").absolutePath,
+                    isActive = true,
+                    modelFamily = "kokoro",
+                    version = "1.4",
+                ),
+            ),
+        )
+        val recorder = RecordingStudyEventRecorder()
+        val orchestrator = PronunciationOrchestrator(
+            settingsRepository = FakeOrchestratorSettingsRepository(),
+            wordRepository = FakeOrchestratorWordRepository(word),
+            wordAudioRepository = wordAudioRepository,
+            voicePackRepository = voicePackRepository,
+            dictionaryAudioService = dictionaryAudioService,
+            offlineTtsEngine = OfflineTtsEngine(
+                voicePackRepository = voicePackRepository,
+                bridgeSpeaker = SystemTtsEngine(appContext),
+                nativeWordTtsEngine = NativeOfflineWordTtsEngine(
+                    context = appContext,
+                    voicePackRepository = voicePackRepository,
+                    wordAudioRepository = wordAudioRepository,
+                    runtimeLoader = {
+                        error("synthetic native failure")
+                    },
+                ),
+            ),
+            systemTtsEngine = SystemTtsEngine(appContext),
+            telemetryRecorder = PlaybackTelemetryRecorder(recorder),
+            audioPlayer = { true },
+            nowProvider = { Instant.parse("2026-03-20T10:00:00Z") },
+        )
+
+        val result = orchestrator.playWord(
+            word = word,
+            accentOverride = PronunciationAccent.UK,
+        )
+
+        val metadata = recorder.events.single().metadataEntries()
+        assertEquals(PlaybackSource.DICTIONARY_REMOTE, result.source)
+        assertEquals("native_synthesis", metadata["failure_stage"])
+        assertEquals("true", metadata["fallback_used"])
+        assertEquals("1.4", metadata["voice_pack_version"])
+        assertEquals("colour", metadata["normalized_word"])
+        assertTrue(metadata["latency_ms"] != null)
+    }
+}
+
+private class RecordingStudyEventRecorder : com.yueliangmanle.danci.core.data.StudyEventRecorder {
+    val events = mutableListOf<StudyEvent>()
+
+    override fun record(event: StudyEvent) {
+        events += event
     }
 }
 
@@ -202,6 +327,7 @@ private class FakeOrchestratorWordAudioRepository(
     override suspend fun findNativeGeneratedAsset(
         wordId: Long,
         accent: PronunciationAccent,
+        expectedNamespace: String?,
     ): WordAudioAsset? = nativeGeneratedAsset
 
     override suspend fun isRemoteLookupCoolingDown(
@@ -232,8 +358,10 @@ private class FakeOrchestratorWordAudioRepository(
     override suspend fun cacheSizeBytes(): Long = 0L
 }
 
-private class FakeOrchestratorVoicePackRepository : VoicePackRepository {
-    private val packs = mutableListOf(TestVoicePackFactory.voicePack(id = "en-gb-bridge-basic"))
+private class FakeOrchestratorVoicePackRepository(
+    private val packs: MutableList<com.yueliangmanle.danci.core.model.VoicePack> =
+        mutableListOf(TestVoicePackFactory.voicePack(id = "en-gb-bridge-basic")),
+) : VoicePackRepository {
 
     override suspend fun getAllVoicePacks(): List<com.yueliangmanle.danci.core.model.VoicePack> = packs
 

@@ -3,6 +3,7 @@ package com.yueliangmanle.danci.core.pronunciation
 import android.content.Context
 import com.yueliangmanle.danci.core.data.VoicePackRepository
 import com.yueliangmanle.danci.core.data.WordAudioRepository
+import com.yueliangmanle.danci.core.data.buildGeneratedNamespace
 import com.yueliangmanle.danci.core.model.PronunciationAccent
 import com.yueliangmanle.danci.core.model.VoicePack
 import com.yueliangmanle.danci.core.model.VoicePackEngineType
@@ -16,6 +17,7 @@ data class NativeWordSynthesisResult(
     val outputFile: File,
     val normalizedWord: String,
     val voicePack: VoicePack,
+    val cacheHit: Boolean,
 )
 
 class NativeOfflineWordTtsEngine(
@@ -35,6 +37,7 @@ class NativeOfflineWordTtsEngine(
         val normalizedWord = normalizeWordForPronunciation(word.lemma) ?: return null
         val voicePack = resolveInstalledNativePack(accent) ?: return null
         val resolvedAccent = resolveAccent(accent, voicePack)
+        findCachedWord(word, voicePack, resolvedAccent)?.let { return it }
         val installDir = voicePack.installDir?.takeIf(String::isNotBlank)?.let(::File) ?: return null
         if (!installDir.exists() || !installDir.isDirectory) {
             return null
@@ -47,6 +50,8 @@ class NativeOfflineWordTtsEngine(
             wordId = word.id,
             accent = resolvedAccent,
             normalizedWord = normalizedWord,
+            modelFamily = voicePack.modelFamily.orCacheModelFamily(),
+            packVersion = voicePack.version.orCachePackVersion(),
             sourceFile = stagingFile,
         ) ?: return null
 
@@ -56,6 +61,22 @@ class NativeOfflineWordTtsEngine(
             outputFile = outputFile,
             normalizedWord = normalizedWord,
             voicePack = voicePack,
+            cacheHit = false,
+        )
+    }
+
+    suspend fun resolveCacheNamespace(
+        accent: PronunciationAccent,
+    ): NativeWordCacheNamespace? {
+        val voicePack = resolveInstalledNativePack(accent) ?: return null
+        val resolvedAccent = resolveAccent(accent, voicePack)
+        return NativeWordCacheNamespace(
+            accent = resolvedAccent,
+            namespace = buildGeneratedNamespace(
+                accent = resolvedAccent,
+                modelFamily = voicePack.modelFamily.orCacheModelFamily(),
+                packVersion = voicePack.version.orCachePackVersion(),
+            ),
         )
     }
 
@@ -100,4 +121,44 @@ class NativeOfflineWordTtsEngine(
         target.parentFile?.mkdirs()
         return target
     }
+
+    private suspend fun findCachedWord(
+        word: Word,
+        voicePack: VoicePack,
+        resolvedAccent: PronunciationAccent,
+    ): NativeWordSynthesisResult? {
+        val namespace = buildGeneratedNamespace(
+            accent = resolvedAccent,
+            modelFamily = voicePack.modelFamily.orCacheModelFamily(),
+            packVersion = voicePack.version.orCachePackVersion(),
+        )
+        val asset = wordAudioRepository.findNativeGeneratedAsset(
+            wordId = word.id,
+            accent = resolvedAccent,
+            expectedNamespace = namespace,
+        ) ?: return null
+        val outputFile = asset.localPath?.let(::File)
+            ?.takeIf(File::exists)
+            ?: return null
+        return NativeWordSynthesisResult(
+            asset = asset,
+            outputFile = outputFile,
+            normalizedWord = normalizeWordForPronunciation(word.lemma) ?: word.lemma,
+            voicePack = voicePack,
+            cacheHit = true,
+        )
+    }
+
+    suspend fun markPlayed(asset: WordAudioAsset) {
+        wordAudioRepository.markPlayed(asset)
+    }
 }
+
+data class NativeWordCacheNamespace(
+    val accent: PronunciationAccent,
+    val namespace: String,
+)
+
+private fun String?.orCacheModelFamily(): String = this?.takeIf(String::isNotBlank) ?: "unknown-model"
+
+private fun String?.orCachePackVersion(): String = this?.takeIf(String::isNotBlank) ?: "unknown-version"

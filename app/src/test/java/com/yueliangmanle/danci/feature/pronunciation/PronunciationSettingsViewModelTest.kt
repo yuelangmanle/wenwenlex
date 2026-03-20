@@ -172,8 +172,37 @@ class PronunciationSettingsViewModelTest {
         val state = viewModel.loadUiState()
         val item = state.voicePacks.single()
 
-        assertEquals("安装异常", item.statusLabel)
+        assertEquals("安装失败", item.statusLabel)
         assertEquals("原生语音包 manifest 缺少 entryFiles 声明。", item.failureReason)
+    }
+
+    @Test
+    fun loadUiState_mapsDownloadVerifyInstallRuntimeFailuresToDifferentMessages() = runTest {
+        fun stateFor(reason: String): VoicePackItemUiState {
+            val viewModel = PronunciationSettingsViewModel(
+                settingsRepository = FakeSettingsRepository(initial = AppSettings()),
+                wordAudioRepository = FakeWordAudioRepository(),
+                voicePackRepository = FakeVoicePackRepository(
+                    mutableListOf(
+                        TestVoicePackFactory.voicePack(
+                            id = "en-us-offline-word-v1",
+                            name = "美式离线发音包",
+                            engineType = "sherpa_onnx",
+                            status = VoicePackStatus.BROKEN.storageValue,
+                        ),
+                    ),
+                ),
+                voicePackDownloadController = FakeVoicePackDownloadController(
+                    failureMessages = mapOf("en-us-offline-word-v1" to reason),
+                ),
+            )
+            return viewModel.loadUiState().voicePacks.single()
+        }
+
+        assertEquals("下载失败", stateFor("download_failed").statusLabel)
+        assertEquals("校验失败", stateFor("payload checksum mismatch").statusLabel)
+        assertEquals("安装失败", stateFor("manifest 缺少 entryFiles").statusLabel)
+        assertEquals("运行异常", stateFor("runtime_failed").statusLabel)
     }
 
     @Test

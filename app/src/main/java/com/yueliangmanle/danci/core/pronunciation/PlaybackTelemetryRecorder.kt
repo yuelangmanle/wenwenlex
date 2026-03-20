@@ -14,27 +14,45 @@ class PlaybackTelemetryRecorder(
 ) {
     fun recordWordPlayback(
         wordId: Long,
+        lemma: String,
+        normalizedWord: String?,
         source: PlaybackSource,
         accent: PronunciationAccent,
         contextLabel: String,
         success: Boolean,
+        cacheHit: Boolean,
+        latencyMs: Long,
+        voicePackId: String? = null,
+        voicePackVersion: String? = null,
+        failureStage: String? = null,
+        fallbackUsed: Boolean = false,
         errorMessage: String? = null,
     ) {
+        val timestamp = nowProvider()
         eventRecorder.record(
             StudyEvent(
                 wordId = wordId,
                 eventType = StudyEventType.AUDIO_PLAYED,
-                happenedAt = nowProvider(),
+                happenedAt = timestamp,
                 isCorrect = success,
                 metadata = studyEventMetadataOf(
+                    "lemma" to lemma,
+                    "normalized_word" to normalizedWord,
                     "play_source" to source.storageValue,
+                    "resolved_source" to source.storageValue,
                     "play_accent" to accent.storageValue,
                     "play_context" to contextLabel,
                     "play_success" to success,
+                    "cache_hit" to cacheHit,
+                    "latency_ms" to latencyMs,
+                    "voice_pack_id" to voicePackId,
+                    "voice_pack_version" to voicePackVersion,
+                    "failure_stage" to failureStage,
+                    "fallback_used" to fallbackUsed,
                     "play_error" to errorMessage,
+                    "timestamp" to timestamp.toString(),
                 ),
             ),
         )
     }
 }
-

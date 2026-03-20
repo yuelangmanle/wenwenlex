@@ -99,6 +99,11 @@ data class PlaybackResult(
     val accent: PronunciationAccent,
     val statusMessage: String? = null,
     val errorMessage: String? = null,
+    val cacheHit: Boolean = false,
+    val voicePackId: String? = null,
+    val voicePackVersion: String? = null,
+    val failureStage: String? = null,
+    val fallbackUsed: Boolean = false,
 )
 
 const val DEFAULT_PRONUNCIATION_ACCENT = "uk"

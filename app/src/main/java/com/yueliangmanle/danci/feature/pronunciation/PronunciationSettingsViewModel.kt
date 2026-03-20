@@ -179,7 +179,7 @@ internal fun buildVoicePackItemUiState(
         VoicePackStatus.DOWNLOADING.storageValue -> "下载中"
         VoicePackStatus.VERIFYING.storageValue -> "校验中"
         VoicePackStatus.INSTALLING.storageValue -> "安装中"
-        VoicePackStatus.BROKEN.storageValue -> "安装异常"
+        VoicePackStatus.BROKEN.storageValue -> brokenStatusLabel(failureReason)
         else -> "未安装"
     }
     val isBusy = pack.status == VoicePackStatus.DOWNLOADING.storageValue ||
@@ -224,4 +224,14 @@ internal fun buildVoicePackItemUiState(
         canDownload = !isReady && !isBusy,
         canDelete = isReady || pack.status == VoicePackStatus.BROKEN.storageValue,
     )
+}
+
+private fun brokenStatusLabel(failureReason: String?): String {
+    val reason = failureReason.orEmpty().lowercase()
+    return when {
+        listOf("download", "下载", "http", "network", "网络").any(reason::contains) -> "下载失败"
+        listOf("verify", "checksum", "payload", "校验", "manifest id").any(reason::contains) -> "校验失败"
+        listOf("runtime", "jni", "synthesis", "运行", "合成").any(reason::contains) -> "运行异常"
+        else -> "安装失败"
+    }
 }
