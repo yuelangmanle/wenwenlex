@@ -13,7 +13,6 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.nio.file.Files
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.test.runTest
@@ -638,7 +637,11 @@ private class TestHttpServer(
     private val routes: Map<String, ByteArray>,
 ) : AutoCloseable {
     private val serverSocket = ServerSocket(0)
-    private val executor = Executors.newSingleThreadExecutor()
+    private val executor = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "voice-pack-test-server").apply {
+            isDaemon = true
+        }
+    }
     @Volatile
     private var running = true
 
@@ -661,7 +664,6 @@ private class TestHttpServer(
         running = false
         serverSocket.close()
         executor.shutdownNow()
-        executor.awaitTermination(5, TimeUnit.SECONDS)
     }
 
     private fun handleConnection(socket: Socket) {
