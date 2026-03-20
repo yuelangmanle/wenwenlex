@@ -33,6 +33,7 @@ import org.json.JSONObject
 private const val INPUT_VOICE_PACK_ID = "voice_pack_id"
 private const val OUTPUT_ERROR_MESSAGE = "error_message"
 private const val VOICE_PACK_INSTALL_MANIFEST_FILE = "manifest.json"
+private val CHECKSUM_LINE_REGEX = Regex("^([A-Fa-f0-9]{64})\\s+[*]?(\\S.+)$")
 
 const val VOICE_PACK_DOWNLOAD_WORK_PREFIX = "voice_pack_download_"
 
@@ -174,14 +175,17 @@ internal class VoicePackInstaller(
             )
         } else {
             cacheDir.mkdirs()
-            val archiveFile = File(cacheDir, "${voicePack.id}.zip")
+            val archiveFile = File(cacheDir, resolveArchiveFileName(voicePack))
             onStatusChange(VoicePackStatus.DOWNLOADING.storageValue)
             val checksum = downloadRemoteArchive(downloadUrl, archiveFile)
-            val expectedChecksum = voicePack.archiveChecksum?.takeIf(String::isNotBlank)
+            val expectedChecksum = resolveExpectedArchiveChecksum(
+                voicePack = voicePack,
+                archiveFile = archiveFile,
+            )
             if (expectedChecksum != null) {
                 onStatusChange(VoicePackStatus.VERIFYING.storageValue)
                 check(checksum.equals(expectedChecksum, ignoreCase = true)) {
-                    "语音包校验失败。"
+                    "语音包归档 checksum 校验失败。"
                 }
             }
             onStatusChange(VoicePackStatus.INSTALLING.storageValue)
@@ -199,6 +203,19 @@ internal class VoicePackInstaller(
             installDir = installDir,
             installedSizeBytes = installDir.directorySizeBytes(),
         )
+    }
+
+    private fun resolveExpectedArchiveChecksum(
+        voicePack: VoicePack,
+        archiveFile: File,
+    ): String? {
+        val checksumsUrl = voicePack.checksumsUrl?.trim().takeIf(String::isNotEmpty)
+        if (checksumsUrl != null) {
+            val checksumIndex = downloadChecksumIndex(checksumsUrl)
+            return checksumIndex[archiveFile.name]
+                ?: error("Release checksum 清单中缺少 ${archiveFile.name}")
+        }
+        return voicePack.archiveChecksum?.trim().takeIf(String::isNotEmpty)
     }
 
     private fun installFromAssetDirectory(
@@ -233,6 +250,42 @@ internal class VoicePackInstaller(
             connection.disconnect()
         }
     }
+
+    private fun downloadChecksumIndex(checksumsUrl: String): Map<String, String> {
+        val checksumText = downloadTextAssetOrRemote(checksumsUrl)
+        return checksumText.lineSequence()
+            .map(String::trim)
+            .filter { it.isNotEmpty() && !it.startsWith("#") }
+            .mapNotNull { line ->
+                val match = CHECKSUM_LINE_REGEX.matchEntire(line) ?: return@mapNotNull null
+                val checksum = match.groupValues[1].lowercase()
+                val filename = match.groupValues[2].trim()
+                filename.takeIf(String::isNotEmpty)?.let { it to checksum }
+            }
+            .toMap()
+    }
+
+    private fun downloadTextAssetOrRemote(source: String): String =
+        if (source.startsWith("asset://")) {
+            assetManager.open(source.removePrefix("asset://"))
+                .bufferedReader()
+                .use { it.readText() }
+        } else {
+            val connection = URL(source).openConnection() as HttpURLConnection
+            try {
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 10_000
+                connection.readTimeout = 20_000
+                connection.instanceFollowRedirects = true
+                connection.connect()
+                check(connection.responseCode in 200..299) {
+                    "语音包校验清单下载失败：HTTP ${connection.responseCode}"
+                }
+                connection.inputStream.bufferedReader().use { it.readText() }
+            } finally {
+                connection.disconnect()
+            }
+        }
 
     private fun unzipArchive(
         archiveFile: File,
@@ -316,53 +369,55 @@ internal fun validateInstalledVoicePack(
     }
     LicenseManifestVerifier.requireValid(nativeManifest)
 
-    val entryFiles = manifestJson.optStringList("entryFiles")
+    val entryFiles = nativeManifest.entryFiles
     check(entryFiles.isNotEmpty()) {
         "原生语音包 manifest 缺少 entryFiles 声明。"
     }
     entryFiles.forEach { relativePath ->
-        check(File(installDir, relativePath).exists()) {
+        check(File(installDir, relativePath).isFile) {
             "原生语音包缺少核心文件: $relativePath"
         }
     }
 
-    manifestJson.optReferencedLicenseFiles().forEach { relativePath ->
+    val payloadChecksums = nativeManifest.payloadChecksums
+    check(payloadChecksums.isNotEmpty()) {
+        "原生语音包 manifest 缺少 payloadChecksums 声明。"
+    }
+    entryFiles.forEach { relativePath ->
+        check(payloadChecksums.containsKey(relativePath)) {
+            "原生语音包 manifest 缺少 payload checksum: $relativePath"
+        }
+    }
+    payloadChecksums.forEach { (relativePath, expectedSha256) ->
+        val file = File(installDir, relativePath)
+        check(file.isFile) { "缺少 payload 文件: $relativePath" }
+        check(sha256(file.readBytes()).equals(expectedSha256, ignoreCase = true)) {
+            "payload checksum 校验失败: $relativePath"
+        }
+    }
+
+    nativeManifest.licenses
+        .mapNotNull { license -> license.file?.trim()?.takeIf(String::isNotEmpty) }
+        .forEach { relativePath ->
         check(File(installDir, relativePath).exists()) {
             "原生语音包缺少许可证文件: $relativePath"
         }
     }
 }
 
+private fun resolveArchiveFileName(voicePack: VoicePack): String =
+    voicePack.downloadUrl
+        ?.takeIf(String::isNotBlank)
+        ?.let { downloadUrl ->
+            runCatching { URL(downloadUrl).path.substringAfterLast('/').trim() }.getOrNull()
+        }
+        ?.takeIf(String::isNotEmpty)
+        ?: "${voicePack.id}.zip"
+
 private fun sha256(bytes: ByteArray): String =
     MessageDigest.getInstance("SHA-256")
         .digest(bytes)
         .joinToString("") { "%02x".format(it) }
-
-private fun JSONObject.optStringList(key: String): List<String> {
-    val items = optJSONArray(key) ?: return emptyList()
-    return buildList {
-        repeat(items.length()) { index ->
-            items.optString(index)
-                .trim()
-                .takeIf(String::isNotEmpty)
-                ?.let(::add)
-        }
-    }
-}
-
-private fun JSONObject.optReferencedLicenseFiles(): List<String> {
-    val nativeBlock = optJSONObject("native") ?: optJSONObject("runtime") ?: this
-    val licenses = nativeBlock.optJSONArray("licenses") ?: return emptyList()
-    return buildList {
-        repeat(licenses.length()) { index ->
-            val licenseObject = licenses.optJSONObject(index) ?: return@repeat
-            licenseObject.optString("file")
-                .trim()
-                .takeIf(String::isNotEmpty)
-                ?.let(::add)
-        }
-    }
-}
 
 fun buildVoicePackDownloadController(context: Context): VoicePackDownloadController =
     VoicePackDownloadScheduler(context.applicationContext)

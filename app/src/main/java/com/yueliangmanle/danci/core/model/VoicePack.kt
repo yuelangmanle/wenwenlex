@@ -11,6 +11,7 @@ data class VoicePack(
     val version: String = "1",
     val downloadUrl: String? = null,
     val manifestUrl: String? = null,
+    val checksumsUrl: String? = null,
     val installDir: String? = null,
     val archiveChecksum: String? = null,
     val installedSizeBytes: Long = 0,

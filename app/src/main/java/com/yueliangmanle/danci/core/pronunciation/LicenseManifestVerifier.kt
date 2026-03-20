@@ -12,13 +12,19 @@ object LicenseManifestVerifier {
         }
 
         val licenses = manifest.licenses
-            .map(String::trim)
-            .filter(String::isNotEmpty)
+            .filterNot { it.label().isNullOrBlank() && it.file.isNullOrBlank() }
 
         if (licenses.isEmpty()) {
             return LicenseVerificationResult(
                 isValid = false,
                 errorMessage = "原生语音包 manifest 缺少 licenses 声明。",
+            )
+        }
+
+        if (licenses.any { it.label().isNullOrBlank() }) {
+            return LicenseVerificationResult(
+                isValid = false,
+                errorMessage = "原生语音包 manifest 存在无效的 licenses 声明。",
             )
         }
 

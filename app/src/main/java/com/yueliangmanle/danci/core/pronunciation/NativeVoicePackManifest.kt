@@ -3,42 +3,110 @@ package com.yueliangmanle.danci.core.pronunciation
 import org.json.JSONObject
 
 data class NativeVoicePackManifest(
+    val id: String? = null,
+    val name: String? = null,
+    val accent: String? = null,
+    val locale: String? = null,
+    val engineType: String? = null,
     val engineFamily: String? = null,
     val modelFamily: String? = null,
-    val supportsImportedWords: Boolean = false,
+    val modelVersion: String? = null,
+    val packageFormatVersion: Int? = null,
+    val entryFiles: List<String> = emptyList(),
+    val payloadChecksums: Map<String, String> = emptyMap(),
     val estimatedStorageBytes: Long? = null,
     val estimatedRamMb: Int? = null,
-    val licenses: List<String> = emptyList(),
+    val speakerProfile: String? = null,
+    val licenses: List<NativeVoicePackLicense> = emptyList(),
+    val supportsImportedWords: Boolean = false,
 ) {
     fun isEmpty(): Boolean =
-        engineFamily.isNullOrBlank() &&
+        id.isNullOrBlank() &&
+            name.isNullOrBlank() &&
+            accent.isNullOrBlank() &&
+            locale.isNullOrBlank() &&
+            engineType.isNullOrBlank() &&
+            engineFamily.isNullOrBlank() &&
             modelFamily.isNullOrBlank() &&
-            !supportsImportedWords &&
+            modelVersion.isNullOrBlank() &&
+            packageFormatVersion == null &&
+            entryFiles.isEmpty() &&
+            payloadChecksums.isEmpty() &&
             estimatedStorageBytes == null &&
             estimatedRamMb == null &&
-            licenses.isEmpty()
+            speakerProfile == null &&
+            licenses.isEmpty() &&
+            !supportsImportedWords
+
+    fun licenseLabels(): List<String> =
+        licenses.mapNotNull(NativeVoicePackLicense::label)
+
+    fun referencedLicenseFiles(): List<String> =
+        licenses.mapNotNull(NativeVoicePackLicense::file)
 
     companion object {
         fun fromCatalogItem(item: JSONObject): NativeVoicePackManifest =
-            fromJsonObject(item.optJSONObject("native") ?: item.optJSONObject("runtime") ?: JSONObject())
+            fromJsonObject(item)
 
         fun fromInstalledManifest(item: JSONObject): NativeVoicePackManifest =
-            fromJsonObject(item.optJSONObject("native") ?: item)
+            fromJsonObject(item)
 
-        private fun fromJsonObject(item: JSONObject): NativeVoicePackManifest =
-            NativeVoicePackManifest(
-                engineFamily = item.optTrimmedString("engineFamily"),
-                modelFamily = item.optTrimmedString("modelFamily"),
-                supportsImportedWords = item.optBoolean("supportsImportedWords", false),
-                estimatedStorageBytes = item.optNullableLong("estimatedStorageBytes"),
-                estimatedRamMb = item.optNullableInt("estimatedRamMb"),
-                licenses = item.optLicenseList("licenses"),
+        private fun fromJsonObject(root: JSONObject): NativeVoicePackManifest {
+            val nativeBlock = root.optJSONObject("native") ?: root.optJSONObject("runtime")
+            return NativeVoicePackManifest(
+                id = root.optTrimmedString("id") ?: nativeBlock?.optTrimmedString("id"),
+                name = root.optTrimmedString("name") ?: nativeBlock?.optTrimmedString("name"),
+                accent = root.optTrimmedString("accent") ?: nativeBlock?.optTrimmedString("accent"),
+                locale = root.optTrimmedString("locale") ?: nativeBlock?.optTrimmedString("locale"),
+                engineType = nativeBlock?.optTrimmedString("engineType") ?: root.optTrimmedString("engineType"),
+                engineFamily = nativeBlock?.optTrimmedString("engineFamily")
+                    ?: nativeBlock?.optTrimmedString("engineType")
+                    ?: root.optTrimmedString("engineFamily")
+                    ?: root.optTrimmedString("engineType"),
+                modelFamily = nativeBlock?.optTrimmedString("modelFamily") ?: root.optTrimmedString("modelFamily"),
+                modelVersion = nativeBlock?.optTrimmedString("modelVersion")
+                    ?: root.optTrimmedString("modelVersion")
+                    ?: root.optTrimmedString("version"),
+                packageFormatVersion = nativeBlock?.optNullableInt("packageFormatVersion")
+                    ?: root.optNullableInt("packageFormatVersion"),
+                entryFiles = nativeBlock.optStringList("entryFiles").ifEmpty {
+                    root.optStringList("entryFiles")
+                },
+                payloadChecksums = nativeBlock.optStringMap("payloadChecksums").ifEmpty {
+                    root.optStringMap("payloadChecksums")
+                },
+                estimatedStorageBytes = nativeBlock?.optNullableLong("estimatedStorageBytes")
+                    ?: root.optNullableLong("estimatedStorageBytes"),
+                estimatedRamMb = nativeBlock?.optNullableInt("estimatedRamMb")
+                    ?: root.optNullableInt("estimatedRamMb"),
+                speakerProfile = nativeBlock.optSpeakerProfile("speakerProfile")
+                    ?: root.optSpeakerProfile("speakerProfile"),
+                licenses = nativeBlock.optLicenseList("licenses").ifEmpty {
+                    root.optLicenseList("licenses")
+                },
+                supportsImportedWords = nativeBlock?.optBoolean(
+                    "supportsImportedWords",
+                    root.optBoolean("supportsImportedWords", false),
+                ) ?: root.optBoolean("supportsImportedWords", false),
             )
+        }
     }
 }
 
-private fun JSONObject.optTrimmedString(key: String): String? =
-    optString(key).trim().takeIf(String::isNotEmpty)
+data class NativeVoicePackLicense(
+    val spdx: String? = null,
+    val id: String? = null,
+    val name: String? = null,
+    val file: String? = null,
+) {
+    fun label(): String? =
+        listOf(spdx, id, name)
+            .firstOrNull { !it.isNullOrBlank() }
+            ?.trim()
+}
+
+private fun JSONObject?.optTrimmedString(key: String): String? =
+    this?.optString(key).orEmpty().trim().takeIf(String::isNotEmpty)
 
 private fun JSONObject.optNullableLong(key: String): Long? =
     if (has(key) && !isNull(key)) {
@@ -54,18 +122,57 @@ private fun JSONObject.optNullableInt(key: String): Int? =
         null
     }
 
-private fun JSONObject.optLicenseList(key: String): List<String> {
-    val licenses = optJSONArray(key) ?: return emptyList()
+private fun JSONObject?.optStringList(key: String): List<String> {
+    val items = this?.optJSONArray(key) ?: return emptyList()
+    return buildList {
+        repeat(items.length()) { index ->
+            items.optString(index)
+                .trim()
+                .takeIf(String::isNotEmpty)
+                ?.let(::add)
+        }
+    }
+}
+
+private fun JSONObject?.optStringMap(key: String): Map<String, String> {
+    val values = this?.optJSONObject(key) ?: return emptyMap()
+    return buildMap {
+        values.keys().forEach { entryKey ->
+            values.optString(entryKey)
+                .trim()
+                .takeIf(String::isNotEmpty)
+                ?.let { put(entryKey.trim(), it) }
+        }
+    }.filterKeys(String::isNotBlank)
+}
+
+private fun JSONObject?.optSpeakerProfile(key: String): String? {
+    val container = this ?: return null
+    container.optString(key)
+        .trim()
+        .takeIf(String::isNotEmpty)
+        ?.let { return it }
+    val profile = container.optJSONObject(key) ?: return null
+    return listOf("displayName", "name", "id", "accent")
+        .firstNotNullOfOrNull(profile::optTrimmedString)
+}
+
+private fun JSONObject?.optLicenseList(key: String): List<NativeVoicePackLicense> {
+    val licenses = this?.optJSONArray(key) ?: return emptyList()
     return buildList {
         repeat(licenses.length()) { index ->
-            val value = licenses.opt(index)
-            when (value) {
-                is String -> value.trim().takeIf(String::isNotEmpty)?.let(::add)
-                is JSONObject -> {
-                    listOf("spdx", "id", "name", "file")
-                        .firstNotNullOfOrNull(value::optTrimmedString)
-                        ?.let(::add)
-                }
+            when (val value = licenses.opt(index)) {
+                is String -> value.trim()
+                    .takeIf(String::isNotEmpty)
+                    ?.let { add(NativeVoicePackLicense(name = it)) }
+                is JSONObject -> add(
+                    NativeVoicePackLicense(
+                        spdx = value.optTrimmedString("spdx"),
+                        id = value.optTrimmedString("id"),
+                        name = value.optTrimmedString("name"),
+                        file = value.optTrimmedString("file"),
+                    ),
+                )
             }
         }
     }

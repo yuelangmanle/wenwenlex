@@ -1,50 +1,60 @@
 package com.yueliangmanle.danci.core.worker
 
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
+import com.sun.net.httpserver.HttpServer
 import com.yueliangmanle.danci.core.data.TestVoicePackFactory
+import com.yueliangmanle.danci.core.model.VoicePack
 import com.yueliangmanle.danci.core.model.VoicePackStatus
+import java.io.File
+import java.net.InetSocketAddress
 import java.nio.file.Files
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
+import kotlin.test.assertFailsWith
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class VoicePackInstallerTest {
     @Test
     fun validateInstalledVoicePackRejectsNativeManifestWithoutLicenses() {
         val installDir = Files.createTempDirectory("voice-pack-native-test").toFile()
         try {
+            val modelChecksum = sha256ForTest("fake".toByteArray())
             installDir.resolve("manifest.json").writeText(
                 """
                     {
                       "id": "en-us-offline-word-v1",
-                      "engineFamily": "native_neural_tts",
+                      "name": "美式离线发音包",
+                      "accent": "us",
+                      "locale": "en-US",
+                      "engineType": "native_neural_tts",
                       "modelFamily": "kokoro",
-                      "supportsImportedWords": true,
+                      "modelVersion": "1.4.0",
+                      "packageFormatVersion": 2,
+                      "entryFiles": ["model.onnx"],
+                      "payloadChecksums": {
+                        "model.onnx": "$modelChecksum"
+                      },
                       "estimatedStorageBytes": 123,
                       "estimatedRamMb": 456,
-                      "entryFiles": ["model.onnx"],
+                      "speakerProfile": "offline_word",
                       "licenses": []
                     }
                 """.trimIndent(),
             )
             installDir.resolve("model.onnx").writeText("fake")
 
-            var error: IllegalStateException? = null
-            try {
-                validateInstalledVoicePack(
-                    voicePack = TestVoicePackFactory.voicePack(
-                        id = "en-us-offline-word-v1",
-                        engineType = "sherpa_onnx",
-                        installDir = installDir.absolutePath,
-                        status = VoicePackStatus.READY.storageValue,
-                    ),
-                    installDir = installDir,
-                )
-                fail("Expected native pack validation to fail when licenses are missing.")
-            } catch (expected: IllegalStateException) {
-                error = expected
-            }
-
-            assertTrue(error?.message.orEmpty().contains("licenses"))
+            assertValidationFailure(
+                installDir = installDir,
+                expectedMessage = "licenses",
+            )
         } finally {
             installDir.deleteRecursively()
         }
@@ -58,33 +68,29 @@ class VoicePackInstallerTest {
                 """
                     {
                       "id": "en-us-offline-word-v1",
-                      "engineFamily": "native_neural_tts",
+                      "name": "美式离线发音包",
+                      "accent": "us",
+                      "locale": "en-US",
+                      "engineType": "native_neural_tts",
                       "modelFamily": "kokoro",
-                      "supportsImportedWords": true,
+                      "modelVersion": "1.4.0",
+                      "packageFormatVersion": 2,
                       "estimatedStorageBytes": 123,
                       "estimatedRamMb": 456,
-                      "licenses": ["Apache-2.0"]
+                      "speakerProfile": "offline_word",
+                      "licenses": [
+                        {
+                          "spdx": "Apache-2.0"
+                        }
+                      ]
                     }
                 """.trimIndent(),
             )
 
-            var error: IllegalStateException? = null
-            try {
-                validateInstalledVoicePack(
-                    voicePack = TestVoicePackFactory.voicePack(
-                        id = "en-us-offline-word-v1",
-                        engineType = "sherpa_onnx",
-                        installDir = installDir.absolutePath,
-                        status = VoicePackStatus.READY.storageValue,
-                    ),
-                    installDir = installDir,
-                )
-                fail("Expected native pack validation to fail when entryFiles are missing.")
-            } catch (expected: IllegalStateException) {
-                error = expected
-            }
-
-            assertTrue(error?.message.orEmpty().contains("entryFiles"))
+            assertValidationFailure(
+                installDir = installDir,
+                expectedMessage = "entryFiles",
+            )
         } finally {
             installDir.deleteRecursively()
         }
@@ -94,46 +100,44 @@ class VoicePackInstallerTest {
     fun validateInstalledVoicePackRejectsMissingReferencedLicenseFile() {
         val installDir = Files.createTempDirectory("voice-pack-native-test").toFile()
         try {
+            val modelChecksum = sha256ForTest("fake-model".toByteArray())
+            val tokensChecksum = sha256ForTest("fake-tokens".toByteArray())
             installDir.resolve("manifest.json").writeText(
                 """
                     {
                       "id": "en-us-offline-word-v1",
+                      "name": "美式离线发音包",
+                      "accent": "us",
+                      "locale": "en-US",
+                      "engineType": "native_neural_tts",
+                      "modelFamily": "kokoro",
+                      "modelVersion": "1.4.0",
+                      "packageFormatVersion": 2,
                       "entryFiles": ["model/model.onnx", "model/tokens.txt"],
-                      "native": {
-                        "engineFamily": "native_neural_tts",
-                        "modelFamily": "sherpa_onnx_scaffold",
-                        "supportsImportedWords": true,
-                        "licenses": [
-                          {
-                            "name": "Distribution scaffold notice",
-                            "file": "licenses/DISTRIBUTION-NOTICE.txt"
-                          }
-                        ]
-                      }
+                      "payloadChecksums": {
+                        "model/model.onnx": "$modelChecksum",
+                        "model/tokens.txt": "$tokensChecksum"
+                      },
+                      "estimatedStorageBytes": 123,
+                      "estimatedRamMb": 456,
+                      "speakerProfile": "offline_word",
+                      "licenses": [
+                        {
+                          "name": "Distribution scaffold notice",
+                          "file": "licenses/DISTRIBUTION-NOTICE.txt"
+                        }
+                      ]
                     }
                 """.trimIndent(),
             )
             installDir.resolve("model").mkdirs()
-            installDir.resolve("model/model.onnx").writeText("fake")
-            installDir.resolve("model/tokens.txt").writeText("fake")
+            installDir.resolve("model/model.onnx").writeText("fake-model")
+            installDir.resolve("model/tokens.txt").writeText("fake-tokens")
 
-            var error: IllegalStateException? = null
-            try {
-                validateInstalledVoicePack(
-                    voicePack = TestVoicePackFactory.voicePack(
-                        id = "en-us-offline-word-v1",
-                        engineType = "sherpa_onnx",
-                        installDir = installDir.absolutePath,
-                        status = VoicePackStatus.READY.storageValue,
-                    ),
-                    installDir = installDir,
-                )
-                fail("Expected native pack validation to fail when referenced license file is missing.")
-            } catch (expected: IllegalStateException) {
-                error = expected
-            }
-
-            assertTrue(error?.message.orEmpty().contains("licenses/DISTRIBUTION-NOTICE.txt"))
+            assertValidationFailure(
+                installDir = installDir,
+                expectedMessage = "licenses/DISTRIBUTION-NOTICE.txt",
+            )
         } finally {
             installDir.deleteRecursively()
         }
@@ -143,14 +147,74 @@ class VoicePackInstallerTest {
     fun validateInstalledVoicePackAcceptsPackagedNativeReleaseStructure() {
         val installDir = Files.createTempDirectory("voice-pack-native-test").toFile()
         try {
+            val modelChecksum = sha256ForTest("fake-model".toByteArray())
+            val tokensChecksum = sha256ForTest("fake-tokens".toByteArray())
+            installDir.resolve("manifest.json").writeText(
+                """
+                    {
+                      "id": "en-gb-offline-word-v1",
+                      "name": "英式离线发音包",
+                      "accent": "uk",
+                      "locale": "en-GB",
+                      "engineType": "native_neural_tts",
+                      "modelFamily": "kokoro",
+                      "modelVersion": "1.4.0",
+                      "packageFormatVersion": 2,
+                      "entryFiles": ["model/model.onnx", "model/tokens.txt"],
+                      "payloadChecksums": {
+                        "model/model.onnx": "$modelChecksum",
+                        "model/tokens.txt": "$tokensChecksum"
+                      },
+                      "estimatedStorageBytes": 123,
+                      "estimatedRamMb": 456,
+                      "speakerProfile": "offline_word",
+                      "licenses": [
+                        {
+                          "name": "Distribution scaffold notice",
+                          "file": "licenses/DISTRIBUTION-NOTICE.txt"
+                        }
+                      ]
+                    }
+                """.trimIndent(),
+            )
+            installDir.resolve("model").mkdirs()
+            installDir.resolve("licenses").mkdirs()
+            installDir.resolve("model/model.onnx").writeText("fake-model")
+            installDir.resolve("model/tokens.txt").writeText("fake-tokens")
+            installDir.resolve("licenses/DISTRIBUTION-NOTICE.txt").writeText("fake-license")
+
+            validateInstalledVoicePack(
+                voicePack = testVoicePack(installDir),
+                installDir = installDir,
+            )
+        } finally {
+            installDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun validateInstalledVoicePackAcceptsLegacyNestedNativeManifestWithPayloadChecksums() {
+        val installDir = Files.createTempDirectory("voice-pack-native-test").toFile()
+        try {
+            val modelChecksum = sha256ForTest("fake-model".toByteArray())
+            val tokensChecksum = sha256ForTest("fake-tokens".toByteArray())
             installDir.resolve("manifest.json").writeText(
                 """
                     {
                       "id": "en-gb-offline-word-v1",
                       "entryFiles": ["model/model.onnx", "model/tokens.txt"],
+                      "payloadChecksums": {
+                        "model/model.onnx": "$modelChecksum",
+                        "model/tokens.txt": "$tokensChecksum"
+                      },
                       "native": {
                         "engineFamily": "native_neural_tts",
-                        "modelFamily": "sherpa_onnx_scaffold",
+                        "modelFamily": "kokoro",
+                        "modelVersion": "1.4.0",
+                        "packageFormatVersion": 2,
+                        "estimatedStorageBytes": 123,
+                        "estimatedRamMb": 456,
+                        "speakerProfile": "offline_word",
                         "supportsImportedWords": true,
                         "licenses": [
                           {
@@ -164,17 +228,12 @@ class VoicePackInstallerTest {
             )
             installDir.resolve("model").mkdirs()
             installDir.resolve("licenses").mkdirs()
-            installDir.resolve("model/model.onnx").writeText("fake")
-            installDir.resolve("model/tokens.txt").writeText("fake")
-            installDir.resolve("licenses/DISTRIBUTION-NOTICE.txt").writeText("fake")
+            installDir.resolve("model/model.onnx").writeText("fake-model")
+            installDir.resolve("model/tokens.txt").writeText("fake-tokens")
+            installDir.resolve("licenses/DISTRIBUTION-NOTICE.txt").writeText("fake-license")
 
             validateInstalledVoicePack(
-                voicePack = TestVoicePackFactory.voicePack(
-                    id = "en-gb-offline-word-v1",
-                    engineType = "sherpa_onnx",
-                    installDir = installDir.absolutePath,
-                    status = VoicePackStatus.READY.storageValue,
-                ),
+                voicePack = testVoicePack(installDir),
                 installDir = installDir,
             )
         } finally {
@@ -183,37 +242,283 @@ class VoicePackInstallerTest {
     }
 
     @Test
-    fun validateInstalledVoicePackAcceptsNativeManifestWithEntryFilesAndLicenses() {
-        val installDir = Files.createTempDirectory("voice-pack-native-test").toFile()
-        try {
-            installDir.resolve("manifest.json").writeText(
-                """
+    fun install_failsWhenPayloadChecksumDoesNotMatchManifest() = runTest {
+        val appContext = ApplicationProvider.getApplicationContext<Context>()
+        val cacheDir = Files.createTempDirectory("voice-pack-cache").toFile()
+        val installRootDir = Files.createTempDirectory("voice-pack-install-root").toFile()
+        val archiveName = "wenwenlex-voice-pack-en-us-offline-word-v1.zip"
+        val archiveFile = File(cacheDir, archiveName)
+        val expectedPayloadChecksum = sha256ForTest("expected-model".toByteArray())
+        archiveFile.writeZip(
+            "manifest.json" to """
+                {
+                  "id": "en-us-offline-word-v1",
+                  "name": "美式离线发音包",
+                  "accent": "us",
+                  "locale": "en-US",
+                  "engineType": "native_neural_tts",
+                  "modelFamily": "kokoro",
+                  "modelVersion": "1.4.0",
+                  "packageFormatVersion": 2,
+                  "entryFiles": ["model/model.onnx"],
+                  "payloadChecksums": {
+                    "model/model.onnx": "$expectedPayloadChecksum"
+                  },
+                  "estimatedStorageBytes": 123,
+                  "estimatedRamMb": 456,
+                  "speakerProfile": "offline_word",
+                  "licenses": [
                     {
-                      "id": "en-gb-offline-word-v1",
-                      "engineFamily": "native_neural_tts",
-                      "modelFamily": "kokoro",
-                      "supportsImportedWords": true,
-                      "estimatedStorageBytes": 123,
-                      "estimatedRamMb": 456,
-                      "entryFiles": ["model.onnx", "tokens.txt"],
-                      "licenses": ["Apache-2.0"]
+                      "name": "Distribution scaffold notice",
+                      "file": "licenses/DISTRIBUTION-NOTICE.txt"
                     }
-                """.trimIndent(),
-            )
-            installDir.resolve("model.onnx").writeText("fake")
-            installDir.resolve("tokens.txt").writeText("fake")
+                  ]
+                }
+            """.trimIndent().toByteArray(),
+            "model/model.onnx" to "actual-model".toByteArray(),
+            "licenses/DISTRIBUTION-NOTICE.txt" to "license".toByteArray(),
+        )
+        val archiveChecksum = sha256ForTest(archiveFile.readBytes())
+        val server = HttpServer.create(InetSocketAddress(0), 0)
+        server.createContext("/$archiveName") { exchange ->
+            exchange.sendResponseHeaders(200, archiveFile.length())
+            archiveFile.inputStream().use { input ->
+                exchange.responseBody.use { output -> input.copyTo(output) }
+            }
+        }
+        server.createContext("/voice-pack-checksums.txt") { exchange ->
+            val body = "$archiveChecksum  $archiveName\n".toByteArray()
+            exchange.sendResponseHeaders(200, body.size.toLong())
+            exchange.responseBody.use { output -> output.write(body) }
+        }
+        server.start()
 
-            validateInstalledVoicePack(
-                voicePack = TestVoicePackFactory.voicePack(
-                    id = "en-gb-offline-word-v1",
-                    engineType = "sherpa_onnx",
-                    installDir = installDir.absolutePath,
-                    status = VoicePackStatus.READY.storageValue,
-                ),
-                installDir = installDir,
+        try {
+            val installer = VoicePackInstaller(
+                assetManager = appContext.assets,
+                cacheDir = cacheDir,
+                installRootDir = installRootDir,
             )
+            val baseUrl = "http://127.0.0.1:${server.address.port}"
+            val pack = VoicePack(
+                id = "en-us-offline-word-v1",
+                name = "美式离线发音包",
+                locale = "en-US",
+                accent = "us",
+                engineType = "sherpa_onnx",
+                version = "1.4.0",
+                downloadUrl = "$baseUrl/$archiveName",
+                checksumsUrl = "$baseUrl/voice-pack-checksums.txt",
+            )
+
+            val error = assertFailsWith<IllegalStateException> {
+                installer.install(voicePack = pack, onStatusChange = {})
+            }
+            assertTrue(error.message!!.contains("payload checksum"))
         } finally {
-            installDir.deleteRecursively()
+            server.stop(0)
+            cacheDir.deleteRecursively()
+            installRootDir.deleteRecursively()
         }
     }
+
+    @Test
+    fun install_usesDownloadUrlArchiveNameWhenMatchingReleaseChecksumsIndex() = runTest {
+        val appContext = ApplicationProvider.getApplicationContext<Context>()
+        val cacheDir = Files.createTempDirectory("voice-pack-cache").toFile()
+        val installRootDir = Files.createTempDirectory("voice-pack-install-root").toFile()
+        val archiveName = "wenwenlex-voice-pack-en-us-offline-word-v1.zip"
+        val archiveFile = File(cacheDir, archiveName)
+        archiveFile.writeZip(
+            "manifest.json" to validNativeManifest("en-us-offline-word-v1", "us", "en-US").toByteArray(),
+            "model/model.onnx" to "fake-model".toByteArray(),
+            "model/tokens.txt" to "fake-tokens".toByteArray(),
+            "licenses/DISTRIBUTION-NOTICE.txt" to "fake-license".toByteArray(),
+        )
+        val archiveChecksum = sha256ForTest(archiveFile.readBytes())
+        val server = HttpServer.create(InetSocketAddress(0), 0)
+        server.createContext("/downloads/$archiveName") { exchange ->
+            exchange.sendResponseHeaders(200, archiveFile.length())
+            archiveFile.inputStream().use { input ->
+                exchange.responseBody.use { output -> input.copyTo(output) }
+            }
+        }
+        server.createContext("/downloads/voice-pack-checksums.txt") { exchange ->
+            val body = """
+                $archiveChecksum  $archiveName
+                deadbeef  en-us-offline-word-v1.zip
+            """.trimIndent().toByteArray()
+            exchange.sendResponseHeaders(200, body.size.toLong())
+            exchange.responseBody.use { output -> output.write(body) }
+        }
+        server.start()
+
+        try {
+            val installer = VoicePackInstaller(
+                assetManager = appContext.assets,
+                cacheDir = cacheDir,
+                installRootDir = installRootDir,
+            )
+            val baseUrl = "http://127.0.0.1:${server.address.port}/downloads"
+            val statuses = mutableListOf<String>()
+
+            installer.install(
+                voicePack = TestVoicePackFactory.voicePack(
+                    id = "en-us-offline-word-v1",
+                    name = "美式离线发音包",
+                    locale = "en-US",
+                    accent = "us",
+                    engineType = "sherpa_onnx",
+                    version = "1.4.0",
+                    downloadUrl = "$baseUrl/$archiveName",
+                    checksumsUrl = "$baseUrl/voice-pack-checksums.txt",
+                    archiveChecksum = "ffffffff",
+                ),
+                onStatusChange = statuses::add,
+            )
+
+            assertEquals(
+                listOf(
+                    VoicePackStatus.DOWNLOADING.storageValue,
+                    VoicePackStatus.VERIFYING.storageValue,
+                    VoicePackStatus.INSTALLING.storageValue,
+                ),
+                statuses.distinct(),
+            )
+        } finally {
+            server.stop(0)
+            cacheDir.deleteRecursively()
+            installRootDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun install_fallsBackToLegacyArchiveChecksumWhenChecksumsUrlMissing() = runTest {
+        val appContext = ApplicationProvider.getApplicationContext<Context>()
+        val cacheDir = Files.createTempDirectory("voice-pack-cache").toFile()
+        val installRootDir = Files.createTempDirectory("voice-pack-install-root").toFile()
+        val archiveName = "wenwenlex-voice-pack-en-gb-offline-word-v1.zip"
+        val archiveFile = File(cacheDir, archiveName)
+        archiveFile.writeZip(
+            "manifest.json" to validNativeManifest("en-gb-offline-word-v1", "uk", "en-GB").toByteArray(),
+            "model/model.onnx" to "fake-model".toByteArray(),
+            "model/tokens.txt" to "fake-tokens".toByteArray(),
+            "licenses/DISTRIBUTION-NOTICE.txt" to "fake-license".toByteArray(),
+        )
+        val archiveChecksum = sha256ForTest(archiveFile.readBytes())
+        val server = HttpServer.create(InetSocketAddress(0), 0)
+        server.createContext("/$archiveName") { exchange ->
+            exchange.sendResponseHeaders(200, archiveFile.length())
+            archiveFile.inputStream().use { input ->
+                exchange.responseBody.use { output -> input.copyTo(output) }
+            }
+        }
+        server.start()
+
+        try {
+            val installer = VoicePackInstaller(
+                assetManager = appContext.assets,
+                cacheDir = cacheDir,
+                installRootDir = installRootDir,
+            )
+            val baseUrl = "http://127.0.0.1:${server.address.port}"
+
+            installer.install(
+                voicePack = TestVoicePackFactory.voicePack(
+                    id = "en-gb-offline-word-v1",
+                    name = "英式离线发音包",
+                    locale = "en-GB",
+                    accent = "uk",
+                    engineType = "sherpa_onnx",
+                    version = "1.4.0",
+                    downloadUrl = "$baseUrl/$archiveName",
+                    checksumsUrl = null,
+                    archiveChecksum = archiveChecksum,
+                ),
+                onStatusChange = {},
+            )
+        } finally {
+            server.stop(0)
+            cacheDir.deleteRecursively()
+            installRootDir.deleteRecursively()
+        }
+    }
+
+    private fun assertValidationFailure(
+        installDir: File,
+        expectedMessage: String,
+    ) {
+        var error: IllegalStateException? = null
+        try {
+            validateInstalledVoicePack(
+                voicePack = testVoicePack(installDir),
+                installDir = installDir,
+            )
+            fail("Expected native pack validation to fail.")
+        } catch (expected: IllegalStateException) {
+            error = expected
+        }
+
+        assertTrue(error?.message.orEmpty().contains(expectedMessage))
+    }
+
+    private fun testVoicePack(installDir: File) =
+        TestVoicePackFactory.voicePack(
+            id = "en-us-offline-word-v1",
+            engineType = "sherpa_onnx",
+            installDir = installDir.absolutePath,
+            status = VoicePackStatus.READY.storageValue,
+        )
+}
+
+private fun File.writeZip(vararg entries: Pair<String, ByteArray>) {
+    outputStream().buffered().use { fileOutput ->
+        ZipOutputStream(fileOutput).use { zipOutput ->
+            entries.forEach { (path, bytes) ->
+                zipOutput.putNextEntry(ZipEntry(path))
+                zipOutput.write(bytes)
+                zipOutput.closeEntry()
+            }
+        }
+    }
+}
+
+private fun sha256ForTest(bytes: ByteArray): String =
+    java.security.MessageDigest.getInstance("SHA-256")
+        .digest(bytes)
+        .joinToString("") { "%02x".format(it) }
+
+private fun validNativeManifest(
+    id: String,
+    accent: String,
+    locale: String,
+): String {
+    val modelChecksum = sha256ForTest("fake-model".toByteArray())
+    val tokensChecksum = sha256ForTest("fake-tokens".toByteArray())
+    return """
+        {
+          "id": "$id",
+          "name": "$id",
+          "accent": "$accent",
+          "locale": "$locale",
+          "engineType": "native_neural_tts",
+          "modelFamily": "kokoro",
+          "modelVersion": "1.4.0",
+          "packageFormatVersion": 2,
+          "entryFiles": ["model/model.onnx", "model/tokens.txt"],
+          "payloadChecksums": {
+            "model/model.onnx": "$modelChecksum",
+            "model/tokens.txt": "$tokensChecksum"
+          },
+          "estimatedStorageBytes": 123,
+          "estimatedRamMb": 456,
+          "speakerProfile": "offline_word",
+          "licenses": [
+            {
+              "name": "Distribution scaffold notice",
+              "file": "licenses/DISTRIBUTION-NOTICE.txt"
+            }
+          ]
+        }
+    """.trimIndent()
 }

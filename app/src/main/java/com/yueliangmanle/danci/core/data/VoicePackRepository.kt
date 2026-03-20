@@ -5,11 +5,12 @@ import androidx.room.withTransaction
 import com.yueliangmanle.danci.core.database.buildDanciDatabase
 import com.yueliangmanle.danci.core.database.dao.VoicePackDao
 import com.yueliangmanle.danci.core.database.entity.VoicePackEntity
+import com.yueliangmanle.danci.core.model.PronunciationAccent
 import com.yueliangmanle.danci.core.model.VoicePack
 import com.yueliangmanle.danci.core.model.VoicePackEngineType
-import com.yueliangmanle.danci.core.model.PronunciationAccent
 import com.yueliangmanle.danci.core.model.VoicePackStatus
 import com.yueliangmanle.danci.core.pronunciation.LicenseManifestVerifier
+import com.yueliangmanle.danci.core.pronunciation.NativeVoicePackLicense
 import com.yueliangmanle.danci.core.pronunciation.NativeVoicePackManifest
 import java.io.File
 import java.time.Instant
@@ -35,6 +36,7 @@ interface VoicePackRepository {
                 pack.isActive && PronunciationAccent.fromStorageValue(pack.accent) == accent
             }
         }
+
     suspend fun activateVoicePack(id: String)
     suspend fun upsertVoicePack(voicePack: VoicePack)
     suspend fun removeVoicePack(id: String)
@@ -46,11 +48,13 @@ interface VoicePackRepository {
         installDir: String? = null,
         installedSizeBytes: Long? = null,
     )
+
     suspend fun markInstalled(
         id: String,
         installDir: String,
         installedSizeBytes: Long,
     )
+
     fun voicePackRootDir(): File
 }
 
@@ -65,19 +69,17 @@ class RoomVoicePackRepository(
     override suspend fun getVoicePack(id: String): VoicePack? =
         dao.getVoicePackById(id)
             ?.asExternalModel()
-            ?.let { hydrateRuntimeMetadata(it) }
+            ?.let(::hydrateRuntimeMetadata)
 
     override suspend fun getActiveVoicePack(): VoicePack? =
-        resolveSingleActiveVoicePack(
-            dao.getAllVoicePacks(),
-        )
+        resolveSingleActiveVoicePack(dao.getAllVoicePacks())
 
     override suspend fun getActiveVoicePack(accent: PronunciationAccent): VoicePack? =
         when (accent) {
             PronunciationAccent.AUTO -> getActiveVoicePack()
             else -> dao.getActiveVoicePackForAccent(accent.storageValue)
                 ?.asExternalModel()
-                ?.let { hydrateRuntimeMetadata(it) }
+                ?.let(::hydrateRuntimeMetadata)
         }
 
     override suspend fun activateVoicePack(id: String) {
@@ -107,8 +109,7 @@ class RoomVoicePackRepository(
 
     override suspend fun syncManifest(jsonText: String): Int {
         val now = Instant.now()
-        val existingVoicePacks = dao.getAllVoicePacks()
-            .map(VoicePackEntity::asExternalModel)
+        val existingVoicePacks = dao.getAllVoicePacks().map(VoicePackEntity::asExternalModel)
         val existingById = existingVoicePacks.associateBy(VoicePack::id)
         val currentActiveIdsByAccent = existingVoicePacks
             .asSequence()
@@ -127,7 +128,9 @@ class RoomVoicePackRepository(
     }
 
     override suspend fun refreshCatalog(): Int {
-        val jsonText = appContext.assets.open(VOICE_PACK_MANIFEST_ASSET_PATH).bufferedReader().use { it.readText() }
+        val jsonText = appContext.assets.open(VOICE_PACK_MANIFEST_ASSET_PATH)
+            .bufferedReader()
+            .use { it.readText() }
         return syncManifest(jsonText)
     }
 
@@ -170,24 +173,28 @@ class RoomVoicePackRepository(
         if (voicePacks.isEmpty()) {
             return emptyList()
         }
-        val catalogMetadataById = loadBundledCatalogRuntimeMetadata()
+        val catalogVoicePacksById = loadBundledCatalogVoicePacks()
         return voicePacks.map { voicePack ->
+            val catalogVoicePack = catalogVoicePacksById[voicePack.id]
             voicePack.hydrateRuntimeMetadata(
-                catalogManifest = catalogMetadataById[voicePack.id],
+                catalogVoicePack = catalogVoicePack,
+                catalogManifest = catalogVoicePack?.toNativeVoicePackManifest(),
                 installedManifest = loadInstalledRuntimeMetadata(voicePack),
             )
         }
     }
 
     private fun hydrateRuntimeMetadata(voicePack: VoicePack): VoicePack {
-        val catalogMetadataById = loadBundledCatalogRuntimeMetadata()
+        val catalogVoicePacksById = loadBundledCatalogVoicePacks()
+        val catalogVoicePack = catalogVoicePacksById[voicePack.id]
         return voicePack.hydrateRuntimeMetadata(
-            catalogManifest = catalogMetadataById[voicePack.id],
+            catalogVoicePack = catalogVoicePack,
+            catalogManifest = catalogVoicePack?.toNativeVoicePackManifest(),
             installedManifest = loadInstalledRuntimeMetadata(voicePack),
         )
     }
 
-    private fun loadBundledCatalogRuntimeMetadata(): Map<String, NativeVoicePackManifest> =
+    private fun loadBundledCatalogVoicePacks(): Map<String, VoicePack> =
         runCatching {
             val jsonText = appContext.assets.open(VOICE_PACK_MANIFEST_ASSET_PATH)
                 .bufferedReader()
@@ -197,13 +204,7 @@ class RoomVoicePackRepository(
                 existingById = emptyMap(),
                 currentActiveIdsByAccent = emptyMap(),
                 now = Instant.EPOCH,
-            )
-                .mapNotNull { voicePack ->
-                    voicePack.toNativeVoicePackManifest()
-                        ?.takeUnless(NativeVoicePackManifest::isEmpty)
-                        ?.let { manifest -> voicePack.id to manifest }
-                }
-                .toMap()
+            ).associateBy(VoicePack::id)
         }.getOrDefault(emptyMap())
 
     private fun loadInstalledRuntimeMetadata(voicePack: VoicePack): NativeVoicePackManifest? {
@@ -226,7 +227,7 @@ class RoomVoicePackRepository(
             .filter { it.isActive }
             .singleOrNull()
             ?.asExternalModel()
-            ?.let { hydrateRuntimeMetadata(it) }
+            ?.let(::hydrateRuntimeMetadata)
 }
 
 internal fun parseVoicePackManifest(
@@ -245,7 +246,7 @@ internal fun parseVoicePackManifest(
             return@repeat
         }
         val existing = existingById[id]
-        val accent = item.optString("accent").ifBlank { existing?.accent ?: "auto" }
+        val accent = item.optString("accent").ifBlank { existing?.accent ?: PronunciationAccent.AUTO.storageValue }
         val nativeManifest = NativeVoicePackManifest.fromCatalogItem(item)
         voicePacks += VoicePack(
             id = id,
@@ -256,6 +257,7 @@ internal fun parseVoicePackManifest(
             version = item.optString("version").ifBlank { "1" },
             downloadUrl = item.optString("downloadUrl").takeIf(String::isNotBlank) ?: existing?.downloadUrl,
             manifestUrl = item.optString("manifestUrl").takeIf(String::isNotBlank) ?: existing?.manifestUrl,
+            checksumsUrl = item.optString("checksumsUrl").takeIf(String::isNotBlank) ?: existing?.checksumsUrl,
             installDir = existing?.installDir,
             archiveChecksum = item.optString("archiveChecksum").takeIf(String::isNotBlank) ?: existing?.archiveChecksum,
             installedSizeBytes = existing?.installedSizeBytes ?: 0L,
@@ -266,7 +268,7 @@ internal fun parseVoicePackManifest(
             supportsImportedWords = nativeManifest.supportsImportedWords || (existing?.supportsImportedWords == true),
             estimatedStorageBytes = nativeManifest.estimatedStorageBytes ?: existing?.estimatedStorageBytes,
             estimatedRamMb = nativeManifest.estimatedRamMb ?: existing?.estimatedRamMb,
-            licenses = nativeManifest.licenses.ifEmpty { existing?.licenses.orEmpty() },
+            licenses = nativeManifest.licenseLabels().ifEmpty { existing?.licenses.orEmpty() },
             createdAt = existing?.createdAt ?: now,
             updatedAt = now,
         )
@@ -284,6 +286,7 @@ internal fun VoicePackEntity.asExternalModel(): VoicePack =
         version = version,
         downloadUrl = downloadUrl,
         manifestUrl = manifestUrl,
+        checksumsUrl = null,
         installDir = installDir,
         archiveChecksum = archiveChecksum,
         installedSizeBytes = installedSizeBytes,
@@ -319,6 +322,7 @@ internal fun VoicePack.asEntity(): VoicePackEntity =
     )
 
 private fun VoicePack.hydrateRuntimeMetadata(
+    catalogVoicePack: VoicePack?,
     catalogManifest: NativeVoicePackManifest?,
     installedManifest: NativeVoicePackManifest?,
 ): VoicePack {
@@ -327,35 +331,52 @@ private fun VoicePack.hydrateRuntimeMetadata(
             current.merge(next)
         }
     return copy(
-        engineFamily = merged.engineFamily,
-        modelFamily = merged.modelFamily,
-        supportsImportedWords = merged.supportsImportedWords,
-        estimatedStorageBytes = merged.estimatedStorageBytes,
-        estimatedRamMb = merged.estimatedRamMb,
-        licenses = merged.licenses,
+        checksumsUrl = catalogVoicePack?.checksumsUrl ?: checksumsUrl,
+        engineFamily = merged.engineFamily ?: engineFamily,
+        modelFamily = merged.modelFamily ?: modelFamily,
+        supportsImportedWords = merged.supportsImportedWords || supportsImportedWords,
+        estimatedStorageBytes = merged.estimatedStorageBytes ?: estimatedStorageBytes,
+        estimatedRamMb = merged.estimatedRamMb ?: estimatedRamMb,
+        licenses = merged.licenseLabels().ifEmpty { licenses },
     )
 }
 
 private fun VoicePack.toNativeVoicePackManifest(): NativeVoicePackManifest? {
     val manifest = NativeVoicePackManifest(
+        id = id,
+        name = name,
+        accent = accent,
+        locale = locale,
+        engineType = engineFamily ?: engineType,
         engineFamily = engineFamily,
         modelFamily = modelFamily,
-        supportsImportedWords = supportsImportedWords,
+        modelVersion = version,
         estimatedStorageBytes = estimatedStorageBytes,
         estimatedRamMb = estimatedRamMb,
-        licenses = licenses,
+        licenses = licenses.map { label -> NativeVoicePackLicense(name = label) },
+        supportsImportedWords = supportsImportedWords,
     )
     return manifest.takeUnless(NativeVoicePackManifest::isEmpty)
 }
 
 private fun NativeVoicePackManifest.merge(other: NativeVoicePackManifest): NativeVoicePackManifest =
     NativeVoicePackManifest(
+        id = other.id ?: id,
+        name = other.name ?: name,
+        accent = other.accent ?: accent,
+        locale = other.locale ?: locale,
+        engineType = other.engineType ?: engineType,
         engineFamily = other.engineFamily ?: engineFamily,
         modelFamily = other.modelFamily ?: modelFamily,
-        supportsImportedWords = supportsImportedWords || other.supportsImportedWords,
+        modelVersion = other.modelVersion ?: modelVersion,
+        packageFormatVersion = other.packageFormatVersion ?: packageFormatVersion,
+        entryFiles = other.entryFiles.ifEmpty { entryFiles },
+        payloadChecksums = other.payloadChecksums.ifEmpty { payloadChecksums },
         estimatedStorageBytes = other.estimatedStorageBytes ?: estimatedStorageBytes,
         estimatedRamMb = other.estimatedRamMb ?: estimatedRamMb,
+        speakerProfile = other.speakerProfile ?: speakerProfile,
         licenses = other.licenses.ifEmpty { licenses },
+        supportsImportedWords = supportsImportedWords || other.supportsImportedWords,
     )
 
 fun buildVoicePackRepository(context: Context): VoicePackRepository {

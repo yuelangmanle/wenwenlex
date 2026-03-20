@@ -17,6 +17,20 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class VoicePackRepositoryTest {
     @Test
+    fun refreshCatalogHydratesRuntimeChecksumsUrlForStoredVoicePack() = runTest {
+        withRepository { repository ->
+            repository.refreshCatalog()
+
+            val pack = repository.getVoicePack("en-gb-offline-word-v1")
+
+            assertEquals(
+                "https://github.com/yuelangmanle/wenwenlex/releases/latest/download/wenwenlex-voice-pack-checksums.txt",
+                pack?.checksumsUrl,
+            )
+        }
+    }
+
+    @Test
     fun parseVoicePackManifestPreservesExistingInstallState() {
         val existing = mapOf(
             "en-us-bridge-basic" to TestVoicePackFactory.voicePack(
@@ -105,16 +119,34 @@ class VoicePackRepositoryTest {
                       "version": "1.3.0",
                       "downloadUrl": "https://example.com/packs/en-gb-offline-word-v1.zip",
                       "manifestUrl": "https://example.com/packs/en-gb-offline-word-v1-manifest.json",
+                      "checksumsUrl": "https://example.com/packs/voice-pack-checksums.txt",
                       "archiveChecksum": "abc123",
                       "native": {
-                        "engineFamily": "native_neural_tts",
+                        "engineType": "native_neural_tts",
                         "modelFamily": "kokoro",
+                        "modelVersion": "1.4.0",
+                        "packageFormatVersion": 2,
                         "supportsImportedWords": true,
+                        "entryFiles": [
+                          "model/model.onnx",
+                          "model/tokens.txt"
+                        ],
+                        "payloadChecksums": {
+                          "model/model.onnx": "aaa",
+                          "model/tokens.txt": "bbb"
+                        },
                         "estimatedStorageBytes": 612345678,
                         "estimatedRamMb": 768,
+                        "speakerProfile": "offline_word",
                         "licenses": [
-                          "Apache-2.0",
-                          "MIT"
+                          {
+                            "spdx": "Apache-2.0",
+                            "file": "licenses/Apache-2.0.txt"
+                          },
+                          {
+                            "name": "Distribution scaffold notice",
+                            "file": "licenses/DISTRIBUTION-NOTICE.txt"
+                          }
                         ]
                       }
                     }
@@ -133,7 +165,11 @@ class VoicePackRepositoryTest {
         assertTrue(pack.supportsImportedWords)
         assertEquals(612345678L, pack.estimatedStorageBytes)
         assertEquals(768, pack.estimatedRamMb)
-        assertEquals(listOf("Apache-2.0", "MIT"), pack.licenses)
+        assertEquals(
+            listOf("Apache-2.0", "Distribution scaffold notice"),
+            pack.licenses,
+        )
+        assertEquals("https://example.com/packs/voice-pack-checksums.txt", pack.checksumsUrl)
         assertEquals("/tmp/en-gb", pack.installDir)
         assertEquals(512_000_000L, pack.installedSizeBytes)
         assertEquals(VoicePackStatus.READY.storageValue, pack.status)
