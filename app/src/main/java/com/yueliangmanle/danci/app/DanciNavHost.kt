@@ -7,6 +7,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.navArgument
+import com.yueliangmanle.danci.feature.aiplan.AiPlanCenterRoute
+import com.yueliangmanle.danci.feature.aiplan.AI_PLAN_CENTER_ROUTE
 import com.yueliangmanle.danci.feature.books.BOOK_IMPORT_ROUTE
 import com.yueliangmanle.danci.feature.books.BookDetailRoute
 import com.yueliangmanle.danci.feature.books.BookImportRoute
@@ -48,10 +50,16 @@ fun DanciNavHost(
                         onOpenMistakesClick = {
                             navController.navigate(TopLevelDestination.STUDY.name)
                         },
+                        onOpenPlanCenterClick = {
+                            navController.navigate(AI_PLAN_CENTER_ROUTE)
+                        },
                     )
                     TopLevelDestination.STUDY -> StudyRoute(
                         onOpenDetailClick = { wordId ->
                             navController.navigate(wordDetailRoute(wordId))
+                        },
+                        onOpenPlanCenterClick = {
+                            navController.navigate(AI_PLAN_CENTER_ROUTE)
                         },
                     )
                     TopLevelDestination.BOOKS -> BooksRoute(
@@ -65,6 +73,9 @@ fun DanciNavHost(
                     TopLevelDestination.ME -> MeRoute(
                         onOpenAiSettingsClick = {
                             navController.navigate(AI_SETTINGS_ROUTE)
+                        },
+                        onOpenAiPlanCenterClick = {
+                            navController.navigate(AI_PLAN_CENTER_ROUTE)
                         },
                         onOpenPronunciationSettingsClick = {
                             navController.navigate(PRONUNCIATION_SETTINGS_ROUTE)
@@ -106,6 +117,9 @@ fun DanciNavHost(
         }
         composable(route = PRONUNCIATION_SETTINGS_ROUTE) {
             PronunciationSettingsRoute()
+        }
+        composable(route = AI_PLAN_CENTER_ROUTE) {
+            AiPlanCenterRoute()
         }
         composable(route = BOOK_IMPORT_ROUTE) {
             BookImportRoute(

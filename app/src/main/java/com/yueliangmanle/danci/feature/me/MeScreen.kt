@@ -36,6 +36,7 @@ fun MeScreen(
     onExportBackupClick: () -> Unit,
     onRestoreBackupClick: () -> Unit,
     onOpenAiSettingsClick: () -> Unit,
+    onOpenAiPlanCenterClick: () -> Unit = {},
     onOpenPronunciationSettingsClick: () -> Unit,
 ) {
     if (state.isLoading) {
@@ -88,6 +89,10 @@ fun MeScreen(
             isWorking = state.isWorking,
             onOpenAiSettingsClick = onOpenAiSettingsClick,
         )
+        AiPlanCenterEntryCard(
+            isWorking = state.isWorking,
+            onOpenAiPlanCenterClick = onOpenAiPlanCenterClick,
+        )
         PronunciationSettingsCard(
             isWorking = state.isWorking,
             onOpenPronunciationSettingsClick = onOpenPronunciationSettingsClick,
@@ -100,6 +105,36 @@ fun MeScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AiPlanCenterEntryCard(
+    isWorking: Boolean,
+    onOpenAiPlanCenterClick: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "AI 计划记录",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = "集中查看 AI 最近的调整历史、待确认大改动和当前生效方案。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(
+                onClick = onOpenAiPlanCenterClick,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isWorking,
+            ) {
+                Text("打开 AI 计划中心")
             }
         }
     }

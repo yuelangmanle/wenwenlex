@@ -75,6 +75,16 @@ class PlanHistoryRepository(
             version = createCandidateVersion(snapshot, adjustment),
         )
 
+    suspend fun confirmPendingPlan(planVersionId: Long): List<PlanHistoryEntry> =
+        persistPlanHistoryUpdate(planVersionId) { history ->
+            confirmPendingPlan(history, planVersionId)
+        }
+
+    suspend fun rejectPendingPlan(planVersionId: Long): List<PlanHistoryEntry> =
+        persistPlanHistoryUpdate(planVersionId) { history ->
+            rejectPendingPlan(history, planVersionId)
+        }
+
     fun appendCandidateVersion(
         planHistory: List<PlanHistoryEntry>,
         candidate: PlanHistoryEntry,
@@ -125,6 +135,22 @@ class PlanHistoryRepository(
                 entry
             }
         }
+    }
+
+    private suspend fun persistPlanHistoryUpdate(
+        planVersionId: Long,
+        transform: (List<PlanHistoryEntry>) -> List<PlanHistoryEntry>,
+    ): List<PlanHistoryEntry> {
+        val repository = requireNotNull(studyRepository) {
+            "PlanHistoryRepository 需要 StudyRepository 才能持久化计划状态。"
+        }
+        val memorySummary = repository.loadAiMemorySummary(planLimit = 200)
+        if (memorySummary.planHistory.none { it.id == planVersionId }) {
+            return memorySummary.planHistory
+        }
+        val updatedPlanHistory = transform(memorySummary.planHistory)
+        repository.saveAiMemorySummary(memorySummary.copy(planHistory = updatedPlanHistory))
+        return repository.loadAiMemorySummary(planLimit = updatedPlanHistory.size + 5).planHistory
     }
 }
 

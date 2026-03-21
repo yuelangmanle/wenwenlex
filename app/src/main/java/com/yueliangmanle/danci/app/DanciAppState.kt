@@ -10,6 +10,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.yueliangmanle.danci.feature.books.BOOK_IMPORT_ROUTE
+import com.yueliangmanle.danci.feature.aiplan.AI_PLAN_CENTER_ROUTE
 import com.yueliangmanle.danci.feature.me.AI_SETTINGS_ROUTE
 
 @Stable
@@ -53,7 +54,8 @@ class DanciAppState(
             }
             TopLevelDestination.ME -> {
                 currentDestination.hierarchy.any { it.route == TopLevelDestination.ME.name } ||
-                    currentRoute == AI_SETTINGS_ROUTE
+                    currentRoute == AI_SETTINGS_ROUTE ||
+                    currentRoute == AI_PLAN_CENTER_ROUTE
             }
         }
     }

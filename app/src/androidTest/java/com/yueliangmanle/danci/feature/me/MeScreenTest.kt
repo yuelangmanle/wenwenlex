@@ -37,5 +37,6 @@ class MeScreenTest {
         composeRule.onNodeWithText("备份与恢复").assertIsDisplayed()
         composeRule.onNodeWithText("每日提醒").assertIsDisplayed()
         composeRule.onNodeWithText("AI 设置").assertIsDisplayed()
+        composeRule.onNodeWithText("AI 计划记录").assertIsDisplayed()
     }
 }
