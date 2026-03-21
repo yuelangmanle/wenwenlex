@@ -47,16 +47,14 @@ class AiPlanCenterViewModel(
         val history = memorySummary.planHistory.sortedByDescending(PlanHistoryEntry::generatedAt)
         val pendingPlan = history.firstOrNull { it.applyStatus == PlanApplyStatus.PENDING_CONFIRMATION }
         val currentPlan = history.firstOrNull { it.applyStatus == PlanApplyStatus.APPLIED }
+        val latestPlanEffect = memorySummary.analyticsSnapshot.planEffects.firstOrNull()
 
         AiPlanCenterUiState(
             currentPlanId = currentPlan?.id,
             currentPlanSummary = currentPlan?.summary,
             currentPlanMeta = currentPlan?.let(::buildPlanMeta),
-            latestPlanEffectTitle = history.takeIf { it.isNotEmpty() }?.let { "最近调整效果" },
-            latestPlanEffectSummary = history.takeIf { it.isNotEmpty() }?.let {
-                memorySummary.analyticsSnapshot.planEffects.firstOrNull()?.toSummary()
-                    ?: "还没有足够的执行样本。"
-            },
+            latestPlanEffectTitle = latestPlanEffect?.let { "最近调整效果" },
+            latestPlanEffectSummary = latestPlanEffect?.toSummary(),
             pendingPlan = pendingPlan,
             timeline = history.filterNot { it.id == pendingPlan?.id },
             emptyMessage = if (history.isEmpty()) AI_PLAN_CENTER_EMPTY_MESSAGE else null,
