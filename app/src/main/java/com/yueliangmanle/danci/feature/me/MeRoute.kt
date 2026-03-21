@@ -22,6 +22,7 @@ const val AI_SETTINGS_ROUTE = "ai_settings"
 fun MeRoute(
     onOpenAiSettingsClick: () -> Unit = {},
     onOpenAiPlanCenterClick: () -> Unit = {},
+    onOpenLearningAnalyticsClick: () -> Unit = {},
     onOpenPronunciationSettingsClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -77,6 +78,7 @@ fun MeRoute(
         },
         onOpenAiSettingsClick = onOpenAiSettingsClick,
         onOpenAiPlanCenterClick = onOpenAiPlanCenterClick,
+        onOpenLearningAnalyticsClick = onOpenLearningAnalyticsClick,
         onOpenPronunciationSettingsClick = onOpenPronunciationSettingsClick,
     )
 }

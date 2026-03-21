@@ -53,6 +53,26 @@ class AiPlanCenterScreenTest {
         composeRule.onNodeWithText("先学习一段时间，AI 才能形成稳定调整历史").assertIsDisplayed()
     }
 
+    @Test
+    fun aiPlanCenter_showsLatestPlanEffectSummary() {
+        composeRule.setContent {
+            AiPlanCenterScreen(
+                state = AiPlanCenterUiState(
+                    currentPlanSummary = "当前计划：每天 20 词，先稳住复习。",
+                    latestPlanEffectTitle = "最近调整效果",
+                    latestPlanEffectSummary = "先回拉错词后，正确率从 65% 回升到 73%。",
+                ),
+                onConfirmPendingPlanClick = { _ -> },
+                onRejectPendingPlanClick = { _ -> },
+                onOpenComparisonClick = { _ -> },
+                onOpenExplanationClick = { _ -> },
+            )
+        }
+
+        composeRule.onNodeWithText("最近调整效果").assertIsDisplayed()
+        composeRule.onNodeWithText("先回拉错词后，正确率从 65% 回升到 73%。").assertIsDisplayed()
+    }
+
     private fun samplePendingPlan(): PlanHistoryEntry =
         PlanHistoryEntry(
             id = 12L,

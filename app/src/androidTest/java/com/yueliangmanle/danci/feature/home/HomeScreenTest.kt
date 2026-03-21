@@ -36,6 +36,7 @@ class HomeScreenTest {
                 onStartReviewClick = {},
                 onOpenMistakesClick = {},
                 onAnalyzePlanClick = {},
+                onOpenLearningAnalyticsClick = {},
                 onOpenPlanCenterClick = {},
             )
         }
@@ -67,6 +68,7 @@ class HomeScreenTest {
                 onStartReviewClick = {},
                 onOpenMistakesClick = {},
                 onAnalyzePlanClick = { clicked = true },
+                onOpenLearningAnalyticsClick = {},
                 onOpenPlanCenterClick = {},
             )
         }
@@ -91,10 +93,31 @@ class HomeScreenTest {
                 onStartReviewClick = {},
                 onOpenMistakesClick = {},
                 onAnalyzePlanClick = {},
+                onOpenLearningAnalyticsClick = {},
                 onOpenPlanCenterClick = {},
             )
         }
 
         composeRule.onNodeWithText("有 1 条待确认调整").assertIsDisplayed()
+    }
+
+    @Test
+    fun homeScreen_showsLearningAnalyticsEntry() {
+        composeRule.setContent {
+            HomeScreen(
+                state = HomeUiState(
+                    headline = "今天还要学 20 个词",
+                    activeBookTitle = "四级核心词",
+                ),
+                onStartNewWordsClick = {},
+                onStartReviewClick = {},
+                onOpenMistakesClick = {},
+                onAnalyzePlanClick = {},
+                onOpenLearningAnalyticsClick = {},
+                onOpenPlanCenterClick = {},
+            )
+        }
+
+        composeRule.onNodeWithText("查看学习统计").assertIsDisplayed()
     }
 }

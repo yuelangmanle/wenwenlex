@@ -32,6 +32,7 @@ fun HomeScreen(
     onStartReviewClick: () -> Unit,
     onOpenMistakesClick: () -> Unit,
     onAnalyzePlanClick: () -> Unit,
+    onOpenLearningAnalyticsClick: () -> Unit,
     onOpenPlanCenterClick: () -> Unit,
 ) {
     if (state.isLoading) {
@@ -78,6 +79,7 @@ fun HomeScreen(
                 onStartReviewClick = onStartReviewClick,
                 onOpenMistakesClick = onOpenMistakesClick,
                 onAnalyzePlanClick = onAnalyzePlanClick,
+                onOpenLearningAnalyticsClick = onOpenLearningAnalyticsClick,
             )
         }
         if (state.planCenterTitle != null && state.planCenterSummary != null) {
@@ -290,6 +292,7 @@ private fun ActionPanel(
     onStartReviewClick: () -> Unit,
     onOpenMistakesClick: () -> Unit,
     onAnalyzePlanClick: () -> Unit,
+    onOpenLearningAnalyticsClick: () -> Unit,
 ) {
     Card(
         modifier = Modifier
@@ -315,6 +318,12 @@ private fun ActionPanel(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("开始复习")
+            }
+            OutlinedButton(
+                onClick = onOpenLearningAnalyticsClick,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("查看学习统计")
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),

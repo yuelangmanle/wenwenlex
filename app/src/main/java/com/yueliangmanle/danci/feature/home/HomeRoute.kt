@@ -21,6 +21,7 @@ fun HomeRoute(
     onStartReviewClick: () -> Unit = {},
     onOpenMistakesClick: () -> Unit = {},
     onAnalyzePlanClick: () -> Unit = {},
+    onOpenLearningAnalyticsClick: () -> Unit = {},
     onOpenPlanCenterClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -89,6 +90,7 @@ fun HomeRoute(
                 }
             }
         },
+        onOpenLearningAnalyticsClick = onOpenLearningAnalyticsClick,
         onOpenPlanCenterClick = onOpenPlanCenterClick,
     )
 }

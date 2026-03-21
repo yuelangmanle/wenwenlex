@@ -66,6 +66,12 @@ fun AiPlanCenterScreen(
                 meta = state.currentPlanMeta,
             )
         }
+        if (state.latestPlanEffectTitle != null && state.latestPlanEffectSummary != null) {
+            LatestPlanEffectCard(
+                title = state.latestPlanEffectTitle,
+                summary = state.latestPlanEffectSummary,
+            )
+        }
         state.pendingPlan?.let { pendingPlan ->
             PendingPlanCard(
                 plan = pendingPlan,
@@ -127,6 +133,28 @@ private fun HeroCard() {
             )
             Text(
                 text = "把每次学习调整的原因、决策和历史版本集中在一起看清楚。",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}
+
+@Composable
+private fun LatestPlanEffectCard(
+    title: String,
+    summary: String,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = summary,
                 style = MaterialTheme.typography.bodyMedium,
             )
         }

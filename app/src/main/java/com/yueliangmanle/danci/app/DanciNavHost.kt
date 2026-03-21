@@ -13,6 +13,8 @@ import com.yueliangmanle.danci.feature.aiplan.PlanComparisonRoute
 import com.yueliangmanle.danci.feature.aiplan.PlanExplanationRoute
 import com.yueliangmanle.danci.feature.aiplan.planComparisonRoute
 import com.yueliangmanle.danci.feature.aiplan.planExplanationRoute
+import com.yueliangmanle.danci.feature.analytics.LEARNING_ANALYTICS_ROUTE
+import com.yueliangmanle.danci.feature.analytics.LearningAnalyticsRoute
 import com.yueliangmanle.danci.feature.books.BOOK_IMPORT_ROUTE
 import com.yueliangmanle.danci.feature.books.BookDetailRoute
 import com.yueliangmanle.danci.feature.books.BookImportRoute
@@ -54,6 +56,9 @@ fun DanciNavHost(
                         onOpenMistakesClick = {
                             navController.navigate(TopLevelDestination.STUDY.name)
                         },
+                        onOpenLearningAnalyticsClick = {
+                            navController.navigate(LEARNING_ANALYTICS_ROUTE)
+                        },
                         onOpenPlanCenterClick = {
                             navController.navigate(AI_PLAN_CENTER_ROUTE)
                         },
@@ -80,6 +85,9 @@ fun DanciNavHost(
                         },
                         onOpenAiPlanCenterClick = {
                             navController.navigate(AI_PLAN_CENTER_ROUTE)
+                        },
+                        onOpenLearningAnalyticsClick = {
+                            navController.navigate(LEARNING_ANALYTICS_ROUTE)
                         },
                         onOpenPronunciationSettingsClick = {
                             navController.navigate(PRONUNCIATION_SETTINGS_ROUTE)
@@ -121,6 +129,9 @@ fun DanciNavHost(
         }
         composable(route = PRONUNCIATION_SETTINGS_ROUTE) {
             PronunciationSettingsRoute()
+        }
+        composable(route = LEARNING_ANALYTICS_ROUTE) {
+            LearningAnalyticsRoute()
         }
         composable(route = AI_PLAN_CENTER_ROUTE) {
             AiPlanCenterRoute(

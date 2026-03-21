@@ -37,6 +37,7 @@ fun MeScreen(
     onRestoreBackupClick: () -> Unit,
     onOpenAiSettingsClick: () -> Unit,
     onOpenAiPlanCenterClick: () -> Unit = {},
+    onOpenLearningAnalyticsClick: () -> Unit = {},
     onOpenPronunciationSettingsClick: () -> Unit,
 ) {
     if (state.isLoading) {
@@ -89,6 +90,10 @@ fun MeScreen(
             isWorking = state.isWorking,
             onOpenAiSettingsClick = onOpenAiSettingsClick,
         )
+        LearningAnalyticsEntryCard(
+            isWorking = state.isWorking,
+            onOpenLearningAnalyticsClick = onOpenLearningAnalyticsClick,
+        )
         AiPlanCenterEntryCard(
             isWorking = state.isWorking,
             onOpenAiPlanCenterClick = onOpenAiPlanCenterClick,
@@ -105,6 +110,36 @@ fun MeScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LearningAnalyticsEntryCard(
+    isWorking: Boolean,
+    onOpenLearningAnalyticsClick: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "学习统计",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = "集中查看最近趋势、反馈分布、计划效果和长期摘要。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(
+                onClick = onOpenLearningAnalyticsClick,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isWorking,
+            ) {
+                Text("打开学习统计")
             }
         }
     }

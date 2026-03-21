@@ -7,9 +7,11 @@ import com.yueliangmanle.danci.core.data.RoomStudyRepository
 import com.yueliangmanle.danci.core.data.StudyRepository
 import com.yueliangmanle.danci.core.database.buildDanciDatabase
 import com.yueliangmanle.danci.core.model.PlanApplyStatus
+import com.yueliangmanle.danci.core.model.PlanEffectSnapshot
 import com.yueliangmanle.danci.core.model.PlanHistoryEntry
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -20,6 +22,8 @@ data class AiPlanCenterUiState(
     val currentPlanId: Long? = null,
     val currentPlanSummary: String? = null,
     val currentPlanMeta: String? = null,
+    val latestPlanEffectTitle: String? = null,
+    val latestPlanEffectSummary: String? = null,
     val pendingPlan: PlanHistoryEntry? = null,
     val timeline: List<PlanHistoryEntry> = emptyList(),
     val emptyMessage: String? = AI_PLAN_CENTER_EMPTY_MESSAGE,
@@ -48,6 +52,11 @@ class AiPlanCenterViewModel(
             currentPlanId = currentPlan?.id,
             currentPlanSummary = currentPlan?.summary,
             currentPlanMeta = currentPlan?.let(::buildPlanMeta),
+            latestPlanEffectTitle = history.takeIf { it.isNotEmpty() }?.let { "最近调整效果" },
+            latestPlanEffectSummary = history.takeIf { it.isNotEmpty() }?.let {
+                memorySummary.analyticsSnapshot.planEffects.firstOrNull()?.toSummary()
+                    ?: "还没有足够的执行样本。"
+            },
             pendingPlan = pendingPlan,
             timeline = history.filterNot { it.id == pendingPlan?.id },
             emptyMessage = if (history.isEmpty()) AI_PLAN_CENTER_EMPTY_MESSAGE else null,
@@ -70,6 +79,15 @@ class AiPlanCenterViewModel(
         val timestamp = (entry.confirmedAt ?: entry.generatedAt).atZone(zoneId).format(timeFormatter)
         return "${explanationComposer.composeDecisionLabel(entry)} · $timestamp"
     }
+
+    private fun PlanEffectSnapshot.toSummary(): String {
+        val beforeRate = beforeCorrectRate?.let(::formatPercent) ?: "样本不足"
+        val afterRate = afterCorrectRate?.let(::formatPercent) ?: "样本不足"
+        val outcome = outcomeSummary ?: "效果仍在观察"
+        return "${label.ifBlank { "最近一次调整" }}：$outcome，调整前 $beforeRate，调整后 $afterRate。"
+    }
+
+    private fun formatPercent(value: Float): String = "${(value * 100).roundToInt()}%"
 }
 
 suspend fun loadAiPlanCenterViewModel(context: Context): AiPlanCenterViewModel =

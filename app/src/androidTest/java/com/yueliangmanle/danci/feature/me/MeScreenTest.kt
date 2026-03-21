@@ -31,6 +31,7 @@ class MeScreenTest {
                 onExportBackupClick = {},
                 onRestoreBackupClick = {},
                 onOpenAiSettingsClick = {},
+                onOpenLearningAnalyticsClick = {},
                 onOpenPronunciationSettingsClick = {},
             )
         }
@@ -39,5 +40,23 @@ class MeScreenTest {
         composeRule.onNodeWithText("每日提醒").assertIsDisplayed()
         composeRule.onNodeWithText("AI 设置").assertIsDisplayed()
         composeRule.onNodeWithText("AI 计划记录").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun meScreen_showsLearningAnalyticsEntry() {
+        composeRule.setContent {
+            MeScreen(
+                state = MeUiState(),
+                onReminderEnabledChange = {},
+                onAdjustReminderTimeClick = {},
+                onExportBackupClick = {},
+                onRestoreBackupClick = {},
+                onOpenAiSettingsClick = {},
+                onOpenLearningAnalyticsClick = {},
+                onOpenPronunciationSettingsClick = {},
+            )
+        }
+
+        composeRule.onNodeWithText("学习统计").performScrollTo().assertIsDisplayed()
     }
 }
