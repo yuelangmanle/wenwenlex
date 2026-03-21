@@ -4,11 +4,17 @@ import com.yueliangmanle.danci.core.data.AppSettings
 import com.yueliangmanle.danci.core.database.entity.BookEntity
 import com.yueliangmanle.danci.core.database.entity.WordEntity
 import com.yueliangmanle.danci.core.model.AiMemorySummary
+import com.yueliangmanle.danci.core.model.CheckpointSummary
 import com.yueliangmanle.danci.core.model.DailySummary
 import com.yueliangmanle.danci.core.model.LearnerProfile
+import com.yueliangmanle.danci.core.model.PlanApplyStatus
+import com.yueliangmanle.danci.core.model.PlanHistoryEntry
+import com.yueliangmanle.danci.core.model.PlanSeverity
 import com.yueliangmanle.danci.core.model.WeeklySummary
 import java.time.Instant
 import kotlinx.coroutines.test.runTest
+import org.json.JSONObject
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -54,6 +60,26 @@ class BackupExporterTest {
         assertFalse(backup.serializedJson.contains("sk-secret"))
     }
 
+    @Test
+    fun export_includesExpandedPlanHistoryAndCheckpointSummaries() = runTest {
+        val backup = BackupExporter(
+            snapshotProvider = {
+                BackupSnapshot(
+                    settings = AppSettings(),
+                    aiMemorySummary = sampleAiMemory(),
+                )
+            },
+            nowProvider = { Instant.parse("2026-03-18T12:30:00Z") },
+        ).export()
+
+        val payload = JSONObject(backup.serializedJson)
+        val aiMemory = payload.getJSONObject("ai_memory_summary")
+
+        assertEquals(4, backup.manifest.version)
+        assertTrue(aiMemory.has("checkpoint_summaries"))
+        assertTrue(aiMemory.getJSONArray("plan_history").getJSONObject(0).has("apply_status"))
+    }
+
     private fun sampleAiMemory(): AiMemorySummary =
         AiMemorySummary(
             learnerProfile = LearnerProfile(
@@ -82,6 +108,37 @@ class BackupExporterTest {
                     trendSummary = "本周推进稳定",
                     persistentWeakSpots = listOf("拼写相近词"),
                     updatedAt = Instant.parse("2026-03-18T08:00:00Z"),
+                ),
+            ),
+            planHistory = listOf(
+                PlanHistoryEntry(
+                    id = 8L,
+                    generatedAt = Instant.parse("2026-03-18T09:00:00Z"),
+                    summary = "建议先回拉错词。",
+                    parentPlanVersionId = 6L,
+                    triggerType = "study_checkpoint",
+                    sourceType = "AI",
+                    recommendedFocus = listOf("abandon"),
+                    suggestedModes = listOf("quiz", "dictation"),
+                    suggestedPace = "slow_down",
+                    reasonSummary = "最近近义词误判升高。",
+                    changeSummary = "减少新词推进，增加复习比重。",
+                    abnormalSignals = listOf("近义词误判升高"),
+                    severity = PlanSeverity.MAJOR,
+                    applyStatus = PlanApplyStatus.PENDING_CONFIRMATION,
+                    executionEffect = "预计先压住错词率。",
+                ),
+            ),
+            checkpointSummaries = listOf(
+                CheckpointSummary(
+                    checkpointId = "cp-20260318-1",
+                    windowStartAt = Instant.parse("2026-03-18T08:00:00Z"),
+                    windowEndAt = Instant.parse("2026-03-18T09:00:00Z"),
+                    effectivePlanVersionId = 6L,
+                    candidatePlanVersionId = 8L,
+                    decisionStatus = PlanApplyStatus.PENDING_CONFIRMATION,
+                    effectSummary = "错词率抬头，需要先压节奏。",
+                    signalSummary = "近义词误判升高",
                 ),
             ),
         )

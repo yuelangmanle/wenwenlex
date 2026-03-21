@@ -123,6 +123,7 @@ class BackupRepository(
 
         applySettings(imported.snapshot.settings)
         RoomStudyRepository(database.studyDao()).saveAiMemorySummary(imported.snapshot.aiMemorySummary)
+        aiMemoryRepository.refreshMemorySummary()
 
         return RestoreBackupResult(
             restoredAt = nowProvider(),

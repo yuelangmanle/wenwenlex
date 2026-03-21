@@ -17,10 +17,13 @@ import com.yueliangmanle.danci.core.model.PHONETIC_SOURCE_LEGACY
 import com.yueliangmanle.danci.core.model.PHONETIC_STATUS_EMPTY
 import com.yueliangmanle.danci.core.model.PHONETIC_STATUS_PARTIAL
 import com.yueliangmanle.danci.core.model.AiMemorySummary
+import com.yueliangmanle.danci.core.model.CheckpointSummary
 import com.yueliangmanle.danci.core.model.ConfusionEdge
 import com.yueliangmanle.danci.core.model.DailySummary
 import com.yueliangmanle.danci.core.model.LearnerProfile
+import com.yueliangmanle.danci.core.model.PlanApplyStatus
 import com.yueliangmanle.danci.core.model.PlanHistoryEntry
+import com.yueliangmanle.danci.core.model.PlanSeverity
 import com.yueliangmanle.danci.core.model.WeeklySummary
 import java.io.ByteArrayInputStream
 import java.util.zip.ZipInputStream
@@ -80,7 +83,7 @@ internal fun String.toBackupSnapshot(version: Int = BACKUP_VERSION): BackupSnaps
         learningRecords = json.getJSONArray("learning_records").mapObjects(JSONObject::toLearningRecordEntity),
         studySessions = json.getJSONArray("study_sessions").mapObjects(JSONObject::toStudySessionEntity),
         studyEvents = json.getJSONArray("study_events").mapObjects(JSONObject::toStudyEventEntity),
-        aiMemorySummary = json.getJSONObject("ai_memory_summary").toAiMemorySummary(),
+        aiMemorySummary = json.getJSONObject("ai_memory_summary").toAiMemorySummary(version),
     )
 }
 
@@ -296,12 +299,13 @@ internal fun JSONObject.toStudyEventEntity(): StudyEventEntity =
         metadata = optNullableString("metadata"),
     )
 
-internal fun JSONObject.toAiMemorySummary(): AiMemorySummary =
+internal fun JSONObject.toAiMemorySummary(version: Int = BACKUP_VERSION): AiMemorySummary =
     AiMemorySummary(
         learnerProfile = optJSONObject("learner_profile")?.takeIf { it.length() > 0 }?.toLearnerProfile(),
         dailySummaries = optJSONArray("daily_summaries").mapObjects(JSONObject::toDailySummary),
         weeklySummaries = optJSONArray("weekly_summaries").mapObjects(JSONObject::toWeeklySummary),
-        planHistory = optJSONArray("plan_history").mapObjects(JSONObject::toPlanHistoryEntry),
+        planHistory = optJSONArray("plan_history").mapObjects { toPlanHistoryEntry(version) },
+        checkpointSummaries = optJSONArray("checkpoint_summaries").mapObjects(JSONObject::toCheckpointSummary),
         confusionEdges = optJSONArray("confusion_edges").mapObjects(JSONObject::toConfusionEdge),
     )
 
@@ -336,14 +340,46 @@ internal fun JSONObject.toWeeklySummary(): WeeklySummary =
         updatedAt = optInstant("updated_at") ?: java.time.Instant.EPOCH,
     )
 
-internal fun JSONObject.toPlanHistoryEntry(): PlanHistoryEntry =
+internal fun JSONObject.toPlanHistoryEntry(version: Int = BACKUP_VERSION): PlanHistoryEntry =
     PlanHistoryEntry(
         id = getLong("id"),
         generatedAt = requireNotNull(optInstant("generated_at")),
         summary = getString("summary"),
+        parentPlanVersionId = optLongOrNull("parent_plan_version_id"),
+        triggerType = optNullableString("trigger_type")
+            ?: PlanHistoryEntry.DEFAULT_TRIGGER_TYPE,
+        sourceType = optNullableString("source_type")
+            ?: PlanHistoryEntry.DEFAULT_SOURCE_TYPE,
         recommendedFocus = optJSONArray("recommended_focus").toStringList(),
+        suggestedModes = optJSONArray("suggested_modes").toStringList(),
         suggestedPace = optNullableString("suggested_pace"),
+        reasonSummary = optNullableString("reason_summary"),
+        changeSummary = optNullableString("change_summary"),
+        abnormalSignals = optJSONArray("abnormal_signals").toStringList(),
+        severity = optNullableString("severity")
+            ?.toPlanSeverityOrNull()
+            ?: if (version >= 4) PlanSeverity.MINOR else PlanSeverity.MINOR,
+        applyStatus = optNullableString("apply_status")
+            ?.toPlanApplyStatusOrNull()
+            ?: PlanApplyStatus.APPLIED,
+        isHighlightedAiChange = optBoolean("is_highlighted_ai_change", false),
         executionEffect = optNullableString("execution_effect"),
+        confirmedAt = optInstant("confirmed_at"),
+        rejectedAt = optInstant("rejected_at"),
+    )
+
+internal fun JSONObject.toCheckpointSummary(): CheckpointSummary =
+    CheckpointSummary(
+        checkpointId = getString("checkpoint_id"),
+        windowStartAt = requireNotNull(optInstant("window_start_at")),
+        windowEndAt = requireNotNull(optInstant("window_end_at")),
+        effectivePlanVersionId = optLongOrNull("effective_plan_version_id"),
+        candidatePlanVersionId = optLongOrNull("candidate_plan_version_id"),
+        decisionStatus = optNullableString("decision_status")
+            ?.toPlanApplyStatusOrNull()
+            ?: PlanApplyStatus.APPLIED,
+        effectSummary = getString("effect_summary"),
+        signalSummary = getString("signal_summary"),
     )
 
 internal fun JSONObject.toConfusionEdge(): ConfusionEdge =
@@ -388,6 +424,12 @@ private fun JSONObject.optBooleanOrNull(key: String): Boolean? =
     }
 
 private fun JSONObject.optInstant(key: String) = optNullableString(key).toBackupInstantOrNull()
+
+private fun String.toPlanApplyStatusOrNull(): PlanApplyStatus? =
+    PlanApplyStatus.entries.firstOrNull { it.name == this }
+
+private fun String.toPlanSeverityOrNull(): PlanSeverity? =
+    PlanSeverity.entries.firstOrNull { it.name == this }
 
 private fun JSONArray?.toStringList(): List<String> =
     this?.let { array ->

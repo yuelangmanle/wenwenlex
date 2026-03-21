@@ -11,6 +11,8 @@ import java.time.Instant
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.test.runTest
+import org.json.JSONArray
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
@@ -100,6 +102,47 @@ class BackupImporterTest {
         }
 
         assertEquals("Missing required backup section: settings", error.message)
+    }
+
+    @Test
+    fun importer_fillsDefaultsForLegacyPlanHistoryRows() {
+        val manifest = BackupManifest(
+            version = 3,
+            createdAt = "2026-03-18T12:30:00Z",
+            sections = REQUIRED_BACKUP_SECTIONS,
+        )
+        val payload = JSONObject()
+            .put("settings", BackupSnapshot(settings = AppSettings()).toJson().getJSONObject("settings"))
+            .put("books", JSONArray())
+            .put("book_words", JSONArray())
+            .put("words", JSONArray())
+            .put("learning_records", JSONArray())
+            .put("study_sessions", JSONArray())
+            .put("study_events", JSONArray())
+            .put(
+                "ai_memory_summary",
+                JSONObject()
+                    .put("plan_history", JSONArray().put(
+                        JSONObject()
+                            .put("id", 11)
+                            .put("generated_at", "2026-03-18T08:00:00Z")
+                            .put("summary", "旧版本计划")
+                            .put("recommended_focus", JSONArray().put("abandon"))
+                            .put("suggested_pace", "steady"),
+                    )),
+            )
+
+        val imported = BackupImporter().import(
+            zipEntries(
+                manifest = manifest.toJson().toString(),
+                payload = payload.toString(),
+            ),
+        )
+
+        val plan = imported.snapshot.aiMemorySummary.planHistory.single()
+        assertEquals(com.yueliangmanle.danci.core.model.PlanApplyStatus.APPLIED, plan.applyStatus)
+        assertEquals(com.yueliangmanle.danci.core.model.PlanSeverity.MINOR, plan.severity)
+        assertEquals(com.yueliangmanle.danci.core.model.PlanHistoryEntry.DEFAULT_TRIGGER_TYPE, plan.triggerType)
     }
 
     private fun zipEntries(

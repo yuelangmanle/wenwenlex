@@ -2,8 +2,13 @@ package com.yueliangmanle.danci.core.backup
 
 import com.yueliangmanle.danci.core.data.AppSettings
 import com.yueliangmanle.danci.core.database.entity.WordEntity
+import com.yueliangmanle.danci.core.model.AiMemorySummary
+import com.yueliangmanle.danci.core.model.CheckpointSummary
 import com.yueliangmanle.danci.core.model.PHONETIC_SOURCE_AI
 import com.yueliangmanle.danci.core.model.PHONETIC_STATUS_COMPLETE
+import com.yueliangmanle.danci.core.model.PlanApplyStatus
+import com.yueliangmanle.danci.core.model.PlanHistoryEntry
+import com.yueliangmanle.danci.core.model.PlanSeverity
 import java.io.ByteArrayOutputStream
 import java.time.Instant
 import java.util.zip.ZipEntry
@@ -108,6 +113,50 @@ class BackupRoundTripTest {
 
         assertEquals(1, imported.manifest.version)
         assertEquals("/əˈbændən/", imported.snapshot.words.single().phonetic)
+    }
+
+    @Test
+    fun aiMemorySummary_roundTripsCheckpointSummariesAndExpandedPlanHistory() {
+        val summary = AiMemorySummary(
+            planHistory = listOf(
+                PlanHistoryEntry(
+                    id = 5L,
+                    generatedAt = Instant.parse("2026-03-19T10:00:00Z"),
+                    summary = "建议先回拉错词。",
+                    parentPlanVersionId = 3L,
+                    triggerType = "study_checkpoint",
+                    sourceType = "AI",
+                    recommendedFocus = listOf("abandon"),
+                    suggestedModes = listOf("quiz", "dictation"),
+                    suggestedPace = "slow_down",
+                    reasonSummary = "最近近义词误判升高。",
+                    changeSummary = "减少新词推进，增加复习。",
+                    abnormalSignals = listOf("近义词误判升高"),
+                    severity = PlanSeverity.MAJOR,
+                    applyStatus = PlanApplyStatus.PENDING_CONFIRMATION,
+                    executionEffect = "预计先压住错词率。",
+                ),
+            ),
+            checkpointSummaries = listOf(
+                CheckpointSummary(
+                    checkpointId = "cp-1",
+                    windowStartAt = Instant.parse("2026-03-19T09:00:00Z"),
+                    windowEndAt = Instant.parse("2026-03-19T10:00:00Z"),
+                    effectivePlanVersionId = 3L,
+                    candidatePlanVersionId = 5L,
+                    decisionStatus = PlanApplyStatus.PENDING_CONFIRMATION,
+                    effectSummary = "先稳住复习正确率。",
+                    signalSummary = "近义词误判升高",
+                ),
+            ),
+        )
+
+        val json = summary.toJson()
+        val restored = json.toAiMemorySummary()
+
+        assertEquals(1, restored.checkpointSummaries.size)
+        assertEquals(PlanApplyStatus.PENDING_CONFIRMATION, restored.planHistory.single().applyStatus)
+        assertEquals("cp-1", restored.checkpointSummaries.single().checkpointId)
     }
 }
 

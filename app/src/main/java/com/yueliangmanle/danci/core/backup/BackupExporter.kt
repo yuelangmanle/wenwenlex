@@ -13,6 +13,7 @@ import com.yueliangmanle.danci.core.database.entity.VoicePackEntity
 import com.yueliangmanle.danci.core.database.entity.WordEntity
 import com.yueliangmanle.danci.core.database.entity.WordAudioAssetEntity
 import com.yueliangmanle.danci.core.model.AiMemorySummary
+import com.yueliangmanle.danci.core.model.CheckpointSummary
 import com.yueliangmanle.danci.core.model.ConfusionEdge
 import com.yueliangmanle.danci.core.model.DailySummary
 import com.yueliangmanle.danci.core.model.LearnerProfile
@@ -285,6 +286,7 @@ internal fun AiMemorySummary.toJson(): JSONObject =
         .put("daily_summaries", JSONArray(dailySummaries.map(DailySummary::toJson)))
         .put("weekly_summaries", JSONArray(weeklySummaries.map(WeeklySummary::toJson)))
         .put("plan_history", JSONArray(planHistory.map(PlanHistoryEntry::toJson)))
+        .put("checkpoint_summaries", JSONArray(checkpointSummaries.map(CheckpointSummary::toJson)))
         .put("confusion_edges", JSONArray(confusionEdges.map(ConfusionEdge::toJson)))
 
 internal fun LearnerProfile.toJson(): JSONObject =
@@ -320,9 +322,32 @@ internal fun PlanHistoryEntry.toJson(): JSONObject =
         .put("id", id)
         .put("generated_at", generatedAt.toBackupString())
         .put("summary", summary)
+        .put("parent_plan_version_id", parentPlanVersionId)
+        .put("trigger_type", triggerType)
+        .put("source_type", sourceType)
         .put("recommended_focus", JSONArray(recommendedFocus))
+        .put("suggested_modes", JSONArray(suggestedModes))
         .put("suggested_pace", suggestedPace)
+        .put("reason_summary", reasonSummary)
+        .put("change_summary", changeSummary)
+        .put("abnormal_signals", JSONArray(abnormalSignals))
+        .put("severity", severity.name)
+        .put("apply_status", applyStatus.name)
+        .put("is_highlighted_ai_change", isHighlightedAiChange)
         .put("execution_effect", executionEffect)
+        .put("confirmed_at", confirmedAt.toBackupString())
+        .put("rejected_at", rejectedAt.toBackupString())
+
+internal fun CheckpointSummary.toJson(): JSONObject =
+    JSONObject()
+        .put("checkpoint_id", checkpointId)
+        .put("window_start_at", windowStartAt.toBackupString())
+        .put("window_end_at", windowEndAt.toBackupString())
+        .put("effective_plan_version_id", effectivePlanVersionId)
+        .put("candidate_plan_version_id", candidatePlanVersionId)
+        .put("decision_status", decisionStatus.name)
+        .put("effect_summary", effectSummary)
+        .put("signal_summary", signalSummary)
 
 internal fun ConfusionEdge.toJson(): JSONObject =
     JSONObject()
