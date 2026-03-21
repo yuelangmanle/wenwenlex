@@ -4,15 +4,15 @@
 
 这份文档用于记录文文Lex 的当前真实开发状态，方便后续协作者、外部支持者和未来迭代直接接手。
 
-- 最后更新日期：`2026-03-20`
-- 当前正式版本：`1.3`
-- 当前总体状态：`v1.3 已发布；native 语音包正式分发链路已上线，下一步聚焦真实模型资产替换与 runtime bridge 完成`
+- 最后更新日期：`2026-03-21`
+- 当前正式版本：`1.4`
+- 当前总体状态：`v1.4 已发布；真实 Kokoro 离线单词发音与云端语音包组装已上线，下一步聚焦在线词典扩展、真机回归和学习统计可视化`
 
 ## 2. 当前版本快照
 
 - 项目名称：`文文Lex`
 - 发布页面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
-- 当前正式版本页面：[v1.3](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.3)
+- 当前正式版本页面：[v1.4](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.4)
 - 当前开发验证页面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 - 当前正式发包方式：GitHub 云端 `Android Release`
 - 当前开发验证方式：GitHub 云端 `Android CI`
@@ -32,6 +32,7 @@
 | 云端 CI 与正式发版 | 已完成 | GitHub Actions 与 GitHub Releases 已可用 |
 | 发音与朗读 v1.2 | 已完成（第一版） | 已完成数据库 v3、发音设置页、词典音频缓存、语音包下载安装、系统 TTS / 桥接包兜底，并正式发版 |
 | 发音与朗读 v1.3 | 已完成并发版 | 已完成 native metadata 合并、Sherpa ONNX runtime 脚手架、本地生成缓存、原生离线单词合成、安装校验、Release 资产打包与设置页错误可见化，并正式发版 |
+| 发音与朗读 v1.4 | 已完成并发版 | 已切到真实 `kokoro-en-v0_19` 模型资产、官方 Sherpa Android JNI runtime、UK/US 双 speaker、云端组装语音包与 Release checksum 对齐，并正式发版 |
 
 ## 4. 已完成模块清单
 
@@ -91,8 +92,11 @@
 - 备份 `v3` 兼容导入
 - 语音包清单同步、下载 worker 与桥接包安装路径
 - 原生离线单词发音引擎骨架与本地生成缓存
+- 官方 Sherpa ONNX Android JNI runtime 接入与真实 Kokoro runtime bridge
 - native 语音包 manifest / license / entryFiles 安装校验
 - native 语音包发布源目录、打包脚本与 Release asset checksum
+- native 语音包云端上游拉取、模板组装与固定 `sha256` 校验
+- UK / US 双口音 speakerId 分离与 `accent / modelFamily / version` 缓存命名空间
 - 发音设置页 native 语音包能力提示与安装失败原因展示
 - 单元测试
 - Compose UI 测试骨架
@@ -107,13 +111,14 @@
 
 以下事实可默认作为后续协作基线：
 
-- 正式版本 `1.3` 已于 `2026-03-20` 完成云端正式发版
+- 正式版本 `1.4` 已于 `2026-03-21` 完成云端正式发版
 - 正式安装包类型为 `release-signed APK`
 - 正式版本更新日志由 [CHANGELOG.md](../CHANGELOG.md) 提供
 - 版本号规则固定为 `1.0 -> 1.1 -> ... -> 1.9 -> 2.0`
-- 当前 `1.3` 能力已经正式发版，下一轮主线转入真实模型资产替换与发音体验调优
+- 当前 `1.4` 已把真实模型资产替换、runtime bridge 和 Release 资产闭环打通
 - native 语音包发布源目录当前位于 `distribution/voice-packs/`
 - 正式 Release 已具备同时上传 APK、native 语音包 zip、manifest 和 checksum 的能力
+- 正式 Release 的 native payload 由 GitHub Actions 云端临时拉取与打包，不进入 git 仓库
 - 当前不依赖自建服务器，不包含云端账号系统
 - AI 能力通过用户自行配置的第三方 API 扩展
 - API Key 不进入备份文件，只保留档案元信息与路由设置
@@ -127,16 +132,16 @@
 - 学习统计面板继续细化
 - 导入表格的异常诊断与批量补全过程优化
 - 更长周期的 AI 记忆摘要和计划连续性继续加强
-- native 离线语音包真实模型资产替换与最终体验调优
+- native 离线语音包真机听感验收、缓存命中时延与失败回退体验继续调优
 - 更丰富的在线词典音频源与缓存命中策略
 
 ## 7. 下阶段候选迭代池
 
-- `1.4` 主线：真正的本地离线语音推理包、更完整的在线词典音频源，以及 scaffold pack 到真实模型资产的切换
-- `1.4` 候选：学习数据图表和 HTML 可视化面板
-- `1.4` 候选：AI 计划历史回溯、计划对比和解释性增强
-- `1.4` 候选：导入表格纠错和字段补全过程进一步自动化
-- `1.4` 候选：词条质量修订工具和词库增量更新流程
+- `1.5` 候选：更完整的在线词典音频源与缓存命中策略
+- `1.5` 候选：学习数据图表和 HTML 可视化面板
+- `1.5` 候选：AI 计划历史回溯、计划对比和解释性增强
+- `1.5` 候选：导入表格纠错和字段补全过程进一步自动化
+- `1.5` 候选：词条质量修订工具和词库增量更新流程
 
 ## 8. 实时更新规则
 
@@ -183,6 +188,15 @@
 - 已完成在线词典音频多来源候选回退，并把实际命中的来源写入详情页 / 学习页状态提示
 - 已完成 native 语音包发布源目录、zip 打包脚本、Release asset checksum 与 GitHub Actions 资产校验
 - 已完成 GitHub Actions 云端正式 Release，并发布 `v1.3`
+
+### 2026-03-21 / v1.4 / 已完成并发版
+
+- 已完成官方 Sherpa ONNX Android JNI runtime 接入，真实 native 离线单词发音不再依赖 scaffold 占位
+- 已完成 UK / US 两套真实 `kokoro-en-v0_19` 语音包模板、双 speakerId 和运行时 metadata 读取
+- 已完成 GitHub Actions 云端按固定上游 URL + `sha256` 拉取模型并现场打包 Release voice pack 资产
+- 已完成 native 缓存命名空间版本化，以及导入词书单词与内置词书统一走同一条 native 生成缓存链路
+- 已完成 `VoicePackInstaller` 单测去 socket 化，恢复云端单测阶段的稳定性
+- 已完成 GitHub Actions 云端正式 Release，并发布 `v1.4`
 
 ## 10. 后续更新模板
 

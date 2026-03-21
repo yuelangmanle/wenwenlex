@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-- 当前正式版本：`1.3`
+- 当前正式版本：`1.4`
 - 版本规则：每次迭代递增 `0.1`，按 `1.0 -> 1.1 -> ... -> 1.9 -> 2.0` 进位
 - 正式发包界面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
 - 开发验证界面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
@@ -20,6 +20,9 @@
 - [v1.2 发音模块计划](docs/superpowers/plans/2026-03-19-v1.2-pronunciation.md)
 - [v1.3 离线单词真实发音规格](docs/superpowers/specs/2026-03-19-v1.3-offline-word-pronunciation-design.md)
 - [v1.3 离线单词真实发音计划](docs/superpowers/plans/2026-03-19-v1.3-offline-word-pronunciation.md)
+- [v1.4 真实离线单词发音规格](docs/superpowers/specs/2026-03-20-v1.4-real-offline-word-pronunciation-design.md)
+- [v1.4 真实离线单词发音计划](docs/superpowers/plans/2026-03-20-v1.4-real-offline-word-pronunciation.md)
+- [v1.4 发音发版 Smoke 记录](docs/release-v1.4-pronunciation-smoke.md)
 
 ## 1.1 已实现能力
 
@@ -71,11 +74,30 @@
 - `Android CI` / `Android Release` 已接入 native 语音包发布资产自检，避免 catalog 与 Release 资产脱节
 - 当前 native 语音包依然先发 scaffold 包，用于正式分发、安装校验与链路联调；真实模型资产将在后续版本替换
 
+## 1.4 已发布能力
+
+以下内容已经在 `2026-03-21` 随 `v1.4` 正式发版：
+
+- GitHub Actions 云端会按固定上游 URL + `sha256` 拉取 `kokoro-en-v0_19`，现场组装 UK / US 两套真实 native 语音包
+- 仓库不再提交语音模型二进制，只保留 pack 模板、许可证和上游来源描述，正式 Release 资产仍可复现
+- Sherpa ONNX Android 官方 JNI runtime 已接入，真实离线单词发音不再停留在 scaffold 占位状态
+- UK / US 两套 native 包已分离 speaker：
+  - UK: `Kokoro bf_isabella (speakerId = 8)`
+  - US: `Kokoro af_nicole (speakerId = 2)`
+- 语音包 catalog、包内 `manifest.json`、GitHub Release checksum 和运行时读取的 metadata 现已统一
+- 离线发音缓存已按 `accent / modelFamily / version` 分层，导入词书单词也走同一条 native 生成与复用链路
+- GitHub Release 正式分发资产固定包含：
+  - `release-signed APK`
+  - UK / US 两个 `voice-pack zip`
+  - 两个 `manifest` 资产
+  - `wenwenlex-voice-pack-checksums.txt`
+- `VoicePackInstaller` 单测已改为纯内存 fake fetcher，不再依赖本地 socket 服务器，避免 CI 单测挂起
+
 ## 后续增强方向
 
-- 真正的本地离线 TTS 推理语音包
-- 把当前 native scaffold 包替换为真实模型资产，并完成最终 runtime bridge 接线
 - 更丰富的在线词典音频源与缓存命中策略
+- 长文本离线朗读与更细颗粒度的发音回退策略
+- 发音真机 smoke 回归与听感验收记录继续沉淀
 - 学习统计与发音使用数据的可视化面板
 
 ## 内置词库来源
@@ -104,7 +126,7 @@
 
 ### 日常升级
 
-1. 从 Releases 页面下载更高版本，例如 `1.3`、`1.4`。
+1. 从 Releases 页面下载更高版本，例如 `1.4`、`1.5`。
 2. 直接安装新 APK，Android 会覆盖旧版本，学习数据会保留。
 3. 升级前仍建议先在 App 里做一次本地备份。
 
@@ -117,7 +139,7 @@
 
 1. 在 [CHANGELOG.md](CHANGELOG.md) 里新增对应版本的小节，先写完整更新日志。
 2. 把代码推到目标分支。
-3. 在 GitHub Actions 里运行 `Android Release` 工作流，并输入版本号，例如 `1.3`。
+3. 在 GitHub Actions 里运行 `Android Release` 工作流，并输入版本号，例如 `1.5`。
 4. 工作流会在云端完成：
    - 校验版本号格式
    - 校验 native 语音包发布资产
@@ -132,7 +154,7 @@
 ### 两种触发方式
 
 - 推荐：GitHub 网页中手动运行 `Android Release`，输入版本号
-- 兼容：推送 `v1.3`、`v1.4` 这样的 tag，也会自动创建对应 Release
+- 兼容：推送 `v1.4`、`v1.5` 这样的 tag，也会自动创建对应 Release
 
 ## 版本与日志约束
 
@@ -152,12 +174,14 @@
   - `ANDROID_RELEASE_KEY_ALIAS`
   - `ANDROID_RELEASE_KEY_PASSWORD`
 
-## 本地兜底
+## 可选本地兜底
 
-虽然正式主流程走 GitHub 云端发包，但本地仍保留基础环境兜底：
+正式主流程已经固定走 GitHub 云端发包，不依赖当前机器必须具备完整 Android 构建环境。
+
+如果后续某台开发机需要本地兜底打包，再按需安装以下环境即可：
 
 - JDK 17
 - Android SDK
 - Gradle Wrapper
 
-这能避免云端排队、网络波动或 GitHub 临时异常时完全失去打包能力。
+这样可以在云端排队、网络波动或 GitHub 临时异常时，额外保留一条本地构建备用路径。

@@ -53,11 +53,41 @@ US 包应满足：
 - 本地脚本验证：
   - `bash scripts/test_voice_pack_release_assets.sh`
 - 云端 CI：
-  - 待本轮 `codex/v1-4-real-offline-pronunciation` 最新 run 结果回填
+  - `Android CI #23356835188`
+  - 结果：通过
+  - 入口：<https://github.com/yuelangmanle/wenwenlex/actions/runs/23356835188>
+  - 关键结论：
+    - `Build Debug APK` 通过
+    - `Connected Debug Android Test` 通过
+    - `PronunciationOrchestratorTest cache path` 的卡死问题已修复
 - 云端 Release：
-  - 待 `Android Release` `version=1.4` 完成后回填
+  - `Android Release #23357187548`
+  - 结果：通过
+  - 入口：<https://github.com/yuelangmanle/wenwenlex/actions/runs/23357187548>
+  - Release 页面：<https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.4>
 
-## 5. 真机补充项
+## 5. Release 资产核对结果
+
+本轮 `v1.4` Release 页面已确认存在以下资产：
+
+- `wenwenlex-v1.4-release.apk`
+  - `sha256 = aeb912796564f52e2a5072d016542f937a30c5ac60910c86c6ff26574349aede`
+- `wenwenlex-voice-pack-en-gb-offline-word-v1.zip`
+  - `sha256 = 5163e736f30956169ab2c040e88c93423b3274a6967ffc06b3c44ed1bee8331c`
+- `wenwenlex-voice-pack-en-us-offline-word-v1.zip`
+  - `sha256 = b9199e5fc82343185493c9878a90ac56e349a8417aa4fd09bb9b80909fa6feca`
+- `wenwenlex-voice-pack-en-gb-offline-word-v1-manifest.json`
+  - `sha256 = 7e459121b795822fb453f545c8e50f7d687ffb1d59be1104183f65e8bc0e8b73`
+- `wenwenlex-voice-pack-en-us-offline-word-v1-manifest.json`
+  - `sha256 = 86496b819f37c325e9645585bfc54fff255d0fbc3184d5c5685a6664ad28624a`
+- `wenwenlex-voice-pack-checksums.txt`
+  - `sha256 = cb09b7eda559fc4df63f9bb9712286869e4549fcd15a27a3873035658c6b8930`
+
+本机已同步下载一份发版资产，路径如下：
+
+- `/Users/yueliangmanle/Desktop/codex/danci/releases/v1.4/`
+
+## 6. 真机补充项
 
 当前这台机器缺少本地 Java / Android 真机打包环境，因此以下项目需要在 Release 完成后补记：
 
@@ -67,7 +97,30 @@ US 包应满足：
 - 第二次播放缓存命中耗时
 - 语音包删除 / 重装 / 切换回归
 
-## 6. 结果填写模板
+## 7. 本轮回填记录
+
+### 2026-03-21 02:28 / 云端 CI
+
+- 运行入口：`Android CI #23356835188`
+- 结果：通过
+- 证据链接：<https://github.com/yuelangmanle/wenwenlex/actions/runs/23356835188>
+- 备注：`Build Debug APK` 与 `Connected Debug Android Test` 均为绿色，修复后的发音编排测试不再卡死在 native cache 播放路径
+
+### 2026-03-21 02:41 / 云端 Release
+
+- 运行入口：`Android Release #23357187548`
+- 结果：通过
+- 证据链接：<https://github.com/yuelangmanle/wenwenlex/actions/runs/23357187548>
+- 备注：签名 APK、两套语音包 zip、两个 manifest 与 checksum 已上传到 `v1.4` Release
+
+### 2026-03-21 02:43 / 本地归档
+
+- 运行入口：`gh release download v1.4`
+- 结果：通过
+- 证据链接：`/Users/yueliangmanle/Desktop/codex/danci/releases/v1.4/`
+- 备注：本机已保留一份完整 `v1.4` 发布资产，便于后续真机安装、校验和离线备份
+
+## 8. 结果填写模板
 
 ```md
 ### YYYY-MM-DD HH:mm / 环节
