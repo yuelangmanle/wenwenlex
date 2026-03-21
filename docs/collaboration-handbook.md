@@ -13,7 +13,7 @@
 - 仓库地址：[yuelangmanle/wenwenlex](https://github.com/yuelangmanle/wenwenlex)
 - 当前正式版本：`1.5`
 - 当前正式发布：`2026-03-21` 已发布 `v1.5`
-- 当前开发主线：`v1.6` 已进入收口，学习统计可视化、长期摘要投喂和 AI 计划效果回看已落仓，待 GitHub Actions 最终验证
+- 当前开发主线：`v1.6` 已进入收口，学习统计可视化、长期摘要投喂和 AI 计划效果回看已落仓，已通过 `Android CI #23384177140`，待 `Android Release`
 - 平台：Android
 - 开发语言：Kotlin
 - UI 技术：Jetpack Compose

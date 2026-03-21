@@ -4,7 +4,7 @@
 
 ## [Unreleased]
 
-## [1.6] - In Progress
+## [1.6] - 2026-03-22
 
 ### Added
 
@@ -20,7 +20,7 @@
 
 ### Notes
 
-- 当前 `1.6` 仍处于开发收口阶段，正式版本依然是 `1.5`
+- 云端 `Android CI #23384177140` 已通过，`Build Debug APK` 与 `Connected Debug Android Test` 均为绿色
 - 由于当前本地机器仍缺 Java runtime，`1.6` 的最终验证与正式发版仍以 GitHub Actions `Android CI` / `Android Release` 为准
 
 ## [1.5] - 2026-03-21

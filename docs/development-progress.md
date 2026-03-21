@@ -4,9 +4,9 @@
 
 这份文档用于记录文文Lex 的当前真实开发状态，方便后续协作者、外部支持者和未来迭代直接接手。
 
-- 最后更新日期：`2026-03-21`
+- 最后更新日期：`2026-03-22`
 - 当前正式版本：`1.5`
-- 当前总体状态：`v1.5 已发布并完成云端 CI / Release 归档；v1.6 的学习统计看板、长期摘要投喂、计划效果回看和备份 v5 已落仓，当前进入云端验证与发版前文档收口阶段`
+- 当前总体状态：`v1.5 已发布并完成云端 CI / Release 归档；v1.6 的学习统计看板、长期摘要投喂、计划效果回看和备份 v5 已落仓，并已通过 Android CI，当前进入 Android Release 前收口阶段`
 
 ## 2. 当前版本快照
 
@@ -19,7 +19,7 @@
 - 当前开发验证页面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 - 当前正式发包方式：GitHub 云端 `Android Release`
 - 当前开发验证方式：GitHub 云端 `Android CI`
-- 当前开发主线：`v1.6` 已完成主要代码落仓，聚焦学习统计可视化、长期摘要投喂和 AI 计划效果回看，待 GitHub Actions 最终验收
+- 当前开发主线：`v1.6` 已完成主要代码落仓，聚焦学习统计可视化、长期摘要投喂和 AI 计划效果回看；当前已通过 `Android CI #23384177140`，待 `Android Release`
 
 ## 3. 里程碑状态
 
@@ -137,6 +137,7 @@
 - 当前 `1.5` 发版归档记录见 [release-v1.5-ai-plan-smoke.md](./release-v1.5-ai-plan-smoke.md)
 - 当前开发主线 `1.6` 已把学习统计快照、长期摘要和计划效果回看正式接入仓库代码
 - 当前开发主线 `1.6` 已升级到 Room `v6` 与备份 `v5`
+- 当前开发主线 `1.6` 已完成云端 `Android CI #23384177140`，`Build Debug APK` 与 `Connected Debug Android Test` 全绿
 - 当前本机仍缺 Java runtime，因此 `1.6` 无法在本机直接跑 Gradle；最终验证继续以 GitHub Actions 为准
 - native 语音包发布源目录当前位于 `distribution/voice-packs/`
 - 正式 Release 已具备同时上传 APK、native 语音包 zip、manifest 和 checksum 的能力
@@ -259,14 +260,15 @@
 - 已确认 Release 资产包含 `wenwenlex-v1.5-release.apk`、两套 voice pack zip、两个 manifest 和 `wenwenlex-voice-pack-checksums.txt`
 - 已补齐 [release-v1.5-ai-plan-smoke.md](./release-v1.5-ai-plan-smoke.md) 作为后续对接与回归基线
 
-### 2026-03-21 / v1.6 / 开发中（已落仓，待云端验证）
+### 2026-03-22 / v1.6 / 开发中（已过 Android CI，待 Release）
 
 - 已完成学习统计快照持久化、长期摘要字段落库，以及 Room `5 -> 6` 迁移
 - 已完成本地备份 `v5`，覆盖学习统计快照和长期摘要，并保持对 `v1` 到 `v4` 旧备份的兼容导入
 - 已完成学习统计页 / HTML 看板、首页 / “我的”页入口，以及 AI 计划中心“最近调整效果”卡片
 - 已完成长期学习摘要与计划效果数据接入 AI 计划输入，形成更稳定的连续性上下文
 - 已补齐统计入口点击测试与 AI 计划中心效果展示收紧测试
-- 尚未完成 `Android CI` / `Android Release` 的最终云端回填；当前发版基线记录见 [release-v1.6-analytics-smoke.md](./release-v1.6-analytics-smoke.md)
+- 已完成云端 `Android CI #23384177140`，`Build Debug APK` 与 `Connected Debug Android Test` 全绿
+- 尚未完成 `Android Release` 的最终云端回填；当前发版基线记录见 [release-v1.6-analytics-smoke.md](./release-v1.6-analytics-smoke.md)
 
 ## 10. 后续更新模板
 

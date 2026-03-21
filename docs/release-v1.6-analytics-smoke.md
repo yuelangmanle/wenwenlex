@@ -12,7 +12,7 @@
 ## 2. 当前基线状态
 
 - 当前正式版本仍是 `1.5`
-- 当前 `1.6` 代码已经落仓，但尚未完成 `Android CI` / `Android Release` 的最终云端回填
+- 当前 `1.6` 代码已经落仓，并已完成 `Android CI`，但尚未完成 `Android Release` 的最终云端回填
 - 当前本机缺少 Java runtime，无法在本机直接运行 Gradle；本轮最终验证继续以 GitHub Actions 为准
 - 当前 `1.6` 的实施计划见 [2026-03-21-v1.6-learning-analytics-ai-loop.md](./superpowers/plans/2026-03-21-v1.6-learning-analytics-ai-loop.md)
 
@@ -50,9 +50,9 @@
 ## 6. 待回填证据
 
 - 云端 CI：
-  - 运行入口：待回填
-  - 结果：待回填
-  - 证据链接：待回填
+  - 运行入口：`Android CI #23384177140`
+  - 结果：通过
+  - 证据链接：<https://github.com/yuelangmanle/wenwenlex/actions/runs/23384177140>
 - 云端 Release：
   - 运行入口：待回填
   - 结果：待回填
@@ -66,7 +66,16 @@
 - 当前暂未新建 `v1.6` 本机归档目录
 - 待正式 Release 通过后，再按需补充 APK / checksum 的本机归档路径
 
-## 8. 回填模板
+## 8. 已回填记录
+
+### 2026-03-22 00:59 / 云端 CI
+
+- 运行入口：`Android CI #23384177140`
+- 结果：通过
+- 证据链接：<https://github.com/yuelangmanle/wenwenlex/actions/runs/23384177140>
+- 备注：`Build Debug APK` 与 `Connected Debug Android Test` 均为绿色；其中第一次 `Android CI #23383948423` 暴露出的 analytics 单测回归已在 `b04a53f` 修复后消除
+
+## 9. 回填模板
 
 ```md
 ### YYYY-MM-DD HH:mm / 环节
