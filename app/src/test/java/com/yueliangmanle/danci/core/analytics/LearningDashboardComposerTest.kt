@@ -37,7 +37,7 @@ class LearningDashboardComposerTest {
                 voicePlaybackCount = 4,
                 shadowingCount = 1,
             ),
-            events = listOf(
+            performanceEvents = listOf(
                 answerEvent("2026-03-18T08:10:00Z", isCorrect = false),
                 answerEvent("2026-03-18T08:20:00Z", isCorrect = true),
                 answerEvent("2026-03-18T08:30:00Z", isCorrect = false),
@@ -76,17 +76,46 @@ class LearningDashboardComposerTest {
     }
 
     @Test
-    fun compose_ignoresAudioPlayedEventsForOverviewAndBookProgress() {
+    fun compose_usesPerformanceEventsForOverviewAndPlanEffects() {
         val aggregated = AggregatedAnalytics(
             pronunciationUsage = PronunciationUsageSnapshot(
                 followReadCount = 1,
                 voicePlaybackCount = 2,
                 shadowingCount = 0,
             ),
-            events = listOf(
+            performanceEvents = listOf(
                 answerEvent("2026-03-18T08:10:00Z", isCorrect = true, wordId = 1L),
                 answerEvent("2026-03-18T08:20:00Z", isCorrect = false, wordId = 2L),
-                audioEvent("2026-03-18T08:30:00Z", isCorrect = true, wordId = 99L),
+                answerEvent("2026-03-18T08:30:00Z", isCorrect = true, wordId = 3L),
+            ),
+        )
+        val planHistory = listOf(
+            PlanHistoryEntry(
+                id = 7L,
+                generatedAt = Instant.parse("2026-03-18T08:25:00Z"),
+                summary = "聚焦测验",
+                applyStatus = PlanApplyStatus.APPLIED,
+            ),
+        )
+
+        val snapshot = composer.compose(
+            aggregated = aggregated,
+            planHistory = planHistory,
+            activeBookTitle = "CET-4 Core",
+        )
+
+        assertEquals(2f / 3f, snapshot.overview.accuracyRate!!, 0.0001f)
+        assertEquals(2, snapshot.overview.masteredCount)
+        assertEquals(1, snapshot.planEffects.size)
+        assertEquals(0.5f, snapshot.planEffects.single().beforeCorrectRate!!, 0.0001f)
+        assertEquals(1f, snapshot.planEffects.single().afterCorrectRate!!, 0.0001f)
+    }
+
+    @Test
+    fun compose_returnsEmptyBookProgressWhenTotalIsUnknown() {
+        val aggregated = AggregatedAnalytics(
+            performanceEvents = listOf(
+                answerEvent("2026-03-18T08:10:00Z", isCorrect = true, wordId = 1L),
             ),
         )
 
@@ -96,10 +125,7 @@ class LearningDashboardComposerTest {
             activeBookTitle = "CET-4 Core",
         )
 
-        assertEquals(0.5f, snapshot.overview.accuracyRate!!, 0.0001f)
-        assertEquals(1, snapshot.overview.masteredCount)
-        assertEquals(1, snapshot.bookProgress.single().completedCount)
-        assertEquals(0, snapshot.planEffects.size)
+        assertEquals(0, snapshot.bookProgress.size)
     }
 
     private fun answerEvent(
@@ -110,18 +136,6 @@ class LearningDashboardComposerTest {
         StudyEvent(
             wordId = wordId,
             eventType = StudyEventType.QUIZ_ANSWERED,
-            isCorrect = isCorrect,
-            happenedAt = Instant.parse(happenedAt),
-        )
-
-    private fun audioEvent(
-        happenedAt: String,
-        isCorrect: Boolean,
-        wordId: Long = 99L,
-    ): StudyEvent =
-        StudyEvent(
-            wordId = wordId,
-            eventType = StudyEventType.AUDIO_PLAYED,
             isCorrect = isCorrect,
             happenedAt = Instant.parse(happenedAt),
         )

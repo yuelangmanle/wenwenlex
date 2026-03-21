@@ -79,15 +79,41 @@ class PlanEffectEvaluatorTest {
         assertEquals("正确率回升", result.outcomeSummary)
     }
 
+    @Test
+    fun evaluate_usesConfirmedAtAsEffectiveTimeForAppliedPlan() {
+        val plan = planEntry(
+            generatedAt = "2026-03-18T09:00:00Z",
+            confirmedAt = "2026-03-18T09:30:00Z",
+        )
+
+        val result = evaluator.evaluate(
+            currentPlan = plan,
+            events = listOf(
+                answerEvent("2026-03-18T08:10:00Z", isCorrect = false),
+                answerEvent("2026-03-18T08:20:00Z", isCorrect = true),
+                answerEvent("2026-03-18T09:10:00Z", isCorrect = false),
+                answerEvent("2026-03-18T09:40:00Z", isCorrect = true),
+                answerEvent("2026-03-18T09:50:00Z", isCorrect = true),
+                answerEvent("2026-03-18T10:00:00Z", isCorrect = true),
+            ),
+        )
+
+        assertEquals(1f / 3f, result.beforeCorrectRate!!, 0.0001f)
+        assertEquals(1f, result.afterCorrectRate!!, 0.0001f)
+        assertEquals("正确率回升", result.outcomeSummary)
+    }
+
     private fun planEntry(
         generatedAt: String,
         applyStatus: PlanApplyStatus = PlanApplyStatus.APPLIED,
+        confirmedAt: String? = null,
     ): PlanHistoryEntry =
         PlanHistoryEntry(
             id = 42L,
             generatedAt = Instant.parse(generatedAt),
             summary = "强化跟读纠偏",
             applyStatus = applyStatus,
+            confirmedAt = confirmedAt?.let(Instant::parse),
         )
 
     private fun answerEvent(

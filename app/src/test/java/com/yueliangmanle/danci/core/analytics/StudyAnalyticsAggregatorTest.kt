@@ -18,6 +18,7 @@ import com.yueliangmanle.danci.core.model.WeeklySummary
 import com.yueliangmanle.danci.core.model.Word
 import com.yueliangmanle.danci.core.model.studyEventMetadataOf
 import java.time.Instant
+import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -72,6 +73,62 @@ class StudyAnalyticsAggregatorTest {
         assertEquals(4, result.pronunciationUsage.voicePlaybackCount)
         assertEquals(2, result.pronunciationUsage.followReadCount)
         assertEquals(1, result.pronunciationUsage.shadowingCount)
+    }
+
+    @Test
+    fun aggregate_usesLocalZoneForDailyBoundaryInsteadOfUtc() {
+        val result = StudyAnalyticsAggregator(
+            zoneId = ZoneId.of("Asia/Shanghai"),
+        ).aggregate(
+            events = listOf(
+                correctEvent(happenedAt = "2026-03-18T15:50:00Z"),
+                correctEvent(happenedAt = "2026-03-18T16:10:00Z"),
+            ),
+            referenceTime = Instant.parse("2026-03-19T12:00:00Z"),
+        )
+
+        assertEquals(listOf("2026-03-18", "2026-03-19"), result.dailySummaries.map { it.date })
+    }
+
+    @Test
+    fun aggregate_preferredQuestionTypes_ignoreAudioAndAiEvents() {
+        val result = StudyAnalyticsAggregator().aggregate(
+            events = listOf(
+                answerEvent(
+                    happenedAt = "2026-03-18T08:00:00Z",
+                    eventType = StudyEventType.QUIZ_ANSWERED,
+                    isCorrect = true,
+                    metadata = studyEventMetadataOf("mode" to "quiz"),
+                ),
+                answerEvent(
+                    happenedAt = "2026-03-18T08:05:00Z",
+                    eventType = StudyEventType.QUIZ_ANSWERED,
+                    isCorrect = false,
+                    metadata = studyEventMetadataOf("mode" to "quiz"),
+                ),
+                answerEvent(
+                    happenedAt = "2026-03-18T08:10:00Z",
+                    eventType = StudyEventType.CARD_FEEDBACK,
+                    isCorrect = true,
+                    metadata = studyEventMetadataOf("mode" to "flashcard"),
+                ),
+                answerEvent(
+                    happenedAt = "2026-03-18T08:15:00Z",
+                    eventType = StudyEventType.AUDIO_PLAYED,
+                    isCorrect = null,
+                    metadata = studyEventMetadataOf("mode" to "shadowing"),
+                ),
+                answerEvent(
+                    happenedAt = "2026-03-18T08:20:00Z",
+                    eventType = StudyEventType.AI_ACTION,
+                    isCorrect = null,
+                    metadata = studyEventMetadataOf("mode" to "ai_coach"),
+                ),
+            ),
+            referenceTime = Instant.parse("2026-03-18T12:00:00Z"),
+        )
+
+        assertEquals(listOf("quiz", "flashcard"), result.learnerProfile.preferredQuestionTypes)
     }
 
     @Test
@@ -181,6 +238,20 @@ class StudyAnalyticsAggregatorTest {
             eventType = StudyEventType.AUDIO_PLAYED,
             happenedAt = Instant.parse(happenedAt),
             metadata = studyEventMetadataOf("play_context" to playContext),
+        )
+
+    private fun answerEvent(
+        happenedAt: String,
+        eventType: String,
+        isCorrect: Boolean?,
+        metadata: String? = null,
+    ): StudyEvent =
+        StudyEvent(
+            wordId = 1L,
+            eventType = eventType,
+            isCorrect = isCorrect,
+            happenedAt = Instant.parse(happenedAt),
+            metadata = metadata,
         )
 
     private fun checkpointSummary(

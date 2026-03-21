@@ -1,7 +1,6 @@
 package com.yueliangmanle.danci.core.analytics
 
 import com.yueliangmanle.danci.core.model.AnalyticsOverview
-import com.yueliangmanle.danci.core.model.BookProgressSnapshot
 import com.yueliangmanle.danci.core.model.DailyTrendPoint
 import com.yueliangmanle.danci.core.model.LearningAnalyticsSnapshot
 import com.yueliangmanle.danci.core.model.PlanApplyStatus
@@ -27,23 +26,20 @@ class LearningDashboardComposer(
                 )
             },
             feedbackBreakdown = aggregated.feedbackBreakdown,
-            bookProgress = buildBookProgress(
-                activeBookTitle = activeBookTitle,
-                completedCount = buildMasteredCount(aggregated.events),
-            ),
+            bookProgress = emptyList(),
             planEffects = planHistory
                 .filter { it.applyStatus == PlanApplyStatus.APPLIED }
                 .sortedByDescending(PlanHistoryEntry::generatedAt)
                 .take(maxPlanEffects)
-                .map { planEffectEvaluator.evaluate(it, aggregated.events) },
+                .map { planEffectEvaluator.evaluate(it, aggregated.performanceEvents) },
             pronunciationUsage = aggregated.pronunciationUsage,
         )
 
     private fun buildOverview(aggregated: AggregatedAnalytics): AnalyticsOverview {
-        val answerEvents = aggregated.events.performanceAnswerEvents()
+        val answerEvents = aggregated.performanceEvents
         val accuracyRate = answerEvents.takeIf { it.isNotEmpty() }?.let { events ->
-                events.count { it.isCorrect == true }.toFloat() / events.size
-            }
+            events.count { it.isCorrect == true }.toFloat() / events.size
+        }
 
         return AnalyticsOverview(
             accuracyRate = accuracyRate,
@@ -54,27 +50,8 @@ class LearningDashboardComposer(
 
     private fun buildMasteredCount(events: List<StudyEvent>): Int =
         events
-            .performanceAnswerEvents()
             .filter { it.isCorrect == true }
             .map(StudyEvent::wordId)
             .distinct()
             .size
-
-    private fun buildBookProgress(
-        activeBookTitle: String?,
-        completedCount: Int,
-    ): List<BookProgressSnapshot> =
-        activeBookTitle
-            ?.takeIf { title -> title.isNotBlank() }
-            ?.let { title ->
-                listOf(
-                    BookProgressSnapshot(
-                        bookId = "active_book",
-                        bookName = title,
-                        completedCount = completedCount,
-                        totalCount = 0,
-                    ),
-                )
-            }
-            .orEmpty()
 }

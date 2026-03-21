@@ -4,6 +4,7 @@ import com.yueliangmanle.danci.core.model.PlanEffectSnapshot
 import com.yueliangmanle.danci.core.model.PlanHistoryEntry
 import com.yueliangmanle.danci.core.model.StudyEvent
 import com.yueliangmanle.danci.core.model.StudyEventType
+import java.time.Instant
 
 private val PERFORMANCE_EVENT_TYPES = setOf(
     StudyEventType.QUIZ_ANSWERED,
@@ -24,15 +25,16 @@ class PlanEffectEvaluator(
         currentPlan: PlanHistoryEntry,
         events: List<StudyEvent>,
     ): PlanEffectSnapshot {
+        val effectiveAt = currentPlan.effectiveAt()
         val answerEvents = events
             .performanceAnswerEvents()
             .sortedBy(StudyEvent::happenedAt)
 
         val beforeWindow = answerEvents
-            .filter { it.happenedAt < currentPlan.generatedAt }
+            .filter { it.happenedAt < effectiveAt }
             .takeLast(windowSize)
         val afterWindow = answerEvents
-            .filter { it.happenedAt > currentPlan.generatedAt }
+            .filter { it.happenedAt > effectiveAt }
             .take(windowSize)
 
         val hasEnoughSamples = beforeWindow.size >= minimumSampleSize && afterWindow.size >= minimumSampleSize
@@ -65,4 +67,7 @@ class PlanEffectEvaluator(
         } else {
             count { it.isCorrect == true }.toFloat() / size
         }
+
+    private fun PlanHistoryEntry.effectiveAt(): Instant =
+        confirmedAt ?: generatedAt
 }

@@ -12,7 +12,6 @@ import com.yueliangmanle.danci.core.model.metadataEntries
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.ZoneId
-import java.time.ZoneOffset
 import java.time.temporal.TemporalAdjusters
 
 data class AggregatedAnalytics(
@@ -22,11 +21,11 @@ data class AggregatedAnalytics(
     val confusionEdges: List<ConfusionEdge> = emptyList(),
     val feedbackBreakdown: List<FeedbackBucket> = emptyList(),
     val pronunciationUsage: PronunciationUsageSnapshot = PronunciationUsageSnapshot(),
-    val events: List<StudyEvent> = emptyList(),
+    val performanceEvents: List<StudyEvent> = emptyList(),
 )
 
 class StudyAnalyticsAggregator(
-    private val zoneId: ZoneId = ZoneOffset.UTC,
+    private val zoneId: ZoneId = ZoneId.systemDefault(),
 ) {
     fun aggregate(
         events: List<StudyEvent>,
@@ -39,6 +38,7 @@ class StudyAnalyticsAggregator(
         val learnerProfile = buildLearnerProfile(sortedEvents, confusionEdges, referenceTime)
         val feedbackBreakdown = buildFeedbackBreakdown(sortedEvents)
         val pronunciationUsage = buildPronunciationUsage(sortedEvents)
+        val performanceEvents = sortedEvents.performanceAnswerEvents()
 
         return AggregatedAnalytics(
             dailySummaries = dailySummaries,
@@ -47,7 +47,7 @@ class StudyAnalyticsAggregator(
             confusionEdges = confusionEdges,
             feedbackBreakdown = feedbackBreakdown,
             pronunciationUsage = pronunciationUsage,
-            events = sortedEvents,
+            performanceEvents = performanceEvents,
         )
     }
 
@@ -181,9 +181,10 @@ class StudyAnalyticsAggregator(
             }
 
         val preferredQuestionTypes = events
+            .performanceAnswerEvents()
             .mapNotNull { event ->
                 val metadata = event.metadataEntries()
-                metadata["mode"] ?: event.eventType.substringBefore('_').takeIf(String::isNotBlank)
+                metadata["mode"] ?: fallbackModeFor(event)
             }
             .groupingBy { it }
             .eachCount()
@@ -213,6 +214,13 @@ class StudyAnalyticsAggregator(
             updatedAt = referenceTime,
         )
     }
+
+    private fun fallbackModeFor(event: StudyEvent): String? =
+        when (event.eventType) {
+            StudyEventType.QUIZ_ANSWERED -> "quiz"
+            StudyEventType.CARD_FEEDBACK -> "card"
+            else -> null
+        }
 
     private fun buildFeedbackBreakdown(events: List<StudyEvent>): List<FeedbackBucket> {
         val feedbackCounts = events
