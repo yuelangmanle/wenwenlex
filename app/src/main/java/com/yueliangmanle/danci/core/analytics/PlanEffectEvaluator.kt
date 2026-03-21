@@ -3,6 +3,18 @@ package com.yueliangmanle.danci.core.analytics
 import com.yueliangmanle.danci.core.model.PlanEffectSnapshot
 import com.yueliangmanle.danci.core.model.PlanHistoryEntry
 import com.yueliangmanle.danci.core.model.StudyEvent
+import com.yueliangmanle.danci.core.model.StudyEventType
+
+private val PERFORMANCE_EVENT_TYPES = setOf(
+    StudyEventType.QUIZ_ANSWERED,
+    StudyEventType.CARD_FEEDBACK,
+)
+
+internal fun StudyEvent.isPerformanceAnswerEvent(): Boolean =
+    eventType in PERFORMANCE_EVENT_TYPES && isCorrect != null
+
+internal fun List<StudyEvent>.performanceAnswerEvents(): List<StudyEvent> =
+    filter(StudyEvent::isPerformanceAnswerEvent)
 
 class PlanEffectEvaluator(
     private val windowSize: Int = 5,
@@ -13,7 +25,7 @@ class PlanEffectEvaluator(
         events: List<StudyEvent>,
     ): PlanEffectSnapshot {
         val answerEvents = events
-            .filter { it.isCorrect != null }
+            .performanceAnswerEvents()
             .sortedBy(StudyEvent::happenedAt)
 
         val beforeWindow = answerEvents

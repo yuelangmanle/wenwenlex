@@ -75,13 +75,53 @@ class LearningDashboardComposerTest {
         assertEquals("正确率回升", snapshot.planEffects.single().outcomeSummary)
     }
 
+    @Test
+    fun compose_ignoresAudioPlayedEventsForOverviewAndBookProgress() {
+        val aggregated = AggregatedAnalytics(
+            pronunciationUsage = PronunciationUsageSnapshot(
+                followReadCount = 1,
+                voicePlaybackCount = 2,
+                shadowingCount = 0,
+            ),
+            events = listOf(
+                answerEvent("2026-03-18T08:10:00Z", isCorrect = true, wordId = 1L),
+                answerEvent("2026-03-18T08:20:00Z", isCorrect = false, wordId = 2L),
+                audioEvent("2026-03-18T08:30:00Z", isCorrect = true, wordId = 99L),
+            ),
+        )
+
+        val snapshot = composer.compose(
+            aggregated = aggregated,
+            planHistory = emptyList(),
+            activeBookTitle = "CET-4 Core",
+        )
+
+        assertEquals(0.5f, snapshot.overview.accuracyRate!!, 0.0001f)
+        assertEquals(1, snapshot.overview.masteredCount)
+        assertEquals(1, snapshot.bookProgress.single().completedCount)
+        assertEquals(0, snapshot.planEffects.size)
+    }
+
     private fun answerEvent(
         happenedAt: String,
         isCorrect: Boolean,
+        wordId: Long = 1L,
     ): StudyEvent =
         StudyEvent(
-            wordId = 1L,
+            wordId = wordId,
             eventType = StudyEventType.QUIZ_ANSWERED,
+            isCorrect = isCorrect,
+            happenedAt = Instant.parse(happenedAt),
+        )
+
+    private fun audioEvent(
+        happenedAt: String,
+        isCorrect: Boolean,
+        wordId: Long = 99L,
+    ): StudyEvent =
+        StudyEvent(
+            wordId = wordId,
+            eventType = StudyEventType.AUDIO_PLAYED,
             isCorrect = isCorrect,
             happenedAt = Instant.parse(happenedAt),
         )

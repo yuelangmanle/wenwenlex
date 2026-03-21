@@ -59,7 +59,7 @@ class StudyAnalyticsAggregator(
             .groupBy { event -> event.happenedAt.atZone(zoneId).toLocalDate() }
             .toSortedMap()
             .map { (date, dayEvents) ->
-                val answerEvents = dayEvents.filter { it.isCorrect != null }
+                val answerEvents = dayEvents.performanceAnswerEvents()
                 val wrongEvents = answerEvents.filter { it.isCorrect == false }
                 val reviewCount = answerEvents.size
                 val correctRate = if (reviewCount == 0) {
@@ -98,7 +98,7 @@ class StudyAnalyticsAggregator(
             }
             .toSortedMap()
             .map { (weekStartDate, weekEvents) ->
-                val answerEvents = weekEvents.filter { it.isCorrect != null }
+                val answerEvents = weekEvents.performanceAnswerEvents()
                 val reviewCount = answerEvents.size
                 val correctRate = if (reviewCount == 0) {
                     0f
@@ -111,7 +111,7 @@ class StudyAnalyticsAggregator(
                     studiedCount = weekEvents.map(StudyEvent::wordId).distinct().size,
                     correctRate = correctRate,
                     trendSummary = weeklyTrendSummary(correctRate),
-                    persistentWeakSpots = weekEvents
+                    persistentWeakSpots = answerEvents
                         .filter { it.isCorrect == false }
                         .map { event -> "word:${event.wordId}" }
                         .groupingBy { it }
@@ -129,7 +129,7 @@ class StudyAnalyticsAggregator(
         referenceTime: Instant,
     ): List<ConfusionEdge> =
         events
-            .filter { it.isCorrect == false }
+            .filter { it.isPerformanceAnswerEvent() && it.isCorrect == false }
             .mapNotNull { event ->
                 val metadata = event.metadataEntries()
                 val targetWordId = metadata["confusedWordId"]?.toLongOrNull() ?: return@mapNotNull null
@@ -160,14 +160,14 @@ class StudyAnalyticsAggregator(
         confusionEdges: List<ConfusionEdge>,
         referenceTime: Instant,
     ): LearnerProfile {
-        val answerEvents = events.filter { it.isCorrect != null }
+        val answerEvents = events.performanceAnswerEvents()
         val correctRate = if (answerEvents.isEmpty()) {
             0f
         } else {
             answerEvents.count { it.isCorrect == true }.toFloat() / answerEvents.size
         }
 
-        val weakSpots = events
+        val weakSpots = answerEvents
             .filter { it.isCorrect == false }
             .map { event -> "word:${event.wordId}" }
             .groupingBy { it }
@@ -192,7 +192,7 @@ class StudyAnalyticsAggregator(
             .map { it.key }
             .take(3)
 
-        val commonMistakePatterns = events
+        val commonMistakePatterns = answerEvents
             .filter { it.isCorrect == false }
             .map { event ->
                 val metadata = event.metadataEntries()

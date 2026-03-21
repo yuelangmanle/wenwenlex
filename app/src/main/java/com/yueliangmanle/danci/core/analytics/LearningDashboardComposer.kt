@@ -40,9 +40,8 @@ class LearningDashboardComposer(
         )
 
     private fun buildOverview(aggregated: AggregatedAnalytics): AnalyticsOverview {
-        val answerEvents = aggregated.events.filter { it.isCorrect != null }
-        val accuracyRate = aggregated.weeklySummaries.lastOrNull()?.correctRate
-            ?: answerEvents.takeIf { it.isNotEmpty() }?.let { events ->
+        val answerEvents = aggregated.events.performanceAnswerEvents()
+        val accuracyRate = answerEvents.takeIf { it.isNotEmpty() }?.let { events ->
                 events.count { it.isCorrect == true }.toFloat() / events.size
             }
 
@@ -55,6 +54,7 @@ class LearningDashboardComposer(
 
     private fun buildMasteredCount(events: List<StudyEvent>): Int =
         events
+            .performanceAnswerEvents()
             .filter { it.isCorrect == true }
             .map(StudyEvent::wordId)
             .distinct()
