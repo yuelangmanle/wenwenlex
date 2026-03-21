@@ -6,16 +6,18 @@
 
 - 最后更新日期：`2026-03-21`
 - 当前正式版本：`1.5`
-- 当前总体状态：`v1.5 已发布；AI 计划中心、计划对比/解释页、checkpoint 压缩记忆与备份 v4 已上线，后续继续做云端回归沉淀和学习统计增强`
+- 当前总体状态：`v1.5 已发布并完成云端 CI / Release 归档；AI 计划中心、计划对比/解释页、checkpoint 压缩记忆与备份 v4 已上线，下一轮主线收敛到学习统计可视化 + AI 计划闭环增强`
 
 ## 2. 当前版本快照
 
 - 项目名称：`文文Lex`
 - 发布页面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
 - 当前正式版本页面：[v1.5](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.5)
+- 当前 `1.5` 发版记录：[release-v1.5-ai-plan-smoke.md](./release-v1.5-ai-plan-smoke.md)
 - 当前开发验证页面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 - 当前正式发包方式：GitHub 云端 `Android Release`
 - 当前开发验证方式：GitHub 云端 `Android CI`
+- 当前开发主线：`v1.6` 范围已整理，聚焦学习统计可视化、长期摘要投喂和 AI 计划效果回看
 
 ## 3. 里程碑状态
 
@@ -117,10 +119,14 @@
 以下事实可默认作为后续协作基线：
 
 - 正式版本 `1.5` 已于 `2026-03-21` 完成云端正式发版
+- `Android CI #23377258763` 已通过，覆盖 `Build Debug APK` 与 `Connected Debug Android Test`
+- `Android Release #23377422188` 已通过，并已发布 [v1.5](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.5)
 - 正式安装包类型为 `release-signed APK`
 - 正式版本更新日志由 [CHANGELOG.md](../CHANGELOG.md) 提供
 - 版本号规则固定为 `1.0 -> 1.1 -> ... -> 1.9 -> 2.0`
 - 当前 `1.5` 在 `1.4` 发音闭环基础上，已把 AI 计划历史、计划对比解释和备份 `v4` 正式接入
+- 当前 `1.5` Release 资产已确认包含：signed APK、UK / US voice pack zip、两个 manifest 与 checksum
+- 当前 `1.5` 发版归档记录见 [release-v1.5-ai-plan-smoke.md](./release-v1.5-ai-plan-smoke.md)
 - native 语音包发布源目录当前位于 `distribution/voice-packs/`
 - 正式 Release 已具备同时上传 APK、native 语音包 zip、manifest 和 checksum 的能力
 - 正式 Release 的 native payload 由 GitHub Actions 云端临时拉取与打包，不进入 git 仓库
@@ -140,14 +146,40 @@
 - native 离线语音包真机听感验收、缓存命中时延与失败回退体验继续调优
 - 更丰富的在线词典音频源与缓存命中策略
 
-## 7. 下阶段候选迭代池
+## 7. 已锁定的 `1.6` 范围
 
-- `1.5` 候选：更完整的在线词典音频源与缓存命中策略
-- `1.5` 候选：学习数据图表和 HTML 可视化面板
-- `1.5` 候选：导入表格纠错和字段补全过程进一步自动化
-- `1.5` 候选：词条质量修订工具和词库增量更新流程
-- `1.6` 候选：学习数据图表和 HTML 可视化面板
-- `1.6` 候选：更完整的在线词典音频源与缓存命中策略
+### 7.1 主目标
+
+- 把“学习数据沉淀 -> 可视化回看 -> AI 计划调整 -> 调整效果追踪”做成第一版正式闭环
+
+### 7.2 本轮纳入范围
+
+- 新增学习统计页或统计看板，优先采用 App 内 HTML 可视化，覆盖日 / 周 / 月完成量、反馈分布、词书维度进度和忘词回拉趋势
+- 扩展学习事件聚合与长期摘要，补入 checkpoint 结果、计划执行偏差、重点词簇和发音使用命中等结构化统计
+- 在 AI 计划中心补入“调整前后效果”视角，让下一轮 AI 调整可以参考上一轮执行结果
+- 把长期摘要正式接入 AI 计划生成输入，形成稳定的连续性上下文，而不是只看最近一次会话
+- 同步准备配套的数据迁移、备份字段扩展、测试与云端发版验证
+
+### 7.3 本轮辅助项
+
+- 统计图表第一版优先使用 HTML 容器承载，避免一开始就引入过重的原生图表复杂度
+- 发音模块本轮只补统计采集和展示，不重开新的离线 TTS 引擎路线
+- 导入链路本轮只补与统计 / AI 摘要相关的数据衔接，不重开大规模表格能力重写
+
+### 7.4 明确不纳入
+
+- 云端账户体系、自建服务器、多端同步
+- 新一轮 native 发音引擎替换或大规模语音包体系改版
+- 大规模词库内容清洗工具链重构
+- 新的三段式版本号或临时旁支版本策略
+
+### 7.5 `1.6` 发版门槛
+
+- 用户可在 App 内直接看到统计面板与核心趋势图
+- AI 计划输入已接入稳定的长期统计摘要
+- 至少一条“调整前后效果”回看链路可见
+- `Android CI` 与 `Android Release` 全绿
+- `CHANGELOG.md`、`README.md`、`development-progress.md`、`collaboration-handbook.md` 与发版记录同步更新
 
 ## 8. 实时更新规则
 
@@ -211,7 +243,10 @@
 - 已完成 AI 计划中心、计划对比页、解释页、时间轴回溯与待确认操作
 - 已完成 checkpoint summary 压缩记忆、长期计划上下文窗口和备份 `v4` 兼容恢复
 - 已完成本地关键验证：首页待确认提示、学习页 checkpoint 自动 / 待确认分流、AI 计划中心空状态 / 历史状态 / 待确认状态、对比页固定使用当前 `APPLIED` 版本、旧备份恢复后 AI 计划中心可正常显示
-- 已完成云端正式发版，版本号切换到 `1.5`
+- 已完成云端 `Android CI #23377258763`，`Build Debug APK` 与 `Connected Debug Android Test` 全绿
+- 已完成云端 `Android Release #23377422188`，发布 [v1.5](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.5)
+- 已确认 Release 资产包含 `wenwenlex-v1.5-release.apk`、两套 voice pack zip、两个 manifest 和 `wenwenlex-voice-pack-checksums.txt`
+- 已补齐 [release-v1.5-ai-plan-smoke.md](./release-v1.5-ai-plan-smoke.md) 作为后续对接与回归基线
 
 ## 10. 后续更新模板
 

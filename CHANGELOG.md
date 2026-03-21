@@ -21,8 +21,9 @@
 
 ### Notes
 
-- 当前本地已完成关键单测与 `androidTest` Kotlin 编译验证
-- 由于当前机器没有连接 Android 设备，最终 `connectedDebugAndroidTest` 仍需在真机或 GitHub Actions 上补跑
+- 云端 `Android CI #23377258763` 已通过，`Build Debug APK` 与 `Connected Debug Android Test` 均为绿色
+- 云端 `Android Release #23377422188` 已通过，`v1.5` GitHub Release 已正式发布
+- `v1.5` Release 资产已包含：`wenwenlex-v1.5-release.apk`、UK / US 两个 voice pack zip、两个 manifest 与 `wenwenlex-voice-pack-checksums.txt`
 
 ## [1.4] - 2026-03-21
 

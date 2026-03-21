@@ -7,6 +7,7 @@
 - 当前正式版本：`1.5`
 - 版本规则：每次迭代递增 `0.1`，按 `1.0 -> 1.1 -> ... -> 1.9 -> 2.0` 进位
 - 正式发包界面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
+- 当前正式版本页面：[v1.5](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.5)
 - 开发验证界面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 
 ## 协作文档入口
@@ -25,6 +26,7 @@
 - [v1.4 发音发版 Smoke 记录](docs/release-v1.4-pronunciation-smoke.md)
 - [v1.5 AI 计划历史规格](docs/superpowers/specs/2026-03-21-v1.5-ai-plan-history-design.md)
 - [v1.5 AI 计划历史计划](docs/superpowers/plans/2026-03-21-v1.5-ai-plan-history.md)
+- [v1.5 发版记录](docs/release-v1.5-ai-plan-smoke.md)
 
 ## 1.1 已实现能力
 
@@ -107,12 +109,25 @@
 - checkpoint summary 和记忆压缩已落库，可为后续 AI 连续性分析提供稳定长期上下文
 - 本地备份已升级到 `v4`，支持恢复扩展计划历史和 checkpoint 摘要，并兼容旧备份
 
-## 后续增强方向
+## 1.5 发版结果
 
-- 更丰富的在线词典音频源与缓存命中策略
-- 长文本离线朗读与更细颗粒度的发音回退策略
-- 发音真机 smoke 回归与听感验收记录继续沉淀
-- 学习统计与发音使用数据的可视化面板
+- 云端 `Android CI #23377258763` 已通过，`Build Debug APK` 与 `Connected Debug Android Test` 均为绿色
+- 云端 `Android Release #23377422188` 已通过，并已发布 [v1.5](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.5)
+- `v1.5` Release 页面当前包含：
+  - `wenwenlex-v1.5-release.apk`
+  - `wenwenlex-voice-pack-en-gb-offline-word-v1.zip`
+  - `wenwenlex-voice-pack-en-us-offline-word-v1.zip`
+  - 两个 voice pack manifest
+  - `wenwenlex-voice-pack-checksums.txt`
+- 发版和资产核对细节见 [v1.5 发版记录](docs/release-v1.5-ai-plan-smoke.md)
+
+## 1.6 拟定范围
+
+- 学习统计页 / 统计看板，优先用 App 内 HTML 可视化承载核心趋势图
+- 长期学习摘要正式接入 AI 计划输入，增强连续性上下文
+- AI 计划中心补入“调整前后效果”回看链路
+- 发音模块本轮只补统计采集和展示，不重开新的引擎路线
+- 继续保持“无账号、无自建服务器、GitHub 云端发版”的基线
 
 ## 内置词库来源
 

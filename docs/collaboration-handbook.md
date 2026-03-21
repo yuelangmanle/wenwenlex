@@ -13,7 +13,7 @@
 - 仓库地址：[yuelangmanle/wenwenlex](https://github.com/yuelangmanle/wenwenlex)
 - 当前正式版本：`1.5`
 - 当前正式发布：`2026-03-21` 已发布 `v1.5`
-- 当前开发主线：`v1.5` 已完成发版，下一轮主线聚焦学习统计可视化与发音/AI 连续性增强
+- 当前开发主线：`v1.6` 范围已锁定，主目标聚焦学习统计可视化、长期摘要投喂和 AI 计划效果回看
 - 平台：Android
 - 开发语言：Kotlin
 - UI 技术：Jetpack Compose
@@ -58,6 +58,7 @@
 - `v1.4` 发版 smoke 记录：[release-v1.4-pronunciation-smoke.md](./release-v1.4-pronunciation-smoke.md)
 - `v1.5` AI 计划历史规格：[2026-03-21-v1.5-ai-plan-history-design.md](./superpowers/specs/2026-03-21-v1.5-ai-plan-history-design.md)
 - `v1.5` AI 计划历史计划：[2026-03-21-v1.5-ai-plan-history.md](./superpowers/plans/2026-03-21-v1.5-ai-plan-history.md)
+- `v1.5` 发版记录：[release-v1.5-ai-plan-smoke.md](./release-v1.5-ai-plan-smoke.md)
 - 发布页面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
 - 构建页面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 
@@ -126,6 +127,14 @@ README.md               项目入口说明
 - `docs/development-progress.md` 已更新
 - 如果涉及正式发版，`CHANGELOG.md` 已更新
 - 如果涉及流程变化，`docs/collaboration-handbook.md` 或 `docs/release-signing.md` 已更新
+
+### 7.4 当前已锁定的 `1.6` 范围
+
+- 主目标：把学习统计沉淀、可视化回看和 AI 计划调整效果追踪做成第一版闭环
+- 核心交付：学习统计页 / HTML 可视化看板、长期统计摘要、AI 计划中心效果回看、AI 输入摘要增强
+- 配套要求：如引入新统计结构，必须同步补数据库迁移、备份兼容、测试和文档
+- 明确不纳入：云端账号、自建服务器、多端同步、新一轮发音引擎替换、大规模词库工具链重构
+- 发版门槛：`Android CI` 与 `Android Release` 全绿，且四份主文档与发版记录同步更新
 
 ## 8. 打包与发版规则
 
