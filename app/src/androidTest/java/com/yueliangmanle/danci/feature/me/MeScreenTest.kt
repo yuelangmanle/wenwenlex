@@ -1,10 +1,10 @@
 package com.yueliangmanle.danci.feature.me
 
 import androidx.activity.ComponentActivity
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
 import org.junit.Test
@@ -38,6 +38,6 @@ class MeScreenTest {
         composeRule.onNodeWithText("备份与恢复").assertIsDisplayed()
         composeRule.onNodeWithText("每日提醒").assertIsDisplayed()
         composeRule.onNodeWithText("AI 设置").assertIsDisplayed()
-        composeRule.onNodeWithText("AI 计划记录").assertExists()
+        composeRule.onNodeWithText("AI 计划记录").performScrollTo().assertIsDisplayed()
     }
 }
