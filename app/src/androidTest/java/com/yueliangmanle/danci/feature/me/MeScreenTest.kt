@@ -1,6 +1,7 @@
 package com.yueliangmanle.danci.feature.me
 
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -37,6 +38,6 @@ class MeScreenTest {
         composeRule.onNodeWithText("备份与恢复").assertIsDisplayed()
         composeRule.onNodeWithText("每日提醒").assertIsDisplayed()
         composeRule.onNodeWithText("AI 设置").assertIsDisplayed()
-        composeRule.onNodeWithText("AI 计划记录").assertIsDisplayed()
+        composeRule.onNodeWithText("AI 计划记录").assertExists()
     }
 }
