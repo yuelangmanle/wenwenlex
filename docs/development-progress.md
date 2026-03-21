@@ -6,7 +6,7 @@
 
 - 最后更新日期：`2026-03-21`
 - 当前正式版本：`1.5`
-- 当前总体状态：`v1.5 已发布并完成云端 CI / Release 归档；AI 计划中心、计划对比/解释页、checkpoint 压缩记忆与备份 v4 已上线，下一轮主线收敛到学习统计可视化 + AI 计划闭环增强`
+- 当前总体状态：`v1.5 已发布并完成云端 CI / Release 归档；v1.6 的学习统计看板、长期摘要投喂、计划效果回看和备份 v5 已落仓，当前进入云端验证与发版前文档收口阶段`
 
 ## 2. 当前版本快照
 
@@ -15,10 +15,11 @@
 - 当前正式版本页面：[v1.5](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.5)
 - 当前 `1.5` 发版记录：[release-v1.5-ai-plan-smoke.md](./release-v1.5-ai-plan-smoke.md)
 - 当前 `1.6` 实施计划：[2026-03-21-v1.6-learning-analytics-ai-loop.md](./superpowers/plans/2026-03-21-v1.6-learning-analytics-ai-loop.md)
+- 当前 `1.6` 发版基线：[release-v1.6-analytics-smoke.md](./release-v1.6-analytics-smoke.md)
 - 当前开发验证页面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 - 当前正式发包方式：GitHub 云端 `Android Release`
 - 当前开发验证方式：GitHub 云端 `Android CI`
-- 当前开发主线：`v1.6` 范围已整理，聚焦学习统计可视化、长期摘要投喂和 AI 计划效果回看
+- 当前开发主线：`v1.6` 已完成主要代码落仓，聚焦学习统计可视化、长期摘要投喂和 AI 计划效果回看，待 GitHub Actions 最终验收
 
 ## 3. 里程碑状态
 
@@ -37,6 +38,7 @@
 | 发音与朗读 v1.3 | 已完成并发版 | 已完成 native metadata 合并、Sherpa ONNX runtime 脚手架、本地生成缓存、原生离线单词合成、安装校验、Release 资产打包与设置页错误可见化，并正式发版 |
 | 发音与朗读 v1.4 | 已完成并发版 | 已切到真实 `kokoro-en-v0_19` 模型资产、官方 Sherpa Android JNI runtime、UK/US 双 speaker、云端组装语音包与 Release checksum 对齐，并正式发版 |
 | AI 计划历史回溯 v1.5 | 已完成并发版 | 已完成计划版本持久化、AI 计划中心、计划对比 / 解释页、checkpoint 压缩记忆和备份 `v4`，并完成正式发版 |
+| 学习统计与 AI 闭环 v1.6 | 开发中（已落仓，待云端验证） | 已完成统计快照持久化、长期摘要投喂、学习统计页 / HTML 看板、首页 / 我的页入口、AI 计划中心效果回看与备份 `v5` |
 
 ## 4. 已完成模块清单
 
@@ -49,6 +51,7 @@
 - 词书管理页
 - 词书详情页
 - Excel 导入页
+- 学习统计页 / HTML 看板
 - 我的页设置中心
 - 多 API 设置页
 - 本地备份与恢复
@@ -73,6 +76,8 @@
 - AI 计划建议上下文构建
 - AI 计划版本历史、待确认状态与 checkpoint 压缩记忆
 - AI 计划中心、时间轴回溯、计划对比与解释页
+- 学习统计长期摘要与结构化统计快照
+- AI 计划效果回看与长期摘要投喂
 - AI 学习建议解析
 - 单词助记、关系辨析、词形讲解、例句扩展
 - Excel 表格 AI 适配
@@ -95,9 +100,11 @@
 - Room `1 -> 2` 数据迁移
 - Room `2 -> 3` 发音模块迁移
 - Room `4 -> 5` AI 计划历史与 checkpoint 摘要迁移
+- Room `5 -> 6` 学习统计快照与长期摘要迁移
 - 备份 `v1 -> v2` 兼容导入
 - 备份 `v3` 兼容导入
 - 备份 `v4` 扩展计划历史与 checkpoint 摘要兼容导入
+- 备份 `v5` 学习统计快照与长期摘要兼容导入
 - 语音包清单同步、下载 worker 与桥接包安装路径
 - 原生离线单词发音引擎骨架与本地生成缓存
 - 官方 Sherpa ONNX Android JNI runtime 接入与真实 Kokoro runtime bridge
@@ -128,6 +135,9 @@
 - 当前 `1.5` 在 `1.4` 发音闭环基础上，已把 AI 计划历史、计划对比解释和备份 `v4` 正式接入
 - 当前 `1.5` Release 资产已确认包含：signed APK、UK / US voice pack zip、两个 manifest 与 checksum
 - 当前 `1.5` 发版归档记录见 [release-v1.5-ai-plan-smoke.md](./release-v1.5-ai-plan-smoke.md)
+- 当前开发主线 `1.6` 已把学习统计快照、长期摘要和计划效果回看正式接入仓库代码
+- 当前开发主线 `1.6` 已升级到 Room `v6` 与备份 `v5`
+- 当前本机仍缺 Java runtime，因此 `1.6` 无法在本机直接跑 Gradle；最终验证继续以 GitHub Actions 为准
 - native 语音包发布源目录当前位于 `distribution/voice-packs/`
 - 正式 Release 已具备同时上传 APK、native 语音包 zip、manifest 和 checksum 的能力
 - 正式 Release 的 native payload 由 GitHub Actions 云端临时拉取与打包，不进入 git 仓库
@@ -153,13 +163,13 @@
 
 - 把“学习数据沉淀 -> 可视化回看 -> AI 计划调整 -> 调整效果追踪”做成第一版正式闭环
 
-### 7.2 本轮纳入范围
+### 7.2 本轮已落仓项
 
-- 新增学习统计页或统计看板，优先采用 App 内 HTML 可视化，覆盖日 / 周 / 月完成量、反馈分布、词书维度进度和忘词回拉趋势
-- 扩展学习事件聚合与长期摘要，补入 checkpoint 结果、计划执行偏差、重点词簇和发音使用命中等结构化统计
-- 在 AI 计划中心补入“调整前后效果”视角，让下一轮 AI 调整可以参考上一轮执行结果
-- 把长期摘要正式接入 AI 计划生成输入，形成稳定的连续性上下文，而不是只看最近一次会话
-- 同步准备配套的数据迁移、备份字段扩展、测试与云端发版验证
+- 已新增学习统计页与统计看板，第一版采用 App 内 HTML 可视化，覆盖趋势、反馈分布、计划效果和发音使用
+- 已扩展学习事件聚合与长期摘要，补入 checkpoint 结果、计划执行偏差和发音使用等结构化统计
+- 已在 AI 计划中心补入“最近调整效果”视角，并只对真实 `APPLIED` 效果样本开放展示
+- 已把长期摘要正式接入 AI 计划生成输入，形成稳定的连续性上下文，而不是只看最近一次会话
+- 已完成配套的数据迁移、备份 `v5` 字段扩展和主要页面 / ViewModel 测试补强
 
 ### 7.3 本轮辅助项
 
@@ -248,6 +258,15 @@
 - 已完成云端 `Android Release #23377422188`，发布 [v1.5](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.5)
 - 已确认 Release 资产包含 `wenwenlex-v1.5-release.apk`、两套 voice pack zip、两个 manifest 和 `wenwenlex-voice-pack-checksums.txt`
 - 已补齐 [release-v1.5-ai-plan-smoke.md](./release-v1.5-ai-plan-smoke.md) 作为后续对接与回归基线
+
+### 2026-03-21 / v1.6 / 开发中（已落仓，待云端验证）
+
+- 已完成学习统计快照持久化、长期摘要字段落库，以及 Room `5 -> 6` 迁移
+- 已完成本地备份 `v5`，覆盖学习统计快照和长期摘要，并保持对 `v1` 到 `v4` 旧备份的兼容导入
+- 已完成学习统计页 / HTML 看板、首页 / “我的”页入口，以及 AI 计划中心“最近调整效果”卡片
+- 已完成长期学习摘要与计划效果数据接入 AI 计划输入，形成更稳定的连续性上下文
+- 已补齐统计入口点击测试与 AI 计划中心效果展示收紧测试
+- 尚未完成 `Android CI` / `Android Release` 的最终云端回填；当前发版基线记录见 [release-v1.6-analytics-smoke.md](./release-v1.6-analytics-smoke.md)
 
 ## 10. 后续更新模板
 

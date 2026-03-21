@@ -5,6 +5,7 @@
 ## 当前状态
 
 - 当前正式版本：`1.5`
+- 当前开发主线：`1.6`（已落仓，待云端 CI / Release 验证）
 - 版本规则：每次迭代递增 `0.1`，按 `1.0 -> 1.1 -> ... -> 1.9 -> 2.0` 进位
 - 正式发包界面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
 - 当前正式版本页面：[v1.5](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.5)
@@ -28,6 +29,7 @@
 - [v1.5 AI 计划历史计划](docs/superpowers/plans/2026-03-21-v1.5-ai-plan-history.md)
 - [v1.5 发版记录](docs/release-v1.5-ai-plan-smoke.md)
 - [v1.6 学习统计与 AI 闭环计划](docs/superpowers/plans/2026-03-21-v1.6-learning-analytics-ai-loop.md)
+- [v1.6 学习统计发版基线](docs/release-v1.6-analytics-smoke.md)
 
 ## 1.1 已实现能力
 
@@ -48,7 +50,7 @@
   - 考研 `4796`
   - 高中 `3666`
   - 雅思基础 `5026`
-- 本地 ZIP 备份与恢复，备份版本升级到 `v4`，兼容导入 `v1` / `v2` / `v3`
+- 本地 ZIP 备份与恢复，当前开发主线已升级到 `v5`，兼容导入 `v1` / `v2` / `v3` / `v4`
 - 每日提醒、本地 AI 摘要整理与 WorkManager 后台任务
 
 ## 1.2 已发布能力
@@ -122,13 +124,21 @@
   - `wenwenlex-voice-pack-checksums.txt`
 - 发版和资产核对细节见 [v1.5 发版记录](docs/release-v1.5-ai-plan-smoke.md)
 
-## 1.6 拟定范围
+## 1.6 开发中能力
 
-- 学习统计页 / 统计看板，优先用 App 内 HTML 可视化承载核心趋势图
-- 长期学习摘要正式接入 AI 计划输入，增强连续性上下文
-- AI 计划中心补入“调整前后效果”回看链路
-- 发音模块本轮只补统计采集和展示，不重开新的引擎路线
-- 继续保持“无账号、无自建服务器、GitHub 云端发版”的基线
+以下内容已经落到仓库当前开发主线，但还没有完成 `Android CI` / `Android Release` 的最终云端验收，正式版本仍是 `1.5`：
+
+- 学习统计页已落地，可从首页和“我的”页进入
+- 统计页第一版使用 App 内 HTML 看板，集中展示趋势、反馈分布、计划效果和发音使用
+- `AiMemorySummary` 已正式接入 `analyticsSnapshot` 与 `longTermInsights`，长期摘要会进入 AI 计划输入
+- AI 计划中心已补入“最近调整效果”卡片，并收紧为仅在存在真实生效计划效果样本时展示
+- 本地备份已升级到 `v5`，覆盖学习统计快照和长期摘要，并保持对 `v1` 到 `v4` 旧备份的兼容恢复
+- 本轮继续保持“无账号、无自建服务器、GitHub 云端发版”的基线
+
+当前 `1.6` 计划与发版基线文档：
+
+- 实施计划：[v1.6 学习统计与 AI 闭环计划](docs/superpowers/plans/2026-03-21-v1.6-learning-analytics-ai-loop.md)
+- 发版基线：[v1.6 学习统计发版基线](docs/release-v1.6-analytics-smoke.md)
 
 ## 内置词库来源
 

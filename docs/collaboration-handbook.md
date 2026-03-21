@@ -13,7 +13,7 @@
 - 仓库地址：[yuelangmanle/wenwenlex](https://github.com/yuelangmanle/wenwenlex)
 - 当前正式版本：`1.5`
 - 当前正式发布：`2026-03-21` 已发布 `v1.5`
-- 当前开发主线：`v1.6` 范围已锁定，主目标聚焦学习统计可视化、长期摘要投喂和 AI 计划效果回看
+- 当前开发主线：`v1.6` 已进入收口，学习统计可视化、长期摘要投喂和 AI 计划效果回看已落仓，待 GitHub Actions 最终验证
 - 平台：Android
 - 开发语言：Kotlin
 - UI 技术：Jetpack Compose
@@ -60,6 +60,7 @@
 - `v1.5` AI 计划历史计划：[2026-03-21-v1.5-ai-plan-history.md](./superpowers/plans/2026-03-21-v1.5-ai-plan-history.md)
 - `v1.5` 发版记录：[release-v1.5-ai-plan-smoke.md](./release-v1.5-ai-plan-smoke.md)
 - `v1.6` 学习统计与 AI 闭环计划：[2026-03-21-v1.6-learning-analytics-ai-loop.md](./superpowers/plans/2026-03-21-v1.6-learning-analytics-ai-loop.md)
+- `v1.6` 发版基线：[release-v1.6-analytics-smoke.md](./release-v1.6-analytics-smoke.md)
 - 发布页面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
 - 构建页面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 
@@ -132,8 +133,8 @@ README.md               项目入口说明
 ### 7.4 当前已锁定的 `1.6` 范围
 
 - 主目标：把学习统计沉淀、可视化回看和 AI 计划调整效果追踪做成第一版闭环
-- 核心交付：学习统计页 / HTML 可视化看板、长期统计摘要、AI 计划中心效果回看、AI 输入摘要增强
-- 配套要求：如引入新统计结构，必须同步补数据库迁移、备份兼容、测试和文档
+- 当前已落仓：学习统计页 / HTML 可视化看板、长期统计摘要、AI 计划中心效果回看、AI 输入摘要增强
+- 配套要求：如引入新统计结构，必须同步补数据库迁移、备份兼容、测试和文档；当前主线已升级到 Room `v6` 与备份 `v5`
 - 明确不纳入：云端账号、自建服务器、多端同步、新一轮发音引擎替换、大规模词库工具链重构
 - 发版门槛：`Android CI` 与 `Android Release` 全绿，且四份主文档与发版记录同步更新
 
@@ -185,6 +186,7 @@ README.md               项目入口说明
 3. 确认目标分支代码已推送
 4. 确认 GitHub Secrets 完整
 5. 确认正式包要使用同一把签名 key
+6. 确认对应版本的发版 smoke 文档已经新建或更新完毕
 
 ### 8.5 正式产物规则
 
@@ -207,10 +209,10 @@ README.md               项目入口说明
 
 ### 9.2 备份规则
 
-- 当前备份版本为 `v4`
-- 备份必须覆盖：词书、单词、学习数据、多 API 路由、导入批次、音标补全任务、扩展计划历史与 checkpoint 摘要
+- 当前开发主线备份版本为 `v5`
+- 备份必须覆盖：词书、单词、学习数据、多 API 路由、导入批次、音标补全任务、扩展计划历史、checkpoint 摘要、学习统计快照与长期摘要
 - API Key 不进入备份文件
-- 新版本仍必须兼容导入旧 `v1` / `v2` / `v3` 备份
+- 新版本仍必须兼容导入旧 `v1` / `v2` / `v3` / `v4` 备份
 
 ### 9.3 AI 路由规则
 
