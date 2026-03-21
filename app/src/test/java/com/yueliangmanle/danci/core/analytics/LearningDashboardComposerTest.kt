@@ -9,6 +9,7 @@ import com.yueliangmanle.danci.core.model.StudyEvent
 import com.yueliangmanle.danci.core.model.StudyEventType
 import java.time.Instant
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class LearningDashboardComposerTest {
@@ -107,8 +108,9 @@ class LearningDashboardComposerTest {
         assertEquals(2f / 3f, snapshot.overview.accuracyRate!!, 0.0001f)
         assertEquals(2, snapshot.overview.masteredCount)
         assertEquals(1, snapshot.planEffects.size)
-        assertEquals(0.5f, snapshot.planEffects.single().beforeCorrectRate!!, 0.0001f)
-        assertEquals(1f, snapshot.planEffects.single().afterCorrectRate!!, 0.0001f)
+        assertEquals("样本不足", snapshot.planEffects.single().outcomeSummary)
+        assertNull(snapshot.planEffects.single().beforeCorrectRate)
+        assertNull(snapshot.planEffects.single().afterCorrectRate)
     }
 
     @Test

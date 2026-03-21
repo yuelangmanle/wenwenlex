@@ -159,11 +159,17 @@ class SummaryBuilder {
         if (latestEffect == null) {
             return true
         }
-        val checkpointPlanIds = setOfNotNull(
-            latestCheckpoint.candidatePlanVersionId,
-            latestCheckpoint.effectivePlanVersionId,
-        )
-        return checkpointPlanIds.isNotEmpty() && latestEffect.planVersionId !in checkpointPlanIds
+        latestCheckpoint.candidatePlanVersionId?.let { candidatePlanVersionId ->
+            if (candidatePlanVersionId != latestEffect.planVersionId) {
+                return true
+            }
+        }
+        latestCheckpoint.effectivePlanVersionId?.let { effectivePlanVersionId ->
+            if (effectivePlanVersionId != latestEffect.planVersionId) {
+                return true
+            }
+        }
+        return false
     }
 
     private fun buildWeakSpotInsight(
