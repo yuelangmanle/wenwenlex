@@ -82,10 +82,14 @@ enum class PlanApplyStatus {
 }
 
 data class CheckpointSummary(
-    val title: String,
-    val suggestion: String,
-    val sourceLabel: String? = null,
-    val createdAt: Instant = Instant.EPOCH,
+    val checkpointId: String,
+    val windowStartAt: Instant,
+    val windowEndAt: Instant,
+    val effectivePlanVersionId: Long? = null,
+    val candidatePlanVersionId: Long? = null,
+    val decisionStatus: PlanApplyStatus = PlanApplyStatus.APPLIED,
+    val effectSummary: String,
+    val signalSummary: String,
 )
 
 data class ConfusionEdge(

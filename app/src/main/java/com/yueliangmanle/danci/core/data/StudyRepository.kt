@@ -228,7 +228,7 @@ internal fun AiMemorySummary.toLearnerProfileEntity(): LearnerProfileEntity? {
         preferredQuestionTypes = profile?.preferredQuestionTypes.orEmpty(),
         commonMistakePatterns = profile?.commonMistakePatterns.orEmpty(),
         checkpointSummariesJson = checkpointSummaries.toJsonString(),
-        updatedAt = profile?.updatedAt ?: checkpointSummaries.maxOfOrNull(CheckpointSummary::createdAt) ?: java.time.Instant.EPOCH,
+        updatedAt = profile?.updatedAt ?: checkpointSummaries.maxOfOrNull(CheckpointSummary::windowEndAt) ?: java.time.Instant.EPOCH,
     )
 }
 
@@ -334,17 +334,31 @@ private fun String?.toCheckpointSummaries(): List<CheckpointSummary> =
             buildList(jsonArray.length()) {
                 repeat(jsonArray.length()) { index ->
                     val item = jsonArray.optJSONObject(index) ?: return@repeat
-                    val title = item.optString("title").takeIf(String::isNotBlank) ?: return@repeat
-                    val suggestion = item.optString("suggestion").takeIf(String::isNotBlank) ?: return@repeat
+                    val checkpointId = item.optString("checkpointId").takeIf(String::isNotBlank) ?: return@repeat
+                    val windowStartAt = item.optString("windowStartAt")
+                        .takeIf(String::isNotBlank)
+                        ?.toInstantOrNull()
+                        ?: return@repeat
+                    val windowEndAt = item.optString("windowEndAt")
+                        .takeIf(String::isNotBlank)
+                        ?.toInstantOrNull()
+                        ?: return@repeat
+                    val decisionStatus = item.optString("decisionStatus")
+                        .takeIf(String::isNotBlank)
+                        ?.toPlanApplyStatusOrNull()
+                        ?: return@repeat
+                    val effectSummary = item.optString("effectSummary").takeIf(String::isNotBlank) ?: return@repeat
+                    val signalSummary = item.optString("signalSummary").takeIf(String::isNotBlank) ?: return@repeat
                     add(
                         CheckpointSummary(
-                            title = title,
-                            suggestion = suggestion,
-                            sourceLabel = item.optString("sourceLabel").takeIf(String::isNotBlank),
-                            createdAt = item.optString("createdAt")
-                                .takeIf(String::isNotBlank)
-                                ?.let(java.time.Instant::parse)
-                                ?: java.time.Instant.EPOCH,
+                            checkpointId = checkpointId,
+                            windowStartAt = windowStartAt,
+                            windowEndAt = windowEndAt,
+                            effectivePlanVersionId = item.optLongOrNull("effectivePlanVersionId"),
+                            candidatePlanVersionId = item.optLongOrNull("candidatePlanVersionId"),
+                            decisionStatus = decisionStatus,
+                            effectSummary = effectSummary,
+                            signalSummary = signalSummary,
                         ),
                     )
                 }
@@ -356,12 +370,28 @@ private fun List<CheckpointSummary>.toJsonString(): String =
     JSONArray(
         map { summary ->
             JSONObject()
-                .put("title", summary.title)
-                .put("suggestion", summary.suggestion)
-                .put("sourceLabel", summary.sourceLabel)
-                .put("createdAt", summary.createdAt.toString())
+                .put("checkpointId", summary.checkpointId)
+                .put("windowStartAt", summary.windowStartAt.toString())
+                .put("windowEndAt", summary.windowEndAt.toString())
+                .put("effectivePlanVersionId", summary.effectivePlanVersionId)
+                .put("candidatePlanVersionId", summary.candidatePlanVersionId)
+                .put("decisionStatus", summary.decisionStatus.name)
+                .put("effectSummary", summary.effectSummary)
+                .put("signalSummary", summary.signalSummary)
         },
     ).toString()
+
+private fun JSONObject.optLongOrNull(key: String): Long? =
+    when {
+        !has(key) || isNull(key) -> null
+        else -> getLong(key)
+    }
+
+private fun String.toInstantOrNull(): java.time.Instant? =
+    runCatching { java.time.Instant.parse(this) }.getOrNull()
+
+private fun String.toPlanApplyStatusOrNull(): com.yueliangmanle.danci.core.model.PlanApplyStatus? =
+    runCatching { com.yueliangmanle.danci.core.model.PlanApplyStatus.valueOf(this) }.getOrNull()
 
 internal fun ConfusionEdge.asEntity(): ConfusionEdgeEntity =
     ConfusionEdgeEntity(

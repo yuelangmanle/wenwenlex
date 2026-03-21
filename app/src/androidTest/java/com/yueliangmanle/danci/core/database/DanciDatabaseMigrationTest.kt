@@ -1,66 +1,50 @@
 package com.yueliangmanle.danci.core.database
 
-import androidx.sqlite.db.SupportSQLiteOpenHelper
+import androidx.room.testing.MigrationTestHelper
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class DanciDatabaseMigrationTest {
 
+    @get:Rule
+    val helper = MigrationTestHelper(
+        InstrumentationRegistry.getInstrumentation(),
+        DanciDatabase::class.java,
+        emptyList(),
+        FrameworkSQLiteOpenHelperFactory(),
+    )
+
     @Test
     fun migration4To5_backfillsExistingPlanHistoryRows() {
         val databaseName = "danci-migration-test"
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        context.deleteDatabase(databaseName)
-        val helper = FrameworkSQLiteOpenHelperFactory().create(
-            SupportSQLiteOpenHelper.Configuration.builder(context)
-                .name(databaseName)
-                .callback(
-                    object : SupportSQLiteOpenHelper.Callback(4) {
-                        override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
-                            db.execSQL(
-                                """
-                                CREATE TABLE IF NOT EXISTS plan_history (
-                                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                                    generatedAt INTEGER NOT NULL,
-                                    summary TEXT NOT NULL,
-                                    recommendedFocus TEXT NOT NULL,
-                                    suggestedPace TEXT,
-                                    executionEffect TEXT
-                                )
-                                """.trimIndent(),
-                            )
-                            db.execSQL(
-                                """
-                                CREATE TABLE IF NOT EXISTS learner_profiles (
-                                    profileId TEXT NOT NULL PRIMARY KEY,
-                                    vocabularyLevel TEXT,
-                                    weakSpots TEXT NOT NULL,
-                                    preferredQuestionTypes TEXT NOT NULL,
-                                    commonMistakePatterns TEXT NOT NULL,
-                                    updatedAt INTEGER NOT NULL
-                                )
-                                """.trimIndent(),
-                            )
-                            db.execSQL("CREATE INDEX IF NOT EXISTS index_plan_history_generatedAt ON plan_history(generatedAt)")
-                        }
-
-                        override fun onUpgrade(
-                            db: androidx.sqlite.db.SupportSQLiteDatabase,
-                            oldVersion: Int,
-                            newVersion: Int,
-                        ) = Unit
-                    },
+        InstrumentationRegistry.getInstrumentation().targetContext.deleteDatabase(databaseName)
+        helper.createDatabase(databaseName, 4).apply {
+            execSQL(
+                """
+                INSERT INTO learner_profiles (
+                    profileId,
+                    vocabularyLevel,
+                    weakSpots,
+                    preferredQuestionTypes,
+                    commonMistakePatterns,
+                    updatedAt
+                ) VALUES (
+                    'default',
+                    '提升中',
+                    'abandonprecise',
+                    'quiz',
+                    '',
+                    1774008600000
                 )
-                .build(),
-        )
-
-        helper.writableDatabase.apply {
+                """.trimIndent(),
+            )
             execSQL(
                 """
                 INSERT INTO plan_history (
@@ -82,26 +66,15 @@ class DanciDatabaseMigrationTest {
             )
             close()
         }
-        helper.close()
 
-        val migratedHelper = FrameworkSQLiteOpenHelperFactory().create(
-            SupportSQLiteOpenHelper.Configuration.builder(context)
-                .name(databaseName)
-                .callback(object : SupportSQLiteOpenHelper.Callback(5) {
-                    override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) = Unit
-
-                    override fun onUpgrade(
-                        db: androidx.sqlite.db.SupportSQLiteDatabase,
-                        oldVersion: Int,
-                        newVersion: Int,
-                    ) {
-                        MIGRATION_4_5.migrate(db)
-                    }
-                })
-                .build(),
+        val migratedDb = helper.runMigrationsAndValidate(
+            databaseName,
+            5,
+            true,
+            MIGRATION_4_5,
         )
 
-        val cursor = migratedHelper.writableDatabase.query(
+        val cursor = migratedDb.query(
             """
             SELECT parentPlanVersionId, severity, applyStatus, triggerType, sourceType
             FROM plan_history
@@ -121,7 +94,16 @@ class DanciDatabaseMigrationTest {
             assertEquals("manual_refresh", triggerType)
             assertEquals("LOCAL_FALLBACK", sourceType)
         }
-        migratedHelper.close()
-        context.deleteDatabase(databaseName)
+
+        migratedDb.query(
+            """
+            SELECT checkpointSummariesJson
+            FROM learner_profiles
+            WHERE profileId = 'default'
+            """.trimIndent(),
+        ).use { cursor ->
+            check(cursor.moveToFirst())
+            assertEquals("[]", cursor.getString(0))
+        }
     }
 }
