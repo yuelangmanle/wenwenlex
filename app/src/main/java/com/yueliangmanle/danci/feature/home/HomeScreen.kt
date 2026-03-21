@@ -32,6 +32,7 @@ fun HomeScreen(
     onStartReviewClick: () -> Unit,
     onOpenMistakesClick: () -> Unit,
     onAnalyzePlanClick: () -> Unit,
+    onOpenPlanCenterClick: () -> Unit,
 ) {
     if (state.isLoading) {
         Box(
@@ -79,6 +80,17 @@ fun HomeScreen(
                 onAnalyzePlanClick = onAnalyzePlanClick,
             )
         }
+        if (state.planCenterTitle != null && state.planCenterSummary != null) {
+            item {
+                PlanCenterCard(
+                    title = state.planCenterTitle,
+                    summary = state.planCenterSummary,
+                    pendingPlanCount = state.pendingPlanCount,
+                    meta = state.planCenterMeta,
+                    onOpenPlanCenterClick = onOpenPlanCenterClick,
+                )
+            }
+        }
         state.aiSuggestion?.let { suggestion ->
             item {
                 AiHintCard(
@@ -87,6 +99,55 @@ fun HomeScreen(
                     meta = state.aiSuggestionMeta,
                     focusWords = state.aiFocusWords,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlanCenterCard(
+    title: String,
+    summary: String,
+    pendingPlanCount: Int,
+    meta: String? = null,
+    onOpenPlanCenterClick: () -> Unit,
+) {
+    Card(
+        modifier = Modifier
+            .padding(horizontal = 20.dp)
+            .fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+            )
+            if (pendingPlanCount > 0) {
+                Text(
+                    text = "有 $pendingPlanCount 条待确认调整",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            meta?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                text = summary,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            OutlinedButton(
+                onClick = onOpenPlanCenterClick,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("查看 AI 计划中心")
             }
         }
     }

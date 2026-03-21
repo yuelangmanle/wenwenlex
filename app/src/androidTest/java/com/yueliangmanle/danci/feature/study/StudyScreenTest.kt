@@ -27,6 +27,7 @@ class StudyScreenTest {
                 onFeedbackClick = {},
                 onOpenDetailClick = {},
                 onPlayPronunciationClick = {},
+                onOpenPlanCenterClick = {},
             )
         }
 
@@ -44,13 +45,20 @@ class StudyScreenTest {
                     currentWord = "abandon",
                     progressText = "1 / 10",
                     statusMessage = "已联网获取英式词典音频（有道词典）。",
+                    checkpointDecisionLabel = "需要确认",
+                    checkpointTitle = "AI 阶段建议",
+                    checkpointSuggestion = "建议先暂停新词推进。",
+                    canOpenPlanCenter = true,
                 ),
                 onFeedbackClick = {},
                 onOpenDetailClick = {},
                 onPlayPronunciationClick = {},
+                onOpenPlanCenterClick = {},
             )
         }
 
         composeRule.onNodeWithText("已联网获取英式词典音频（有道词典）。").assertIsDisplayed()
+        composeRule.onNodeWithText("需要确认").assertIsDisplayed()
+        composeRule.onNodeWithText("查看 AI 计划中心").assertIsDisplayed()
     }
 }

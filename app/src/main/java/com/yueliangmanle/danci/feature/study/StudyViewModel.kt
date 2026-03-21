@@ -11,6 +11,8 @@ import com.yueliangmanle.danci.core.data.buildSettingsRepository
 import com.yueliangmanle.danci.core.data.defaultLearningRecord
 import com.yueliangmanle.danci.core.data.syncBuiltInCatalogToDatabase
 import com.yueliangmanle.danci.core.model.LearningRecord
+import com.yueliangmanle.danci.core.model.PlanApplyStatus
+import com.yueliangmanle.danci.core.model.PlanHistoryEntry
 import com.yueliangmanle.danci.core.model.StudyEvent
 import com.yueliangmanle.danci.core.model.StudyEventType
 import com.yueliangmanle.danci.core.model.studyEventMetadataOf
@@ -34,6 +36,9 @@ data class StudyUiState(
     val checkpointTitle: String? = null,
     val checkpointSuggestion: String? = null,
     val checkpointSourceLabel: String? = null,
+    val checkpointDecisionLabel: String? = null,
+    val checkpointPlanVersionId: Long? = null,
+    val canOpenPlanCenter: Boolean = false,
     val statusMessage: String? = null,
     val errorMessage: String? = null,
 )
@@ -63,6 +68,9 @@ class StudyViewModel(
     private var checkpointTitle: String? = null
     private var checkpointSuggestion: String? = null
     private var checkpointSourceLabel: String? = null
+    private var checkpointDecisionLabel: String? = null
+    private var checkpointPlanVersionId: Long? = null
+    private var canOpenPlanCenter: Boolean = false
 
     init {
         recordCurrentCardPresentedIfNeeded()
@@ -80,6 +88,9 @@ class StudyViewModel(
                 checkpointTitle = checkpointTitle,
                 checkpointSuggestion = checkpointSuggestion,
                 checkpointSourceLabel = checkpointSourceLabel,
+                checkpointDecisionLabel = checkpointDecisionLabel,
+                checkpointPlanVersionId = checkpointPlanVersionId,
+                canOpenPlanCenter = canOpenPlanCenter,
             )
         }
 
@@ -94,6 +105,9 @@ class StudyViewModel(
             checkpointTitle = checkpointTitle,
             checkpointSuggestion = checkpointSuggestion,
             checkpointSourceLabel = checkpointSourceLabel,
+            checkpointDecisionLabel = checkpointDecisionLabel,
+            checkpointPlanVersionId = checkpointPlanVersionId,
+            canOpenPlanCenter = canOpenPlanCenter,
         )
     }
 
@@ -174,14 +188,24 @@ class StudyViewModel(
         return request?.takeIf { sessionCheckpointsEnabled }
     }
 
-    fun applyCheckpointSuggestion(result: AiPlanAdjustmentResult): StudyUiState {
-        checkpointTitle = if (result.source == PlanSource.AI) {
+    fun applyCheckpointSuggestion(
+        adjustment: AiPlanAdjustmentResult,
+        version: PlanHistoryEntry,
+    ): StudyUiState {
+        checkpointTitle = if (adjustment.source == PlanSource.AI) {
             "AI 阶段建议"
         } else {
             "本地阶段建议"
         }
-        checkpointSuggestion = listOfNotNull(result.summary, result.checkpointAdvice).joinToString("\n")
-        checkpointSourceLabel = if (result.source == PlanSource.AI) "AI 生成" else "本地兜底"
+        checkpointSuggestion = listOfNotNull(adjustment.summary, adjustment.checkpointAdvice).joinToString("\n")
+        checkpointSourceLabel = if (adjustment.source == PlanSource.AI) "AI 生成" else "本地兜底"
+        checkpointDecisionLabel = when (version.applyStatus) {
+            PlanApplyStatus.APPLIED -> "已自动微调"
+            PlanApplyStatus.PENDING_CONFIRMATION -> "需要确认"
+            else -> null
+        }
+        checkpointPlanVersionId = version.id.takeIf { it > 0 }
+        canOpenPlanCenter = checkpointPlanVersionId != null
         return buildUiState()
     }
 

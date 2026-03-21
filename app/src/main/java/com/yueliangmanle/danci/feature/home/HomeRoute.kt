@@ -10,6 +10,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.yueliangmanle.danci.core.ai.buildAiStrategyCoordinator
 import com.yueliangmanle.danci.core.ai.loadCurrentPlanSnapshot
+import com.yueliangmanle.danci.core.ai.PlanHistoryRepository
+import com.yueliangmanle.danci.core.data.RoomStudyRepository
+import com.yueliangmanle.danci.core.database.buildDanciDatabase
 import kotlinx.coroutines.launch
 
 @Composable
@@ -18,9 +21,16 @@ fun HomeRoute(
     onStartReviewClick: () -> Unit = {},
     onOpenMistakesClick: () -> Unit = {},
     onAnalyzePlanClick: () -> Unit = {},
+    onOpenPlanCenterClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val studyRepository = remember(context) {
+        RoomStudyRepository(buildDanciDatabase(context).studyDao())
+    }
+    val planHistoryRepository = remember(context) {
+        PlanHistoryRepository(studyRepository = studyRepository)
+    }
     var viewModel: HomeViewModel? by remember(context) {
         mutableStateOf(null)
     }
@@ -63,7 +73,11 @@ fun HomeRoute(
                         anomalyNotes = listOf("首页手动触发分析"),
                     )
                     val result = buildAiStrategyCoordinator(context).adjustPlan(snapshot)
-                    currentViewModel.applyPlanAdjustment(state, result)
+                    val version = planHistoryRepository.createCandidateVersion(snapshot, result)
+                    val pendingPlanCount = studyRepository.loadAiMemorySummary(planLimit = 50)
+                        .planHistory
+                        .count { it.applyStatus == com.yueliangmanle.danci.core.model.PlanApplyStatus.PENDING_CONFIRMATION }
+                    currentViewModel.applyPlanAdjustment(state, result, version, pendingPlanCount)
                 }.getOrElse { error ->
                     state.copy(
                         isAnalyzingPlan = false,
@@ -75,5 +89,6 @@ fun HomeRoute(
                 }
             }
         },
+        onOpenPlanCenterClick = onOpenPlanCenterClick,
     )
 }

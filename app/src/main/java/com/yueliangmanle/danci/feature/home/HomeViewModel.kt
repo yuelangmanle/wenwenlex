@@ -4,7 +4,11 @@ import android.content.Context
 import com.yueliangmanle.danci.core.data.BookRepository
 import com.yueliangmanle.danci.core.ai.AiPlanAdjustmentResult
 import com.yueliangmanle.danci.core.ai.PlanSource
+import com.yueliangmanle.danci.core.model.AiMemorySummary
+import com.yueliangmanle.danci.core.model.PlanApplyStatus
+import com.yueliangmanle.danci.core.model.PlanHistoryEntry
 import com.yueliangmanle.danci.core.data.AppSettings
+import com.yueliangmanle.danci.core.data.buildAiMemoryRepository
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
 import com.yueliangmanle.danci.core.data.buildBookRepository
 import com.yueliangmanle.danci.core.data.syncBuiltInCatalogToDatabase
@@ -34,6 +38,10 @@ data class HomeUiState(
     val aiSuggestion: String? = null,
     val aiSuggestionMeta: String? = null,
     val aiFocusWords: List<String> = emptyList(),
+    val planCenterTitle: String? = null,
+    val planCenterSummary: String? = null,
+    val pendingPlanCount: Int = 0,
+    val planCenterMeta: String? = null,
 ) {
     companion object {
         fun loading(): HomeUiState = HomeUiState(isLoading = true)
@@ -44,6 +52,7 @@ class HomeViewModel(
     private val settings: AppSettings,
     private val books: List<Book>,
     private val learningRecords: List<LearningRecord> = emptyList(),
+    private val aiMemorySummary: AiMemorySummary = AiMemorySummary(),
     private val todayTaskEngine: TodayTaskEngine = TodayTaskEngine(),
     private val reviewScheduler: ReviewScheduler = ReviewScheduler(),
     private val nowProvider: () -> Instant = { Instant.now() },
@@ -63,6 +72,8 @@ class HomeViewModel(
             recentMistakeWords = reviewSummary.recentMistakeWords,
         )
         val plannedStudyCount = plan.newWordCount + plan.reviewCount
+        val latestPlan = aiMemorySummary.planHistory.sortedBy(PlanHistoryEntry::generatedAt).lastOrNull()
+        val pendingPlanCount = aiMemorySummary.planHistory.count { it.applyStatus == PlanApplyStatus.PENDING_CONFIRMATION }
 
         return HomeUiState(
             headline = "今天还要学 $plannedStudyCount 个词",
@@ -80,6 +91,14 @@ class HomeViewModel(
             } else {
                 "今天以稳住节奏为主，先完成首页任务。"
             },
+            planCenterTitle = "AI 计划中心",
+            planCenterSummary = latestPlan?.summary ?: "还没有生成计划版本，可以先点“分析并调整计划”。",
+            pendingPlanCount = pendingPlanCount,
+            planCenterMeta = when {
+                pendingPlanCount > 0 -> "有 $pendingPlanCount 条待确认调整"
+                latestPlan != null -> latestPlan.statusLabel()
+                else -> "等待第一次分析"
+            },
         )
     }
 
@@ -95,6 +114,8 @@ class HomeViewModel(
     fun applyPlanAdjustment(
         current: HomeUiState,
         result: AiPlanAdjustmentResult,
+        version: PlanHistoryEntry,
+        pendingPlanCount: Int = if (version.applyStatus == PlanApplyStatus.PENDING_CONFIRMATION) 1 else current.pendingPlanCount,
     ): HomeUiState =
         current.copy(
             isAnalyzingPlan = false,
@@ -110,6 +131,15 @@ class HomeViewModel(
                 result.suggestedPace?.let { "节奏：$it" },
             ).joinToString(" · ").takeIf(String::isNotBlank),
             aiFocusWords = result.recommendedFocus,
+            planCenterTitle = "AI 计划中心",
+            planCenterSummary = version.summary,
+            pendingPlanCount = pendingPlanCount,
+            planCenterMeta = when (version.applyStatus) {
+                PlanApplyStatus.APPLIED -> "最近调整已自动生效"
+                PlanApplyStatus.PENDING_CONFIRMATION -> "有 $pendingPlanCount 条待确认调整"
+                PlanApplyStatus.REJECTED -> "最近调整已拒绝"
+                PlanApplyStatus.SUPERSEDED -> "最近计划已更新"
+            },
         )
 
     private fun selectActiveBook(): Book? =
@@ -121,9 +151,19 @@ suspend fun loadHomeViewModel(context: Context): HomeViewModel {
         syncBuiltInCatalogToDatabase(context)
         val settings = buildSettingsRepository(context).getSettings()
         val books = buildBookRepository(context).getAllBooks()
+        val aiMemorySummary = buildAiMemoryRepository(context).refreshMemorySummary()
         HomeViewModel(
             settings = settings,
             books = books,
+            aiMemorySummary = aiMemorySummary,
         )
     }
 }
+
+private fun PlanHistoryEntry.statusLabel(): String =
+    when (applyStatus) {
+        PlanApplyStatus.APPLIED -> "最近调整已生效"
+        PlanApplyStatus.PENDING_CONFIRMATION -> "最近调整待确认"
+        PlanApplyStatus.REJECTED -> "最近调整已拒绝"
+        PlanApplyStatus.SUPERSEDED -> "最近调整已被覆盖"
+    }

@@ -9,8 +9,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.yueliangmanle.danci.core.ai.resolveRuntimeSettingsForCapability
 import com.yueliangmanle.danci.core.ai.buildAiStrategyCoordinator
+import com.yueliangmanle.danci.core.ai.PlanHistoryRepository
 import com.yueliangmanle.danci.core.ai.loadCurrentPlanSnapshot
+import com.yueliangmanle.danci.core.data.RoomStudyRepository
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
+import com.yueliangmanle.danci.core.database.buildDanciDatabase
 import com.yueliangmanle.danci.core.model.AiCapability
 import com.yueliangmanle.danci.core.pronunciation.buildPronunciationOrchestrator
 import kotlinx.coroutines.launch
@@ -18,11 +21,18 @@ import kotlinx.coroutines.launch
 @Composable
 fun StudyRoute(
     onOpenDetailClick: (Long) -> Unit = {},
+    onOpenPlanCenterClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val settingsRepository = remember(context) {
         buildSettingsRepository(context)
+    }
+    val studyRepository = remember(context) {
+        RoomStudyRepository(buildDanciDatabase(context).studyDao())
+    }
+    val planHistoryRepository = remember(context) {
+        PlanHistoryRepository(studyRepository = studyRepository)
     }
     val pronunciationOrchestrator = remember(context) { buildPronunciationOrchestrator(context) }
     var viewModel: StudyViewModel? by remember(context) { mutableStateOf(null) }
@@ -54,7 +64,11 @@ fun StudyRoute(
                     anomalyNotes = listOf(checkpoint.reason),
                 )
                 val result = buildAiStrategyCoordinator(context).adjustPlan(snapshot)
-                state = currentViewModel.applyCheckpointSuggestion(result)
+                val version = planHistoryRepository.createCandidateVersion(snapshot, result)
+                state = currentViewModel.applyCheckpointSuggestion(
+                    adjustment = result,
+                    version = version,
+                )
             }
         },
         onOpenDetailClick = {
@@ -73,5 +87,6 @@ fun StudyRoute(
                 )
             }
         },
+        onOpenPlanCenterClick = onOpenPlanCenterClick,
     )
 }

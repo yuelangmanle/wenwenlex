@@ -22,6 +22,7 @@ fun StudyScreen(
     onFeedbackClick: (CardFeedback) -> Unit,
     onOpenDetailClick: () -> Unit,
     onPlayPronunciationClick: () -> Unit,
+    onOpenPlanCenterClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -124,10 +125,28 @@ fun StudyScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                    state.checkpointDecisionLabel?.let { label ->
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (label == "需要确认") {
+                                MaterialTheme.colorScheme.error
+                            } else {
+                                MaterialTheme.colorScheme.primary
+                            },
+                        )
+                    }
                     Text(
                         text = state.checkpointSuggestion,
                         style = MaterialTheme.typography.bodyMedium,
                     )
+                    if (state.canOpenPlanCenter) {
+                        OutlinedButton(
+                            onClick = onOpenPlanCenterClick,
+                        ) {
+                            Text("查看 AI 计划中心")
+                        }
+                    }
                 }
             }
         }
