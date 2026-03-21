@@ -12,9 +12,11 @@ import com.yueliangmanle.danci.core.model.LearningRecord
 import com.yueliangmanle.danci.core.model.PlanApplyStatus
 import com.yueliangmanle.danci.core.model.PlanHistoryEntry
 import com.yueliangmanle.danci.core.model.StudyEvent
+import com.yueliangmanle.danci.core.model.StudyEventType
 import com.yueliangmanle.danci.core.model.StudySession
 import com.yueliangmanle.danci.core.model.WeeklySummary
 import com.yueliangmanle.danci.core.model.Word
+import com.yueliangmanle.danci.core.model.studyEventMetadataOf
 import java.time.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -25,6 +27,53 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 
 class StudyAnalyticsAggregatorTest {
+    @Test
+    fun aggregate_buildsFeedbackBreakdownFromNonBlankFeedback() {
+        val result = StudyAnalyticsAggregator().aggregate(
+            events = listOf(
+                correctEvent(happenedAt = "2026-03-18T08:00:00Z"),
+                mistakeEvent(happenedAt = "2026-03-18T08:10:00Z"),
+                mistakeEvent(happenedAt = "2026-03-18T08:20:00Z"),
+                correctEvent(happenedAt = "2026-03-18T08:30:00Z").copy(feedback = null),
+            ),
+            referenceTime = Instant.parse("2026-03-18T12:00:00Z"),
+        )
+
+        assertEquals(listOf("wrong", "correct"), result.feedbackBreakdown.map { it.label })
+        assertEquals(listOf(2, 1), result.feedbackBreakdown.map { it.count })
+        assertEquals(2f / 3f, result.feedbackBreakdown.first().ratio, 0.0001f)
+        assertEquals(1f / 3f, result.feedbackBreakdown.last().ratio, 0.0001f)
+    }
+
+    @Test
+    fun aggregate_buildsPronunciationUsageFromAudioPlayedEvents() {
+        val result = StudyAnalyticsAggregator().aggregate(
+            events = listOf(
+                audioEvent(
+                    happenedAt = "2026-03-18T08:00:00Z",
+                    playContext = "study",
+                ),
+                audioEvent(
+                    happenedAt = "2026-03-18T08:02:00Z",
+                    playContext = "follow_read",
+                ),
+                audioEvent(
+                    happenedAt = "2026-03-18T08:05:00Z",
+                    playContext = "shadowing",
+                ),
+                audioEvent(
+                    happenedAt = "2026-03-18T08:08:00Z",
+                    playContext = "preview",
+                ),
+            ),
+            referenceTime = Instant.parse("2026-03-18T12:00:00Z"),
+        )
+
+        assertEquals(4, result.pronunciationUsage.voicePlaybackCount)
+        assertEquals(2, result.pronunciationUsage.followReadCount)
+        assertEquals(1, result.pronunciationUsage.shadowingCount)
+    }
+
     @Test
     fun buildsConfusionGraphFromRepeatedMistakes() {
         val result = StudyAnalyticsAggregator().aggregate(
@@ -121,6 +170,17 @@ class StudyAnalyticsAggregatorTest {
             happenedAt = Instant.parse(happenedAt),
             elapsedMillis = 4_000L,
             metadata = "mode=quiz",
+        )
+
+    private fun audioEvent(
+        happenedAt: String,
+        playContext: String,
+    ): StudyEvent =
+        StudyEvent(
+            wordId = 1L,
+            eventType = StudyEventType.AUDIO_PLAYED,
+            happenedAt = Instant.parse(happenedAt),
+            metadata = studyEventMetadataOf("play_context" to playContext),
         )
 
     private fun checkpointSummary(

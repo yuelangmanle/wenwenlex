@@ -2,13 +2,15 @@ package com.yueliangmanle.danci.core.analytics
 
 import com.yueliangmanle.danci.core.model.ConfusionEdge
 import com.yueliangmanle.danci.core.model.DailySummary
+import com.yueliangmanle.danci.core.model.FeedbackBucket
 import com.yueliangmanle.danci.core.model.LearnerProfile
+import com.yueliangmanle.danci.core.model.PronunciationUsageSnapshot
 import com.yueliangmanle.danci.core.model.StudyEvent
+import com.yueliangmanle.danci.core.model.StudyEventType
 import com.yueliangmanle.danci.core.model.WeeklySummary
 import com.yueliangmanle.danci.core.model.metadataEntries
 import java.time.DayOfWeek
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.temporal.TemporalAdjusters
@@ -18,6 +20,9 @@ data class AggregatedAnalytics(
     val weeklySummaries: List<WeeklySummary> = emptyList(),
     val learnerProfile: LearnerProfile = LearnerProfile(),
     val confusionEdges: List<ConfusionEdge> = emptyList(),
+    val feedbackBreakdown: List<FeedbackBucket> = emptyList(),
+    val pronunciationUsage: PronunciationUsageSnapshot = PronunciationUsageSnapshot(),
+    val events: List<StudyEvent> = emptyList(),
 )
 
 class StudyAnalyticsAggregator(
@@ -32,12 +37,17 @@ class StudyAnalyticsAggregator(
         val weeklySummaries = buildWeeklySummaries(sortedEvents, referenceTime)
         val confusionEdges = buildConfusionEdges(sortedEvents, referenceTime)
         val learnerProfile = buildLearnerProfile(sortedEvents, confusionEdges, referenceTime)
+        val feedbackBreakdown = buildFeedbackBreakdown(sortedEvents)
+        val pronunciationUsage = buildPronunciationUsage(sortedEvents)
 
         return AggregatedAnalytics(
             dailySummaries = dailySummaries,
             weeklySummaries = weeklySummaries,
             learnerProfile = learnerProfile,
             confusionEdges = confusionEdges,
+            feedbackBreakdown = feedbackBreakdown,
+            pronunciationUsage = pronunciationUsage,
+            events = sortedEvents,
         )
     }
 
@@ -201,6 +211,50 @@ class StudyAnalyticsAggregator(
             preferredQuestionTypes = preferredQuestionTypes,
             commonMistakePatterns = commonMistakePatterns,
             updatedAt = referenceTime,
+        )
+    }
+
+    private fun buildFeedbackBreakdown(events: List<StudyEvent>): List<FeedbackBucket> {
+        val feedbackCounts = events
+            .mapNotNull { it.feedback?.trim()?.takeIf { feedback -> feedback.isNotEmpty() } }
+            .groupingBy { it }
+            .eachCount()
+
+        val totalCount = feedbackCounts.values.sum()
+        if (totalCount == 0) {
+            return emptyList()
+        }
+
+        return feedbackCounts
+            .entries
+            .sortedWith(
+                compareByDescending<Map.Entry<String, Int>> { it.value }
+                    .thenBy { it.key },
+            )
+            .map { (label, count) ->
+                FeedbackBucket(
+                    label = label,
+                    count = count,
+                    ratio = count.toFloat() / totalCount,
+                )
+            }
+    }
+
+    private fun buildPronunciationUsage(events: List<StudyEvent>): PronunciationUsageSnapshot {
+        val audioEvents = events.filter { it.eventType == StudyEventType.AUDIO_PLAYED }
+        if (audioEvents.isEmpty()) {
+            return PronunciationUsageSnapshot()
+        }
+
+        val followReadContexts = setOf("study", "follow_read")
+        return PronunciationUsageSnapshot(
+            voicePlaybackCount = audioEvents.size,
+            followReadCount = audioEvents.count { event ->
+                event.metadataEntries()["play_context"] in followReadContexts
+            },
+            shadowingCount = audioEvents.count { event ->
+                event.metadataEntries()["play_context"] == "shadowing"
+            },
         )
     }
 
