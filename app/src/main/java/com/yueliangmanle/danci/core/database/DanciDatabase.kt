@@ -32,6 +32,8 @@ import com.yueliangmanle.danci.core.database.entity.VoicePackEntity
 import com.yueliangmanle.danci.core.database.entity.WeeklySummaryEntity
 import com.yueliangmanle.danci.core.database.entity.WordEntity
 import com.yueliangmanle.danci.core.database.entity.WordAudioAssetEntity
+import com.yueliangmanle.danci.core.model.PlanApplyStatus
+import com.yueliangmanle.danci.core.model.PlanSeverity
 import java.time.Instant
 
 @Database(
@@ -53,8 +55,8 @@ import java.time.Instant
         WordAudioAssetEntity::class,
         VoicePackEntity::class,
     ],
-    version = 4,
-    exportSchema = false,
+    version = 5,
+    exportSchema = true,
 )
 @TypeConverters(DanciTypeConverters::class)
 abstract class DanciDatabase : RoomDatabase() {
@@ -86,6 +88,7 @@ fun buildDanciDatabase(context: Context): DanciDatabase {
             .addMigrations(MIGRATION_1_2)
             .addMigrations(MIGRATION_2_3)
             .addMigrations(MIGRATION_3_4)
+            .addMigrations(MIGRATION_4_5)
             .build().also { database ->
             DanciDatabaseHolder.instance = database
         }
@@ -222,6 +225,24 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
     }
 }
 
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE plan_history ADD COLUMN parentPlanVersionId INTEGER")
+        db.execSQL("ALTER TABLE plan_history ADD COLUMN triggerType TEXT")
+        db.execSQL("ALTER TABLE plan_history ADD COLUMN sourceType TEXT")
+        db.execSQL("ALTER TABLE plan_history ADD COLUMN suggestedModes TEXT NOT NULL DEFAULT ''")
+        db.execSQL("ALTER TABLE plan_history ADD COLUMN reasonSummary TEXT")
+        db.execSQL("ALTER TABLE plan_history ADD COLUMN changeSummary TEXT")
+        db.execSQL("ALTER TABLE plan_history ADD COLUMN abnormalSignals TEXT NOT NULL DEFAULT ''")
+        db.execSQL("ALTER TABLE plan_history ADD COLUMN severity TEXT NOT NULL DEFAULT 'MINOR'")
+        db.execSQL("ALTER TABLE plan_history ADD COLUMN applyStatus TEXT NOT NULL DEFAULT 'APPLIED'")
+        db.execSQL("ALTER TABLE plan_history ADD COLUMN isHighlightedAiChange INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE plan_history ADD COLUMN confirmedAt INTEGER")
+        db.execSQL("ALTER TABLE plan_history ADD COLUMN rejectedAt INTEGER")
+        db.execSQL("ALTER TABLE learner_profiles ADD COLUMN checkpointSummariesJson TEXT NOT NULL DEFAULT '[]'")
+    }
+}
+
 class DanciTypeConverters {
     private val separator = '\u001F'
 
@@ -243,4 +264,18 @@ class DanciTypeConverters {
 
     @TypeConverter
     fun toInstant(value: Long?): Instant? = value?.let(Instant::ofEpochMilli)
+
+    @TypeConverter
+    fun fromPlanSeverity(value: PlanSeverity?): String? = value?.name
+
+    @TypeConverter
+    fun toPlanSeverity(value: String?): PlanSeverity? =
+        value?.let(PlanSeverity::valueOf)
+
+    @TypeConverter
+    fun fromPlanApplyStatus(value: PlanApplyStatus?): String? = value?.name
+
+    @TypeConverter
+    fun toPlanApplyStatus(value: String?): PlanApplyStatus? =
+        value?.let(PlanApplyStatus::valueOf)
 }

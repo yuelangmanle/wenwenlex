@@ -73,7 +73,7 @@ interface StudyDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPlanHistory(plan: PlanHistoryEntity): Long
 
-    @Query("SELECT * FROM plan_history ORDER BY generatedAt DESC LIMIT :limit")
+    @Query("SELECT * FROM plan_history ORDER BY generatedAt DESC, id DESC LIMIT :limit")
     suspend fun getPlanHistory(limit: Int): List<PlanHistoryEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

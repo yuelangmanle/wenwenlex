@@ -12,5 +12,6 @@ data class LearnerProfileEntity(
     val weakSpots: List<String> = emptyList(),
     val preferredQuestionTypes: List<String> = emptyList(),
     val commonMistakePatterns: List<String> = emptyList(),
+    val checkpointSummariesJson: String = "[]",
     val updatedAt: Instant = Instant.EPOCH,
 )

@@ -10,6 +10,7 @@ import com.yueliangmanle.danci.core.database.entity.StudyEventEntity
 import com.yueliangmanle.danci.core.database.entity.StudySessionEntity
 import com.yueliangmanle.danci.core.database.entity.WeeklySummaryEntity
 import com.yueliangmanle.danci.core.model.AiMemorySummary
+import com.yueliangmanle.danci.core.model.CheckpointSummary
 import com.yueliangmanle.danci.core.model.ConfusionEdge
 import com.yueliangmanle.danci.core.model.DailySummary
 import com.yueliangmanle.danci.core.model.LearnerProfile
@@ -20,6 +21,8 @@ import com.yueliangmanle.danci.core.model.StudySession
 import com.yueliangmanle.danci.core.model.WeeklySummary
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import org.json.JSONArray
+import org.json.JSONObject
 
 interface StudyRepository {
     fun observeLearningRecord(wordId: Long): Flow<LearningRecord?>
@@ -85,9 +88,10 @@ class RoomStudyRepository(
         weeklyLimit: Int,
         planLimit: Int,
         confusionLimit: Int,
-    ): AiMemorySummary =
-        AiMemorySummary(
-            learnerProfile = studyDao.getLearnerProfile(LearnerProfile.DEFAULT_PROFILE_ID)?.asExternalModel(),
+    ): AiMemorySummary {
+        val learnerProfileEntity = studyDao.getLearnerProfile(LearnerProfile.DEFAULT_PROFILE_ID)
+        return AiMemorySummary(
+            learnerProfile = learnerProfileEntity?.asExternalModel(),
             dailySummaries = studyDao.getDailySummaries(dailyLimit)
                 .map(DailySummaryEntity::asExternalModel)
                 .sortedBy(DailySummary::date),
@@ -97,11 +101,13 @@ class RoomStudyRepository(
             planHistory = studyDao.getPlanHistory(planLimit)
                 .map(PlanHistoryEntity::asExternalModel)
                 .sortedBy(PlanHistoryEntry::generatedAt),
+            checkpointSummaries = learnerProfileEntity?.checkpointSummariesJson.toCheckpointSummaries(),
             confusionEdges = studyDao.getConfusionEdges(confusionLimit).map(ConfusionEdgeEntity::asExternalModel),
         )
+    }
 
     override suspend fun saveAiMemorySummary(summary: AiMemorySummary) {
-        summary.learnerProfile?.let { studyDao.upsertLearnerProfile(it.asEntity()) }
+        summary.toLearnerProfileEntity()?.let(studyDao::upsertLearnerProfile)
         summary.dailySummaries.forEach { studyDao.upsertDailySummary(it.asEntity()) }
         summary.weeklySummaries.forEach { studyDao.upsertWeeklySummary(it.asEntity()) }
         summary.planHistory.forEach { studyDao.insertPlanHistory(it.asEntity()) }
@@ -210,6 +216,22 @@ internal fun LearnerProfile.asEntity(): LearnerProfileEntity =
         updatedAt = updatedAt,
     )
 
+internal fun AiMemorySummary.toLearnerProfileEntity(): LearnerProfileEntity? {
+    val profile = learnerProfile
+    if (profile == null && checkpointSummaries.isEmpty()) {
+        return null
+    }
+    return LearnerProfileEntity(
+        profileId = profile?.profileId ?: LearnerProfile.DEFAULT_PROFILE_ID,
+        vocabularyLevel = profile?.vocabularyLevel,
+        weakSpots = profile?.weakSpots.orEmpty(),
+        preferredQuestionTypes = profile?.preferredQuestionTypes.orEmpty(),
+        commonMistakePatterns = profile?.commonMistakePatterns.orEmpty(),
+        checkpointSummariesJson = checkpointSummaries.toJsonString(),
+        updatedAt = profile?.updatedAt ?: checkpointSummaries.maxOfOrNull(CheckpointSummary::createdAt) ?: java.time.Instant.EPOCH,
+    )
+}
+
 internal fun LearnerProfileEntity.asExternalModel(): LearnerProfile =
     LearnerProfile(
         profileId = profileId,
@@ -267,9 +289,21 @@ internal fun PlanHistoryEntry.asEntity(): PlanHistoryEntity =
         id = id,
         generatedAt = generatedAt,
         summary = summary,
+        parentPlanVersionId = parentPlanVersionId,
+        triggerType = triggerType,
+        sourceType = sourceType,
         recommendedFocus = recommendedFocus,
+        suggestedModes = suggestedModes,
         suggestedPace = suggestedPace,
+        reasonSummary = reasonSummary,
+        changeSummary = changeSummary,
+        abnormalSignals = abnormalSignals,
+        severity = severity,
+        applyStatus = applyStatus,
+        isHighlightedAiChange = isHighlightedAiChange,
         executionEffect = executionEffect,
+        confirmedAt = confirmedAt,
+        rejectedAt = rejectedAt,
     )
 
 internal fun PlanHistoryEntity.asExternalModel(): PlanHistoryEntry =
@@ -277,10 +311,57 @@ internal fun PlanHistoryEntity.asExternalModel(): PlanHistoryEntry =
         id = id,
         generatedAt = generatedAt,
         summary = summary,
+        parentPlanVersionId = parentPlanVersionId,
+        triggerType = triggerType,
+        sourceType = sourceType,
         recommendedFocus = recommendedFocus,
+        suggestedModes = suggestedModes,
         suggestedPace = suggestedPace,
+        reasonSummary = reasonSummary,
+        changeSummary = changeSummary,
+        abnormalSignals = abnormalSignals,
+        severity = severity,
+        applyStatus = applyStatus,
+        isHighlightedAiChange = isHighlightedAiChange,
         executionEffect = executionEffect,
+        confirmedAt = confirmedAt,
+        rejectedAt = rejectedAt,
     )
+
+private fun String?.toCheckpointSummaries(): List<CheckpointSummary> =
+    runCatching {
+        JSONArray(this ?: "[]").let { jsonArray ->
+            buildList(jsonArray.length()) {
+                repeat(jsonArray.length()) { index ->
+                    val item = jsonArray.optJSONObject(index) ?: return@repeat
+                    val title = item.optString("title").takeIf(String::isNotBlank) ?: return@repeat
+                    val suggestion = item.optString("suggestion").takeIf(String::isNotBlank) ?: return@repeat
+                    add(
+                        CheckpointSummary(
+                            title = title,
+                            suggestion = suggestion,
+                            sourceLabel = item.optString("sourceLabel").takeIf(String::isNotBlank),
+                            createdAt = item.optString("createdAt")
+                                .takeIf(String::isNotBlank)
+                                ?.let(java.time.Instant::parse)
+                                ?: java.time.Instant.EPOCH,
+                        ),
+                    )
+                }
+            }
+        }
+    }.getOrDefault(emptyList())
+
+private fun List<CheckpointSummary>.toJsonString(): String =
+    JSONArray(
+        map { summary ->
+            JSONObject()
+                .put("title", summary.title)
+                .put("suggestion", summary.suggestion)
+                .put("sourceLabel", summary.sourceLabel)
+                .put("createdAt", summary.createdAt.toString())
+        },
+    ).toString()
 
 internal fun ConfusionEdge.asEntity(): ConfusionEdgeEntity =
     ConfusionEdgeEntity(

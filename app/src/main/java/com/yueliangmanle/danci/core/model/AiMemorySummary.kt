@@ -7,6 +7,7 @@ data class AiMemorySummary(
     val dailySummaries: List<DailySummary> = emptyList(),
     val weeklySummaries: List<WeeklySummary> = emptyList(),
     val planHistory: List<PlanHistoryEntry> = emptyList(),
+    val checkpointSummaries: List<CheckpointSummary> = emptyList(),
     val confusionEdges: List<ConfusionEdge> = emptyList(),
 )
 
@@ -46,10 +47,41 @@ data class PlanHistoryEntry(
     val id: Long = 0,
     val generatedAt: Instant,
     val summary: String,
+    val parentPlanVersionId: Long? = null,
+    val triggerType: String? = null,
+    val sourceType: String? = null,
     val recommendedFocus: List<String> = emptyList(),
+    val suggestedModes: List<String> = emptyList(),
     val suggestedPace: String? = null,
+    val reasonSummary: String? = null,
+    val changeSummary: String? = null,
+    val abnormalSignals: List<String> = emptyList(),
+    val severity: PlanSeverity = PlanSeverity.MINOR,
+    val applyStatus: PlanApplyStatus = PlanApplyStatus.APPLIED,
+    val isHighlightedAiChange: Boolean = false,
     val executionEffect: String? = null,
+    val confirmedAt: Instant? = null,
+    val rejectedAt: Instant? = null,
 )
+
+data class CheckpointSummary(
+    val title: String,
+    val suggestion: String,
+    val sourceLabel: String? = null,
+    val createdAt: Instant = Instant.EPOCH,
+)
+
+enum class PlanSeverity {
+    MINOR,
+    MODERATE,
+    MAJOR,
+}
+
+enum class PlanApplyStatus {
+    APPLIED,
+    PENDING,
+    REJECTED,
+}
 
 data class ConfusionEdge(
     val sourceWordId: Long,
