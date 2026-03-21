@@ -59,6 +59,7 @@
 - `v1.5` AI 计划历史规格：[2026-03-21-v1.5-ai-plan-history-design.md](./superpowers/specs/2026-03-21-v1.5-ai-plan-history-design.md)
 - `v1.5` AI 计划历史计划：[2026-03-21-v1.5-ai-plan-history.md](./superpowers/plans/2026-03-21-v1.5-ai-plan-history.md)
 - `v1.5` 发版记录：[release-v1.5-ai-plan-smoke.md](./release-v1.5-ai-plan-smoke.md)
+- `v1.6` 学习统计与 AI 闭环计划：[2026-03-21-v1.6-learning-analytics-ai-loop.md](./superpowers/plans/2026-03-21-v1.6-learning-analytics-ai-loop.md)
 - 发布页面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
 - 构建页面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 

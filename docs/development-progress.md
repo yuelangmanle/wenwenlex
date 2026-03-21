@@ -14,6 +14,7 @@
 - 发布页面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
 - 当前正式版本页面：[v1.5](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.5)
 - 当前 `1.5` 发版记录：[release-v1.5-ai-plan-smoke.md](./release-v1.5-ai-plan-smoke.md)
+- 当前 `1.6` 实施计划：[2026-03-21-v1.6-learning-analytics-ai-loop.md](./superpowers/plans/2026-03-21-v1.6-learning-analytics-ai-loop.md)
 - 当前开发验证页面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 - 当前正式发包方式：GitHub 云端 `Android Release`
 - 当前开发验证方式：GitHub 云端 `Android CI`

@@ -27,6 +27,7 @@
 - [v1.5 AI 计划历史规格](docs/superpowers/specs/2026-03-21-v1.5-ai-plan-history-design.md)
 - [v1.5 AI 计划历史计划](docs/superpowers/plans/2026-03-21-v1.5-ai-plan-history.md)
 - [v1.5 发版记录](docs/release-v1.5-ai-plan-smoke.md)
+- [v1.6 学习统计与 AI 闭环计划](docs/superpowers/plans/2026-03-21-v1.6-learning-analytics-ai-loop.md)
 
 ## 1.1 已实现能力
 
