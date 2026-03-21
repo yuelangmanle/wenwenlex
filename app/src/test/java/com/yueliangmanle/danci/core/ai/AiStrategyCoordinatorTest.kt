@@ -18,6 +18,37 @@ class AiStrategyCoordinatorTest {
 
         assertEquals(PlanSource.LOCAL_FALLBACK, result.source)
         assertTrue(result.summary.isNotBlank())
+        assertTrue(result.reasonSummary.orEmpty().isNotBlank())
+        assertTrue(result.abnormalSignals.isNotEmpty())
+    }
+
+    @Test
+    fun parsesStructuredPlanAdjustmentFields() = runTest {
+        val coordinator = AiStrategyCoordinator(
+            client = FakeAiClient(
+                response = """
+                    {
+                      "summary":"先收缩新词推进",
+                      "recommended_focus":["abandon","precise"],
+                      "suggested_modes":["quiz","dictation"],
+                      "suggested_pace":"slow_down",
+                      "checkpoint_advice":"先稳住正确率",
+                      "reason_summary":"连续错题升高",
+                      "change_summary":"从卡片切到测验和听写",
+                      "abnormal_signals":["连续错题升高","近义词误判增多"],
+                      "execution_effect":"待观察"
+                    }
+                """.trimIndent(),
+            ),
+        )
+
+        val result = coordinator.adjustPlan(sampleCurrentPlan())
+
+        assertEquals(PlanSource.AI, result.source)
+        assertEquals("连续错题升高", result.reasonSummary)
+        assertEquals("从卡片切到测验和听写", result.changeSummary)
+        assertEquals(listOf("连续错题升高", "近义词误判增多"), result.abnormalSignals)
+        assertEquals("待观察", result.executionEffect)
     }
 
     private fun sampleCurrentPlan(): CurrentPlanSnapshot =

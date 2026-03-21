@@ -33,6 +33,7 @@ class AiContextBuilder {
             .put("daily_summaries", dailySummariesJson(memory))
             .put("weekly_summaries", weeklySummariesJson(memory))
             .put("plan_history", planHistoryJson(memory))
+            .put("checkpoint_summaries", checkpointSummariesJson(memory))
             .put("confusion_edges", confusionEdgesJson(memory))
             .toString()
 
@@ -79,11 +80,38 @@ class AiContextBuilder {
             memory.planHistory.forEach { entry ->
                 put(
                     JSONObject()
+                        .put("plan_version_id", entry.id)
+                        .put("parent_plan_version_id", entry.parentPlanVersionId)
                         .put("generated_at", entry.generatedAt.toString())
+                        .put("trigger_type", entry.triggerType)
+                        .put("source_type", entry.sourceType)
                         .put("summary", entry.summary)
                         .put("recommended_focus", JSONArray(entry.recommendedFocus))
+                        .put("suggested_modes", JSONArray(entry.suggestedModes))
                         .put("suggested_pace", entry.suggestedPace)
+                        .put("reason_summary", entry.reasonSummary)
+                        .put("change_summary", entry.changeSummary)
+                        .put("abnormal_signals", JSONArray(entry.abnormalSignals))
+                        .put("severity", entry.severity.name)
+                        .put("apply_status", entry.applyStatus.name)
                         .put("execution_effect", entry.executionEffect),
+                )
+            }
+        }
+
+    private fun checkpointSummariesJson(memory: AiMemorySummary): JSONArray =
+        JSONArray().apply {
+            memory.checkpointSummaries.forEach { summary ->
+                put(
+                    JSONObject()
+                        .put("checkpoint_id", summary.checkpointId)
+                        .put("window_start_at", summary.windowStartAt.toString())
+                        .put("window_end_at", summary.windowEndAt.toString())
+                        .put("effective_plan_version_id", summary.effectivePlanVersionId)
+                        .put("candidate_plan_version_id", summary.candidatePlanVersionId)
+                        .put("decision_status", summary.decisionStatus.name)
+                        .put("effect_summary", summary.effectSummary)
+                        .put("signal_summary", summary.signalSummary),
                 )
             }
         }

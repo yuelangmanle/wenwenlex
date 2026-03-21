@@ -9,8 +9,12 @@ class AiSuggestionParser {
             summary = json.getString("summary"),
             recommendedFocus = json.optJSONArray("recommended_focus").toStringList(),
             suggestedModes = json.optJSONArray("suggested_modes").toStringList(),
-            suggestedPace = json.getString("suggested_pace"),
-            checkpointAdvice = json.getString("checkpoint_advice"),
+            suggestedPace = json.optNullableString("suggested_pace"),
+            checkpointAdvice = json.optNullableString("checkpoint_advice"),
+            reasonSummary = json.optNullableString("reason_summary"),
+            changeSummary = json.optNullableString("change_summary"),
+            abnormalSignals = json.optJSONArray("abnormal_signals").toStringList(),
+            executionEffect = json.optNullableString("execution_effect"),
         )
     }.getOrNull()
 
@@ -46,8 +50,12 @@ data class ParsedPlanAdjustment(
     val summary: String,
     val recommendedFocus: List<String>,
     val suggestedModes: List<String>,
-    val suggestedPace: String,
-    val checkpointAdvice: String,
+    val suggestedPace: String? = null,
+    val checkpointAdvice: String? = null,
+    val reasonSummary: String? = null,
+    val changeSummary: String? = null,
+    val abnormalSignals: List<String> = emptyList(),
+    val executionEffect: String? = null,
 )
 
 data class ParsedWordHelp(
@@ -95,3 +103,6 @@ private fun org.json.JSONArray?.toImportRows(): List<ParsedImportNormalizationRo
             }
         }.filter { it.word.isNotBlank() && it.meanings.isNotEmpty() }
     }.orEmpty()
+
+private fun JSONObject.optNullableString(key: String): String? =
+    optString(key).ifBlank { null }

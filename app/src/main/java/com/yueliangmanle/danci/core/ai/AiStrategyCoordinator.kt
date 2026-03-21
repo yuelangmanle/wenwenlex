@@ -32,6 +32,10 @@ data class AiPlanAdjustmentResult(
     val suggestedModes: List<String> = emptyList(),
     val suggestedPace: String? = null,
     val checkpointAdvice: String? = null,
+    val reasonSummary: String? = null,
+    val changeSummary: String? = null,
+    val abnormalSignals: List<String> = emptyList(),
+    val executionEffect: String? = null,
     val source: PlanSource,
 )
 
@@ -94,6 +98,10 @@ class AiStrategyCoordinator(
                 suggestedModes = suggestion.suggestedModes,
                 suggestedPace = suggestion.suggestedPace,
                 checkpointAdvice = suggestion.checkpointAdvice,
+                reasonSummary = suggestion.reasonSummary,
+                changeSummary = suggestion.changeSummary,
+                abnormalSignals = suggestion.abnormalSignals,
+                executionEffect = suggestion.executionEffect,
                 source = PlanSource.AI,
             )
         } ?: localFallbackPlan(snapshot)
@@ -188,6 +196,18 @@ class AiStrategyCoordinator(
             } else {
                 "继续保持短轮次复习，避免一次塞入过多新词。"
             },
+            reasonSummary = when {
+                snapshot.anomalyNotes.isNotEmpty() -> "最近学习中出现了异常信号，需要先稳住节奏。"
+                snapshot.mistakeCount >= 5 -> "错题密度升高，说明当前推进速度偏快。"
+                else -> "当前节奏基本可控，只需要小幅修正。"
+            },
+            changeSummary = when {
+                snapshot.mistakeCount >= 5 -> "减少新词推进，先回拉错词和易混词。"
+                snapshot.anomalyNotes.isNotEmpty() -> "优先处理异常点，再逐步恢复原计划。"
+                else -> "保持主节奏，只补薄弱词。"
+            },
+            abnormalSignals = snapshot.anomalyNotes,
+            executionEffect = snapshot.memory.planHistory.lastOrNull()?.executionEffect,
             source = PlanSource.LOCAL_FALLBACK,
         )
     }

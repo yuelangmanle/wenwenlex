@@ -25,7 +25,7 @@ class AiPromptFactory {
             instructions = """
                 你是文文Lex 的学习策略教练。
                 只输出合法 JSON，不要输出 Markdown。
-                你的建议必须保守、可执行，并且只能给出学习重点、题型建议和节奏建议。
+                你的建议必须保守、可执行，并且要明确为什么调整、调整了什么、出现了哪些异常信号，以及最近执行效果。
             """.trimIndent(),
             input = """
                 请阅读下面的学习上下文，为下一阶段输出结构化调整建议：
@@ -52,7 +52,16 @@ class AiPromptFactory {
                                     .put("items", JSONObject().put("type", "string")),
                             )
                             .put("suggested_pace", JSONObject().put("type", "string"))
-                            .put("checkpoint_advice", JSONObject().put("type", "string")),
+                            .put("checkpoint_advice", JSONObject().put("type", "string"))
+                            .put("reason_summary", JSONObject().put("type", "string"))
+                            .put("change_summary", JSONObject().put("type", "string"))
+                            .put(
+                                "abnormal_signals",
+                                JSONObject()
+                                    .put("type", "array")
+                                    .put("items", JSONObject().put("type", "string")),
+                            )
+                            .put("execution_effect", JSONObject().put("type", "string")),
                     )
                     .put(
                         "required",
@@ -63,6 +72,10 @@ class AiPromptFactory {
                                 "suggested_modes",
                                 "suggested_pace",
                                 "checkpoint_advice",
+                                "reason_summary",
+                                "change_summary",
+                                "abnormal_signals",
+                                "execution_effect",
                             ),
                         ),
                     ),
