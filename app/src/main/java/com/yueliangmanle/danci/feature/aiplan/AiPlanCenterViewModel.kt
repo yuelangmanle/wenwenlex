@@ -17,6 +17,7 @@ const val AI_PLAN_CENTER_EMPTY_MESSAGE = "先学习一段时间，AI 才能形�
 
 data class AiPlanCenterUiState(
     val isLoading: Boolean = false,
+    val currentPlanId: Long? = null,
     val currentPlanSummary: String? = null,
     val currentPlanMeta: String? = null,
     val pendingPlan: PlanHistoryEntry? = null,
@@ -44,6 +45,7 @@ class AiPlanCenterViewModel(
         val currentPlan = history.firstOrNull { it.applyStatus == PlanApplyStatus.APPLIED }
 
         AiPlanCenterUiState(
+            currentPlanId = currentPlan?.id,
             currentPlanSummary = currentPlan?.summary,
             currentPlanMeta = currentPlan?.let(::buildPlanMeta),
             pendingPlan = pendingPlan,

@@ -55,7 +55,9 @@ class DanciAppState(
             TopLevelDestination.ME -> {
                 currentDestination.hierarchy.any { it.route == TopLevelDestination.ME.name } ||
                     currentRoute == AI_SETTINGS_ROUTE ||
-                    currentRoute == AI_PLAN_CENTER_ROUTE
+                    currentRoute == AI_PLAN_CENTER_ROUTE ||
+                    currentRoute.startsWith("plan_comparison") ||
+                    currentRoute.startsWith("plan_explanation")
             }
         }
     }

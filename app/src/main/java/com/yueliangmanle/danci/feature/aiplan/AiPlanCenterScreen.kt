@@ -69,8 +69,11 @@ fun AiPlanCenterScreen(
         state.pendingPlan?.let { pendingPlan ->
             PendingPlanCard(
                 plan = pendingPlan,
+                currentPlanId = state.currentPlanId,
                 onConfirmPendingPlanClick = onConfirmPendingPlanClick,
                 onRejectPendingPlanClick = onRejectPendingPlanClick,
+                onOpenComparisonClick = onOpenComparisonClick,
+                onOpenExplanationClick = onOpenExplanationClick,
             )
         }
         if (state.timeline.isEmpty() && state.pendingPlan == null && state.currentPlanSummary == null) {
@@ -78,6 +81,9 @@ fun AiPlanCenterScreen(
         } else {
             TimelineCard(
                 timeline = state.timeline,
+                currentPlanId = state.currentPlanId,
+                onOpenComparisonClick = onOpenComparisonClick,
+                onOpenExplanationClick = onOpenExplanationClick,
             )
         }
         state.statusMessage?.let { message ->
@@ -159,8 +165,11 @@ private fun CurrentPlanCard(
 @Composable
 private fun PendingPlanCard(
     plan: PlanHistoryEntry,
+    currentPlanId: Long?,
     onConfirmPendingPlanClick: (Long) -> Unit,
     onRejectPendingPlanClick: (Long) -> Unit,
+    onOpenComparisonClick: (Long) -> Unit,
+    onOpenExplanationClick: (Long) -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -197,6 +206,25 @@ private fun PendingPlanCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                if (currentPlanId != null && currentPlanId != plan.id) {
+                    OutlinedButton(
+                        onClick = { onOpenComparisonClick(plan.id) },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("与当前对比")
+                    }
+                }
+                OutlinedButton(
+                    onClick = { onOpenExplanationClick(plan.id) },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("看解释")
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 Button(
                     onClick = { onConfirmPendingPlanClick(plan.id) },
                     modifier = Modifier.weight(1f),
@@ -217,6 +245,9 @@ private fun PendingPlanCard(
 @Composable
 private fun TimelineCard(
     timeline: List<PlanHistoryEntry>,
+    currentPlanId: Long?,
+    onOpenComparisonClick: (Long) -> Unit,
+    onOpenExplanationClick: (Long) -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -237,6 +268,9 @@ private fun TimelineCard(
                 timeline.forEach { entry ->
                     TimelineItem(
                         entry = entry,
+                        currentPlanId = currentPlanId,
+                        onOpenComparisonClick = onOpenComparisonClick,
+                        onOpenExplanationClick = onOpenExplanationClick,
                     )
                 }
             }
@@ -247,6 +281,9 @@ private fun TimelineCard(
 @Composable
 private fun TimelineItem(
     entry: PlanHistoryEntry,
+    currentPlanId: Long?,
+    onOpenComparisonClick: (Long) -> Unit,
+    onOpenExplanationClick: (Long) -> Unit,
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -273,6 +310,24 @@ private fun TimelineItem(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+        if (entry.id > 0) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                if (currentPlanId != null && currentPlanId != entry.id) {
+                    OutlinedButton(
+                        onClick = { onOpenComparisonClick(entry.id) },
+                    ) {
+                        Text("与当前对比")
+                    }
+                }
+                OutlinedButton(
+                    onClick = { onOpenExplanationClick(entry.id) },
+                ) {
+                    Text("看解释")
+                }
+            }
         }
     }
 }

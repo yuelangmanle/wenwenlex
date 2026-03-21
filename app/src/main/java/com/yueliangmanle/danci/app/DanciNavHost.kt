@@ -9,6 +9,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.navArgument
 import com.yueliangmanle.danci.feature.aiplan.AiPlanCenterRoute
 import com.yueliangmanle.danci.feature.aiplan.AI_PLAN_CENTER_ROUTE
+import com.yueliangmanle.danci.feature.aiplan.PlanComparisonRoute
+import com.yueliangmanle.danci.feature.aiplan.PlanExplanationRoute
+import com.yueliangmanle.danci.feature.aiplan.planComparisonRoute
+import com.yueliangmanle.danci.feature.aiplan.planExplanationRoute
 import com.yueliangmanle.danci.feature.books.BOOK_IMPORT_ROUTE
 import com.yueliangmanle.danci.feature.books.BookDetailRoute
 import com.yueliangmanle.danci.feature.books.BookImportRoute
@@ -119,7 +123,14 @@ fun DanciNavHost(
             PronunciationSettingsRoute()
         }
         composable(route = AI_PLAN_CENTER_ROUTE) {
-            AiPlanCenterRoute()
+            AiPlanCenterRoute(
+                onOpenComparisonClick = { planVersionId ->
+                    navController.navigate(planComparisonRoute(planVersionId))
+                },
+                onOpenExplanationClick = { planVersionId ->
+                    navController.navigate(planExplanationRoute(planVersionId))
+                },
+            )
         }
         composable(route = BOOK_IMPORT_ROUTE) {
             BookImportRoute(
@@ -127,6 +138,24 @@ fun DanciNavHost(
                     navController.navigate(bookDetailRoute(bookId))
                 },
             )
+        }
+        composable(
+            route = "plan_comparison/{planVersionId}",
+            arguments = listOf(
+                navArgument("planVersionId") { type = NavType.LongType },
+            ),
+        ) { backStackEntry ->
+            val planVersionId = backStackEntry.arguments?.getLong("planVersionId") ?: 0L
+            PlanComparisonRoute(planVersionId = planVersionId)
+        }
+        composable(
+            route = "plan_explanation/{planVersionId}",
+            arguments = listOf(
+                navArgument("planVersionId") { type = NavType.LongType },
+            ),
+        ) { backStackEntry ->
+            val planVersionId = backStackEntry.arguments?.getLong("planVersionId") ?: 0L
+            PlanExplanationRoute(planVersionId = planVersionId)
         }
         composable(
             route = "book_detail/{bookId}",
