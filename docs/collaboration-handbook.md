@@ -11,9 +11,9 @@
 
 - 项目名称：`文文Lex`
 - 仓库地址：[yuelangmanle/wenwenlex](https://github.com/yuelangmanle/wenwenlex)
-- 当前正式版本：`1.4`
-- 当前正式发布：`2026-03-21` 已发布 `v1.4`
-- 当前开发主线：`v1.4` 已完成发版，下一轮主线待规划
+- 当前正式版本：`1.5`
+- 当前正式发布：`2026-03-21` 已发布 `v1.5`
+- 当前开发主线：`v1.5` 已完成发版，下一轮主线聚焦学习统计可视化与发音/AI 连续性增强
 - 平台：Android
 - 开发语言：Kotlin
 - UI 技术：Jetpack Compose
@@ -56,6 +56,8 @@
 - `v1.4` 真实离线单词发音规格：[2026-03-20-v1.4-real-offline-word-pronunciation-design.md](./superpowers/specs/2026-03-20-v1.4-real-offline-word-pronunciation-design.md)
 - `v1.4` 真实离线单词发音计划：[2026-03-20-v1.4-real-offline-word-pronunciation.md](./superpowers/plans/2026-03-20-v1.4-real-offline-word-pronunciation.md)
 - `v1.4` 发版 smoke 记录：[release-v1.4-pronunciation-smoke.md](./release-v1.4-pronunciation-smoke.md)
+- `v1.5` AI 计划历史规格：[2026-03-21-v1.5-ai-plan-history-design.md](./superpowers/specs/2026-03-21-v1.5-ai-plan-history-design.md)
+- `v1.5` AI 计划历史计划：[2026-03-21-v1.5-ai-plan-history.md](./superpowers/plans/2026-03-21-v1.5-ai-plan-history.md)
 - 发布页面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
 - 构建页面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 
@@ -195,10 +197,10 @@ README.md               项目入口说明
 
 ### 9.2 备份规则
 
-- 当前备份版本为 `v3`
-- 备份必须覆盖：词书、单词、学习数据、多 API 路由、导入批次、音标补全任务
+- 当前备份版本为 `v4`
+- 备份必须覆盖：词书、单词、学习数据、多 API 路由、导入批次、音标补全任务、扩展计划历史与 checkpoint 摘要
 - API Key 不进入备份文件
-- 新版本仍必须兼容导入旧 `v1` / `v2` 备份
+- 新版本仍必须兼容导入旧 `v1` / `v2` / `v3` 备份
 
 ### 9.3 AI 路由规则
 

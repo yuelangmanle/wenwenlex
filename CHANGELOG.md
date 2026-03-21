@@ -4,22 +4,22 @@
 
 ## [Unreleased]
 
-### v1.5
+## [1.5] - 2026-03-21
 
-#### Added
+### Added
 
 - 新增 AI 计划中心，支持从首页、学习页和“我的”页直接进入，集中查看当前生效计划、待确认调整和计划时间轴
 - 新增 AI 计划对比页，固定以当前 `APPLIED` 计划为基线，对照历史版本的重点、节奏、模式与预期影响
 - 新增 AI 计划解释页，集中展示“为什么改 / 改了什么 / 预期影响 / 触发信号”
 - 新增 checkpoint summary 持久化、计划历史版本状态流转和长期 AI 记忆压缩链路
 
-#### Changed
+### Changed
 
 - AI 计划建议升级为版本化持久化结构，支持小调整自动生效、大调整待确认
 - 首页和学习页现在会显示 AI 计划中心入口、待确认数量和 checkpoint 决策状态
 - 本地备份升级到 `v4`，纳入扩展计划历史字段与 checkpoint 摘要，并保持对 `v1 / v2 / v3` 旧备份的兼容恢复
 
-#### Notes
+### Notes
 
 - 当前本地已完成关键单测与 `androidTest` Kotlin 编译验证
 - 由于当前机器没有连接 Android 设备，最终 `connectedDebugAndroidTest` 仍需在真机或 GitHub Actions 上补跑

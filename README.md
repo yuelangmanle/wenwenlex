@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-- 当前正式版本：`1.4`
+- 当前正式版本：`1.5`
 - 版本规则：每次迭代递增 `0.1`，按 `1.0 -> 1.1 -> ... -> 1.9 -> 2.0` 进位
 - 正式发包界面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
 - 开发验证界面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
@@ -23,6 +23,8 @@
 - [v1.4 真实离线单词发音规格](docs/superpowers/specs/2026-03-20-v1.4-real-offline-word-pronunciation-design.md)
 - [v1.4 真实离线单词发音计划](docs/superpowers/plans/2026-03-20-v1.4-real-offline-word-pronunciation.md)
 - [v1.4 发音发版 Smoke 记录](docs/release-v1.4-pronunciation-smoke.md)
+- [v1.5 AI 计划历史规格](docs/superpowers/specs/2026-03-21-v1.5-ai-plan-history-design.md)
+- [v1.5 AI 计划历史计划](docs/superpowers/plans/2026-03-21-v1.5-ai-plan-history.md)
 
 ## 1.1 已实现能力
 
@@ -43,7 +45,7 @@
   - 考研 `4796`
   - 高中 `3666`
   - 雅思基础 `5026`
-- 本地 ZIP 备份与恢复，备份版本升级到 `v3`，兼容导入 `v1` / `v2`
+- 本地 ZIP 备份与恢复，备份版本升级到 `v4`，兼容导入 `v1` / `v2` / `v3`
 - 每日提醒、本地 AI 摘要整理与 WorkManager 后台任务
 
 ## 1.2 已发布能力
@@ -92,6 +94,18 @@
   - 两个 `manifest` 资产
   - `wenwenlex-voice-pack-checksums.txt`
 - `VoicePackInstaller` 单测已改为纯内存 fake fetcher，不再依赖本地 socket 服务器，避免 CI 单测挂起
+
+## 1.5 已发布能力
+
+以下内容已经在 `2026-03-21` 随 `v1.5` 正式发版：
+
+- AI 计划建议升级为可持久化的计划版本系统，支持小调整自动生效、大调整待确认
+- 首页、学习页和“我的”页都可直接进入 AI 计划中心
+- AI 计划中心支持查看当前生效计划、待确认调整和历史时间轴
+- AI 计划对比页固定使用当前 `APPLIED` 计划作为基线，便于和历史版本对照
+- AI 计划解释页集中展示“为什么改 / 改了什么 / 预期影响 / 触发信号”
+- checkpoint summary 和记忆压缩已落库，可为后续 AI 连续性分析提供稳定长期上下文
+- 本地备份已升级到 `v4`，支持恢复扩展计划历史和 checkpoint 摘要，并兼容旧备份
 
 ## 后续增强方向
 

@@ -5,14 +5,14 @@
 这份文档用于记录文文Lex 的当前真实开发状态，方便后续协作者、外部支持者和未来迭代直接接手。
 
 - 最后更新日期：`2026-03-21`
-- 当前正式版本：`1.4`
-- 当前总体状态：`v1.4 已发布；v1.5 的 AI 计划中心、计划对比/解释页、checkpoint 压缩记忆与备份 v4 已完成开发验证，待云端回归与正式发版`
+- 当前正式版本：`1.5`
+- 当前总体状态：`v1.5 已发布；AI 计划中心、计划对比/解释页、checkpoint 压缩记忆与备份 v4 已上线，后续继续做云端回归沉淀和学习统计增强`
 
 ## 2. 当前版本快照
 
 - 项目名称：`文文Lex`
 - 发布页面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
-- 当前正式版本页面：[v1.4](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.4)
+- 当前正式版本页面：[v1.5](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.5)
 - 当前开发验证页面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 - 当前正式发包方式：GitHub 云端 `Android Release`
 - 当前开发验证方式：GitHub 云端 `Android CI`
@@ -33,7 +33,7 @@
 | 发音与朗读 v1.2 | 已完成（第一版） | 已完成数据库 v3、发音设置页、词典音频缓存、语音包下载安装、系统 TTS / 桥接包兜底，并正式发版 |
 | 发音与朗读 v1.3 | 已完成并发版 | 已完成 native metadata 合并、Sherpa ONNX runtime 脚手架、本地生成缓存、原生离线单词合成、安装校验、Release 资产打包与设置页错误可见化，并正式发版 |
 | 发音与朗读 v1.4 | 已完成并发版 | 已切到真实 `kokoro-en-v0_19` 模型资产、官方 Sherpa Android JNI runtime、UK/US 双 speaker、云端组装语音包与 Release checksum 对齐，并正式发版 |
-| AI 计划历史回溯 v1.5 | 已完成开发待发版 | 已完成计划版本持久化、AI 计划中心、计划对比 / 解释页、checkpoint 压缩记忆和备份 `v4`，待云端 connected 测试与正式发版 |
+| AI 计划历史回溯 v1.5 | 已完成并发版 | 已完成计划版本持久化、AI 计划中心、计划对比 / 解释页、checkpoint 压缩记忆和备份 `v4`，并完成正式发版 |
 
 ## 4. 已完成模块清单
 
@@ -116,12 +116,11 @@
 
 以下事实可默认作为后续协作基线：
 
-- 正式版本 `1.4` 已于 `2026-03-21` 完成云端正式发版
-- `1.5` 当前处于“已完成开发、待发版”状态，功能重心是 AI 计划历史与解释增强
+- 正式版本 `1.5` 已于 `2026-03-21` 完成云端正式发版
 - 正式安装包类型为 `release-signed APK`
 - 正式版本更新日志由 [CHANGELOG.md](../CHANGELOG.md) 提供
 - 版本号规则固定为 `1.0 -> 1.1 -> ... -> 1.9 -> 2.0`
-- 当前 `1.4` 已把真实模型资产替换、runtime bridge 和 Release 资产闭环打通
+- 当前 `1.5` 在 `1.4` 发音闭环基础上，已把 AI 计划历史、计划对比解释和备份 `v4` 正式接入
 - native 语音包发布源目录当前位于 `distribution/voice-packs/`
 - 正式 Release 已具备同时上传 APK、native 语音包 zip、manifest 和 checksum 的能力
 - 正式 Release 的 native payload 由 GitHub Actions 云端临时拉取与打包，不进入 git 仓库
@@ -205,21 +204,14 @@
 - 已完成 `VoicePackInstaller` 单测去 socket 化，恢复云端单测阶段的稳定性
 - 已完成 GitHub Actions 云端正式 Release，并发布 `v1.4`
 
-### 2026-03-21 / v1.5 / 已完成开发待发版
+### 2026-03-21 / v1.5 / 已完成并发版
 
 - 已完成 AI 计划版本持久化、计划严重度判断、小调整自动生效和大调整待确认状态流转
 - 已完成首页、学习页和“我的”页的 AI 计划中心入口，以及学习页 checkpoint 决策状态展示
 - 已完成 AI 计划中心、计划对比页、解释页、时间轴回溯与待确认操作
 - 已完成 checkpoint summary 压缩记忆、长期计划上下文窗口和备份 `v4` 兼容恢复
-- 已完成本地关键验证：
-- 首页待确认提示
-- 学习页 checkpoint 自动 / 待确认分流
-- AI 计划中心空状态 / 历史状态 / 待确认状态
-- 对比页固定使用当前 `APPLIED` 版本
-- 旧备份恢复后 AI 计划中心可正常显示
-- 当前仍待补充：
-- `connectedDebugAndroidTest` 真机或 GitHub Actions 验证
-- 正式版本号切换、Release Notes 和云端发版
+- 已完成本地关键验证：首页待确认提示、学习页 checkpoint 自动 / 待确认分流、AI 计划中心空状态 / 历史状态 / 待确认状态、对比页固定使用当前 `APPLIED` 版本、旧备份恢复后 AI 计划中心可正常显示
+- 已完成云端正式发版，版本号切换到 `1.5`
 
 ## 10. 后续更新模板
 
