@@ -4,8 +4,8 @@ import androidx.sqlite.db.SupportSQLiteOpenHelper
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -101,20 +101,25 @@ class DanciDatabaseMigrationTest {
                 .build(),
         )
 
-        migratedHelper.writableDatabase.query(
+        val cursor = migratedHelper.writableDatabase.query(
             """
-            SELECT parentPlanVersionId, severity, applyStatus
+            SELECT parentPlanVersionId, severity, applyStatus, triggerType, sourceType
             FROM plan_history
             WHERE id = 1
             """.trimIndent(),
-        ).use { cursor ->
+        )
+        cursor.use {
             check(cursor.moveToFirst())
             val parentPlanVersionId = if (cursor.isNull(0)) null else cursor.getLong(0)
             val severity = cursor.getString(1)
             val applyStatus = cursor.getString(2)
+            val triggerType = cursor.getString(3)
+            val sourceType = cursor.getString(4)
             assertNull(parentPlanVersionId)
             assertEquals("MINOR", severity)
             assertEquals("APPLIED", applyStatus)
+            assertEquals("manual_refresh", triggerType)
+            assertEquals("LOCAL_FALLBACK", sourceType)
         }
         migratedHelper.close()
         context.deleteDatabase(databaseName)

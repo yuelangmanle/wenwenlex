@@ -1,5 +1,6 @@
 package com.yueliangmanle.danci.core.database.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.yueliangmanle.danci.core.model.LearnerProfile
@@ -12,6 +13,7 @@ data class LearnerProfileEntity(
     val weakSpots: List<String> = emptyList(),
     val preferredQuestionTypes: List<String> = emptyList(),
     val commonMistakePatterns: List<String> = emptyList(),
+    @ColumnInfo(defaultValue = "'[]'")
     val checkpointSummariesJson: String = "[]",
     val updatedAt: Instant = Instant.EPOCH,
 )

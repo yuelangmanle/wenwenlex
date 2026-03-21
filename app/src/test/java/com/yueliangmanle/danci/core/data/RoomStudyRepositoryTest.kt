@@ -62,6 +62,8 @@ class RoomStudyRepositoryTest {
         val summary = repository.loadAiMemorySummary(planLimit = 10)
 
         assertEquals("APPLIED", summary.planHistory.single().applyStatus.name)
+        assertEquals("manual_refresh", summary.planHistory.single().triggerType)
+        assertEquals("LOCAL_FALLBACK", summary.planHistory.single().sourceType)
         assertTrue(summary.checkpointSummaries.isNotEmpty())
     }
 

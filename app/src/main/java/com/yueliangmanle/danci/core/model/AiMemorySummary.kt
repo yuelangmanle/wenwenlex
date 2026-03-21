@@ -48,8 +48,8 @@ data class PlanHistoryEntry(
     val generatedAt: Instant,
     val summary: String,
     val parentPlanVersionId: Long? = null,
-    val triggerType: String? = null,
-    val sourceType: String? = null,
+    val triggerType: String = DEFAULT_TRIGGER_TYPE,
+    val sourceType: String = DEFAULT_SOURCE_TYPE,
     val recommendedFocus: List<String> = emptyList(),
     val suggestedModes: List<String> = emptyList(),
     val suggestedPace: String? = null,
@@ -62,7 +62,24 @@ data class PlanHistoryEntry(
     val executionEffect: String? = null,
     val confirmedAt: Instant? = null,
     val rejectedAt: Instant? = null,
-)
+) {
+    companion object {
+        const val DEFAULT_TRIGGER_TYPE = "manual_refresh"
+        const val DEFAULT_SOURCE_TYPE = "LOCAL_FALLBACK"
+    }
+}
+
+enum class PlanSeverity {
+    MINOR,
+    MAJOR,
+}
+
+enum class PlanApplyStatus {
+    APPLIED,
+    PENDING_CONFIRMATION,
+    REJECTED,
+    SUPERSEDED,
+}
 
 data class CheckpointSummary(
     val title: String,
@@ -70,18 +87,6 @@ data class CheckpointSummary(
     val sourceLabel: String? = null,
     val createdAt: Instant = Instant.EPOCH,
 )
-
-enum class PlanSeverity {
-    MINOR,
-    MODERATE,
-    MAJOR,
-}
-
-enum class PlanApplyStatus {
-    APPLIED,
-    PENDING,
-    REJECTED,
-}
 
 data class ConfusionEdge(
     val sourceWordId: Long,

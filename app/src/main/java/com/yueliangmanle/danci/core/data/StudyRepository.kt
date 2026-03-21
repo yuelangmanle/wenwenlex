@@ -107,7 +107,7 @@ class RoomStudyRepository(
     }
 
     override suspend fun saveAiMemorySummary(summary: AiMemorySummary) {
-        summary.toLearnerProfileEntity()?.let(studyDao::upsertLearnerProfile)
+        summary.toLearnerProfileEntity()?.let { studyDao.upsertLearnerProfile(it) }
         summary.dailySummaries.forEach { studyDao.upsertDailySummary(it.asEntity()) }
         summary.weeklySummaries.forEach { studyDao.upsertWeeklySummary(it.asEntity()) }
         summary.planHistory.forEach { studyDao.insertPlanHistory(it.asEntity()) }

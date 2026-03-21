@@ -228,8 +228,8 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
 val MIGRATION_4_5 = object : Migration(4, 5) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE plan_history ADD COLUMN parentPlanVersionId INTEGER")
-        db.execSQL("ALTER TABLE plan_history ADD COLUMN triggerType TEXT")
-        db.execSQL("ALTER TABLE plan_history ADD COLUMN sourceType TEXT")
+        db.execSQL("ALTER TABLE plan_history ADD COLUMN triggerType TEXT NOT NULL DEFAULT 'manual_refresh'")
+        db.execSQL("ALTER TABLE plan_history ADD COLUMN sourceType TEXT NOT NULL DEFAULT 'LOCAL_FALLBACK'")
         db.execSQL("ALTER TABLE plan_history ADD COLUMN suggestedModes TEXT NOT NULL DEFAULT ''")
         db.execSQL("ALTER TABLE plan_history ADD COLUMN reasonSummary TEXT")
         db.execSQL("ALTER TABLE plan_history ADD COLUMN changeSummary TEXT")
