@@ -1,6 +1,12 @@
 package com.yueliangmanle.danci.core.analytics
 
+import com.yueliangmanle.danci.core.model.AnalyticsOverview
 import com.yueliangmanle.danci.core.model.DailySummary
+import com.yueliangmanle.danci.core.model.DailyTrendPoint
+import com.yueliangmanle.danci.core.model.FeedbackBucket
+import com.yueliangmanle.danci.core.model.LearningAnalyticsSnapshot
+import com.yueliangmanle.danci.core.model.PlanEffectSnapshot
+import com.yueliangmanle.danci.core.model.PronunciationUsageSnapshot
 import com.yueliangmanle.danci.core.model.StudyEvent
 import com.yueliangmanle.danci.core.model.WeeklySummary
 import java.time.Instant
@@ -23,6 +29,23 @@ class SummaryBuilderTest {
         assertEquals(4, payload.weeklyTrend.size)
         assertTrue(payload.rawSamples.size <= 20)
         assertTrue(payload.dailyTrend.isNotEmpty())
+    }
+
+    @Test
+    fun buildContext_includesAnalyticsSnapshotLongTermInsightsAndPlanEffects() {
+        val payload = SummaryBuilder().buildContext(
+            sevenDay = sampleDailySummaries(count = 7),
+            thirtyDay = sampleWeeklySummaries(count = 4),
+            rawEvents = sampleEvents(count = 40),
+            analyticsSnapshot = sampleAnalyticsSnapshot(),
+        )
+
+        assertEquals(1, payload.analyticsSnapshot?.planEffects?.size)
+        assertEquals(1, payload.planEffects.size)
+        assertEquals("正确率回升", payload.planEffects.single().outcomeSummary)
+        assertTrue(payload.longTermInsights.isNotEmpty())
+        assertTrue(payload.longTermInsights.any { it.contains("发音") })
+        assertTrue(payload.longTermInsights.any { it.contains("调整") || it.contains("正确率回升") })
     }
 
     private fun sampleDailySummaries(count: Int): List<DailySummary> =
@@ -69,4 +92,41 @@ class SummaryBuilderTest {
                 },
             )
         }
+
+    private fun sampleAnalyticsSnapshot(): LearningAnalyticsSnapshot =
+        LearningAnalyticsSnapshot(
+            overview = AnalyticsOverview(
+                accuracyRate = 0.78f,
+                studiedDays = 7,
+                masteredCount = 42,
+            ),
+            dailyTrend = listOf(
+                DailyTrendPoint(
+                    date = "2026-03-18",
+                    studiedCount = 28,
+                    correctRate = 0.8f,
+                ),
+            ),
+            feedbackBreakdown = listOf(
+                FeedbackBucket(
+                    label = "wrong",
+                    count = 6,
+                    ratio = 0.4f,
+                ),
+            ),
+            planEffects = listOf(
+                PlanEffectSnapshot(
+                    planVersionId = 7L,
+                    label = "先回拉易混词，再恢复推进",
+                    beforeCorrectRate = 0.62f,
+                    afterCorrectRate = 0.78f,
+                    outcomeSummary = "正确率回升",
+                ),
+            ),
+            pronunciationUsage = PronunciationUsageSnapshot(
+                followReadCount = 5,
+                voicePlaybackCount = 9,
+                shadowingCount = 2,
+            ),
+        )
 }

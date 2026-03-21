@@ -1,6 +1,8 @@
 package com.yueliangmanle.danci.core.ai
 
 import com.yueliangmanle.danci.core.model.AiMemorySummary
+import com.yueliangmanle.danci.core.model.LearningAnalyticsSnapshot
+import com.yueliangmanle.danci.core.model.PlanEffectSnapshot
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -32,6 +34,9 @@ class AiContextBuilder {
             .put("learner_profile", learnerProfileJson(memory))
             .put("daily_summaries", dailySummariesJson(memory))
             .put("weekly_summaries", weeklySummariesJson(memory))
+            .put("analytics_snapshot", analyticsSnapshotJson(memory.analyticsSnapshot))
+            .put("long_term_insights", JSONArray(memory.longTermInsights))
+            .put("plan_effects", planEffectsJson(memory.analyticsSnapshot.planEffects))
             .put("plan_history", planHistoryJson(memory))
             .put("checkpoint_summaries", checkpointSummariesJson(memory))
             .put("confusion_edges", confusionEdgesJson(memory))
@@ -75,6 +80,64 @@ class AiContextBuilder {
             }
         }
 
+    private fun analyticsSnapshotJson(snapshot: LearningAnalyticsSnapshot): JSONObject =
+        JSONObject()
+            .put(
+                "overview",
+                JSONObject()
+                    .put("accuracy_rate", snapshot.overview.accuracyRate)
+                    .put("studied_days", snapshot.overview.studiedDays)
+                    .put("mastered_count", snapshot.overview.masteredCount),
+            )
+            .put(
+                "daily_trend",
+                JSONArray().apply {
+                    snapshot.dailyTrend.forEach { point ->
+                        put(
+                            JSONObject()
+                                .put("date", point.date)
+                                .put("studied_count", point.studiedCount)
+                                .put("correct_rate", point.correctRate),
+                        )
+                    }
+                },
+            )
+            .put(
+                "feedback_breakdown",
+                JSONArray().apply {
+                    snapshot.feedbackBreakdown.forEach { bucket ->
+                        put(
+                            JSONObject()
+                                .put("label", bucket.label)
+                                .put("count", bucket.count)
+                                .put("ratio", bucket.ratio),
+                        )
+                    }
+                },
+            )
+            .put(
+                "book_progress",
+                JSONArray().apply {
+                    snapshot.bookProgress.forEach { progress ->
+                        put(
+                            JSONObject()
+                                .put("book_id", progress.bookId)
+                                .put("book_name", progress.bookName)
+                                .put("completed_count", progress.completedCount)
+                                .put("total_count", progress.totalCount),
+                        )
+                    }
+                },
+            )
+            .put("plan_effects", planEffectsJson(snapshot.planEffects))
+            .put(
+                "pronunciation_usage",
+                JSONObject()
+                    .put("follow_read_count", snapshot.pronunciationUsage.followReadCount)
+                    .put("voice_playback_count", snapshot.pronunciationUsage.voicePlaybackCount)
+                    .put("shadowing_count", snapshot.pronunciationUsage.shadowingCount),
+            )
+
     private fun planHistoryJson(memory: AiMemorySummary): JSONArray =
         JSONArray().apply {
             memory.planHistory.forEach { entry ->
@@ -95,6 +158,20 @@ class AiContextBuilder {
                         .put("severity", entry.severity.name)
                         .put("apply_status", entry.applyStatus.name)
                         .put("execution_effect", entry.executionEffect),
+                )
+            }
+        }
+
+    private fun planEffectsJson(planEffects: List<PlanEffectSnapshot>): JSONArray =
+        JSONArray().apply {
+            planEffects.forEach { effect ->
+                put(
+                    JSONObject()
+                        .put("plan_version_id", effect.planVersionId)
+                        .put("label", effect.label)
+                        .put("before_correct_rate", effect.beforeCorrectRate)
+                        .put("after_correct_rate", effect.afterCorrectRate)
+                        .put("outcome_summary", effect.outcomeSummary),
                 )
             }
         }

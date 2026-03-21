@@ -26,9 +26,11 @@ class AiPromptFactory {
                 你是文文Lex 的学习策略教练。
                 只输出合法 JSON，不要输出 Markdown。
                 你的建议必须保守、可执行，并且要明确为什么调整、调整了什么、出现了哪些异常信号，以及最近执行效果。
+                你必须重点关注最近一次调整效果、长期统计摘要、发音使用概况，以及这些信号是否支持继续当前节奏。
             """.trimIndent(),
             input = """
-                请阅读下面的学习上下文，为下一阶段输出结构化调整建议：
+                请阅读下面的学习上下文，为下一阶段输出结构化调整建议。
+                请特别结合最近一次调整效果、长期统计摘要、发音使用概况，不要只复述字段：
                 $contextJson
             """.trimIndent(),
             responseFormat = AiResponseFormat.JsonSchema(

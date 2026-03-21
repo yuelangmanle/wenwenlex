@@ -2,6 +2,7 @@ package com.yueliangmanle.danci.core.data
 
 import android.content.Context
 import com.yueliangmanle.danci.core.ai.PlanContextCompactor
+import com.yueliangmanle.danci.core.analytics.LearningDashboardComposer
 import com.yueliangmanle.danci.core.analytics.StudyAnalyticsAggregator
 import com.yueliangmanle.danci.core.analytics.SummaryBuilder
 import com.yueliangmanle.danci.core.analytics.SummaryContext
@@ -31,6 +32,7 @@ class AiMemoryRepository(
     private val wordRepository: WordRepository,
     private val builtInWordsProvider: () -> List<com.yueliangmanle.danci.core.model.Word>,
     private val analyticsAggregator: StudyAnalyticsAggregator = StudyAnalyticsAggregator(),
+    private val learningDashboardComposer: LearningDashboardComposer = LearningDashboardComposer(),
     private val planContextCompactor: PlanContextCompactor = PlanContextCompactor(),
     private val summaryBuilder: SummaryBuilder = SummaryBuilder(),
     private val nowProvider: () -> Instant = { Instant.now() },
@@ -72,16 +74,31 @@ class AiMemoryRepository(
             events = recentEvents,
             referenceTime = referenceTime,
         )
+        val checkpointSummaries = planContextCompactor.buildCheckpointSummaries(
+            events = recentEvents,
+            planHistory = existingSummary.planHistory,
+            existingSummaries = existingSummary.checkpointSummaries,
+            referenceTime = referenceTime,
+        )
+        val analyticsSnapshot = learningDashboardComposer.compose(
+            aggregated = aggregated,
+            planHistory = existingSummary.planHistory,
+            activeBookTitle = null,
+        )
+        val longTermInsights = summaryBuilder.buildLongTermInsights(
+            analyticsSnapshot = analyticsSnapshot,
+            learnerProfile = aggregated.learnerProfile,
+            weeklyTrend = aggregated.weeklySummaries.takeLast(4),
+            checkpointSummaries = checkpointSummaries,
+            planEffects = analyticsSnapshot.planEffects,
+        )
         val summary = existingSummary.copy(
             learnerProfile = aggregated.learnerProfile,
             dailySummaries = aggregated.dailySummaries.takeLast(7),
             weeklySummaries = aggregated.weeklySummaries.takeLast(4),
-            checkpointSummaries = planContextCompactor.buildCheckpointSummaries(
-                events = recentEvents,
-                planHistory = existingSummary.planHistory,
-                existingSummaries = existingSummary.checkpointSummaries,
-                referenceTime = referenceTime,
-            ),
+            checkpointSummaries = checkpointSummaries,
+            analyticsSnapshot = analyticsSnapshot,
+            longTermInsights = longTermInsights,
             confusionEdges = aggregated.confusionEdges,
         )
         studyRepository.saveAiMemorySummary(summary)
@@ -96,6 +113,10 @@ class AiMemoryRepository(
             rawEvents = studyRepository.getRecentStudyEvents(limit = 200),
             learnerProfile = summary.learnerProfile,
             confusionEdges = summary.confusionEdges,
+            analyticsSnapshot = summary.analyticsSnapshot,
+            longTermInsights = summary.longTermInsights,
+            planEffects = summary.analyticsSnapshot.planEffects,
+            checkpointSummaries = summary.checkpointSummaries,
         )
     }
 
