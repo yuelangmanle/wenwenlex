@@ -3,12 +3,19 @@ package com.yueliangmanle.danci.core.backup
 import com.yueliangmanle.danci.core.data.AppSettings
 import com.yueliangmanle.danci.core.database.entity.WordEntity
 import com.yueliangmanle.danci.core.model.AiMemorySummary
+import com.yueliangmanle.danci.core.model.AnalyticsOverview
+import com.yueliangmanle.danci.core.model.BookProgressSnapshot
 import com.yueliangmanle.danci.core.model.CheckpointSummary
+import com.yueliangmanle.danci.core.model.DailyTrendPoint
+import com.yueliangmanle.danci.core.model.FeedbackBucket
 import com.yueliangmanle.danci.core.model.PHONETIC_SOURCE_AI
 import com.yueliangmanle.danci.core.model.PHONETIC_STATUS_COMPLETE
 import com.yueliangmanle.danci.core.model.PlanApplyStatus
+import com.yueliangmanle.danci.core.model.PlanEffectSnapshot
 import com.yueliangmanle.danci.core.model.PlanHistoryEntry
 import com.yueliangmanle.danci.core.model.PlanSeverity
+import com.yueliangmanle.danci.core.model.PronunciationUsageSnapshot
+import com.yueliangmanle.danci.core.model.LearningAnalyticsSnapshot
 import java.io.ByteArrayOutputStream
 import java.time.Instant
 import java.util.zip.ZipEntry
@@ -149,14 +156,109 @@ class BackupRoundTripTest {
                     signalSummary = "近义词误判升高",
                 ),
             ),
+            analyticsSnapshot = LearningAnalyticsSnapshot(
+                overview = AnalyticsOverview(
+                    accuracyRate = 0.82f,
+                    studiedDays = 7,
+                    masteredCount = 58,
+                ),
+                dailyTrend = listOf(
+                    DailyTrendPoint(
+                        date = "2026-03-19",
+                        studiedCount = 18,
+                        correctRate = 0.82f,
+                    ),
+                ),
+                feedbackBreakdown = listOf(
+                    FeedbackBucket(
+                        label = "发音",
+                        count = 2,
+                        ratio = 0.1f,
+                    ),
+                ),
+                bookProgress = listOf(
+                    BookProgressSnapshot(
+                        bookId = "cet6",
+                        bookName = "六级核心词",
+                        completedCount = 80,
+                        totalCount = 200,
+                    ),
+                ),
+                planEffects = listOf(
+                    PlanEffectSnapshot(
+                        planVersionId = 5L,
+                        label = "先复习后推进",
+                        beforeCorrectRate = 0.74f,
+                        afterCorrectRate = 0.82f,
+                        outcomeSummary = "正确率回升",
+                    ),
+                ),
+                pronunciationUsage = PronunciationUsageSnapshot(
+                    followReadCount = 6,
+                    voicePlaybackCount = 12,
+                    shadowingCount = 2,
+                ),
+            ),
+            longTermInsights = listOf("发音巩固后带动正确率回升"),
         )
 
         val json = summary.toJson()
         val restored = json.toAiMemorySummary()
 
+        assertTrue(json.has("analytics_snapshot"))
+        assertTrue(json.getJSONObject("analytics_snapshot").has("daily_trend"))
+        assertTrue(json.getJSONObject("analytics_snapshot").has("feedback_breakdown"))
+        assertTrue(json.getJSONObject("analytics_snapshot").has("book_progress"))
+        assertTrue(json.getJSONObject("analytics_snapshot").has("plan_effects"))
+        assertTrue(json.getJSONObject("analytics_snapshot").has("pronunciation_usage"))
+        assertTrue(json.has("long_term_insights"))
         assertEquals(1, restored.checkpointSummaries.size)
         assertEquals(PlanApplyStatus.PENDING_CONFIRMATION, restored.planHistory.single().applyStatus)
         assertEquals("cp-1", restored.checkpointSummaries.single().checkpointId)
+        assertEquals("先复习后推进", restored.analyticsSnapshot.planEffects.single().label)
+        assertEquals("发音巩固后带动正确率回升", restored.longTermInsights.single())
+    }
+
+    @Test
+    fun importerAcceptsLegacyVersionFourBackupAndBackfillsAnalyticsDefaults() {
+        val bytes = zipBackup(
+            manifest = JSONObject()
+                .put("version", 4)
+                .put("created_at", "2026-03-19T10:00:00Z")
+                .put("sections", org.json.JSONArray(REQUIRED_BACKUP_SECTIONS)),
+            payload = JSONObject()
+                .put(
+                    "settings",
+                    JSONObject()
+                        .put("daily_goal", 20)
+                        .put("active_book_id", JSONObject.NULL)
+                        .put("ai_enabled", false)
+                        .put("ai_base_url", "https://api.openai.com/v1")
+                        .put("ai_model", "gpt-5-mini")
+                        .put("ai_plan_adjustment_enabled", true)
+                        .put("ai_session_checkpoint_enabled", true)
+                        .put("reminder_enabled", false)
+                        .put("reminder_hour", 21)
+                        .put("reminder_minute", 0),
+                )
+                .put("books", org.json.JSONArray())
+                .put("book_words", org.json.JSONArray())
+                .put("words", org.json.JSONArray())
+                .put("learning_records", org.json.JSONArray())
+                .put("study_sessions", org.json.JSONArray())
+                .put("study_events", org.json.JSONArray())
+                .put(
+                    "ai_memory_summary",
+                    JSONObject()
+                        .put("plan_history", org.json.JSONArray())
+                        .put("checkpoint_summaries", org.json.JSONArray()),
+                ),
+        )
+
+        val imported = BackupImporter().import(bytes)
+
+        assertTrue(imported.snapshot.aiMemorySummary.analyticsSnapshot.planEffects.isEmpty())
+        assertTrue(imported.snapshot.aiMemorySummary.longTermInsights.isEmpty())
     }
 }
 

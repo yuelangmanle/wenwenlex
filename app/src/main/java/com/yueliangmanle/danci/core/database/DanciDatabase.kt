@@ -55,7 +55,7 @@ import java.time.Instant
         WordAudioAssetEntity::class,
         VoicePackEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 @TypeConverters(DanciTypeConverters::class)
@@ -89,6 +89,7 @@ fun buildDanciDatabase(context: Context): DanciDatabase {
             .addMigrations(MIGRATION_2_3)
             .addMigrations(MIGRATION_3_4)
             .addMigrations(MIGRATION_4_5)
+            .addMigrations(MIGRATION_5_6)
             .build().also { database ->
             DanciDatabaseHolder.instance = database
         }
@@ -240,6 +241,13 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
         db.execSQL("ALTER TABLE plan_history ADD COLUMN confirmedAt INTEGER")
         db.execSQL("ALTER TABLE plan_history ADD COLUMN rejectedAt INTEGER")
         db.execSQL("ALTER TABLE learner_profiles ADD COLUMN checkpointSummariesJson TEXT NOT NULL DEFAULT '[]'")
+    }
+}
+
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE learner_profiles ADD COLUMN analyticsSnapshotJson TEXT NOT NULL DEFAULT '{}'")
+        db.execSQL("ALTER TABLE learner_profiles ADD COLUMN longTermInsightsJson TEXT NOT NULL DEFAULT '[]'")
     }
 }
 

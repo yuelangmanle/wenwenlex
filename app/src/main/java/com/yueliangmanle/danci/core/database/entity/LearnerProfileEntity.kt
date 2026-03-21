@@ -15,5 +15,9 @@ data class LearnerProfileEntity(
     val commonMistakePatterns: List<String> = emptyList(),
     @ColumnInfo(defaultValue = "'[]'")
     val checkpointSummariesJson: String = "[]",
+    @ColumnInfo(defaultValue = "'{}'")
+    val analyticsSnapshotJson: String = "{}",
+    @ColumnInfo(defaultValue = "'[]'")
+    val longTermInsightsJson: String = "[]",
     val updatedAt: Instant = Instant.EPOCH,
 )

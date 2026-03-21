@@ -15,10 +15,10 @@ import com.yueliangmanle.danci.core.database.entity.WordAudioAssetEntity
 import com.yueliangmanle.danci.core.model.AiMemorySummary
 import java.time.Instant
 
-const val BACKUP_VERSION = 4
+const val BACKUP_VERSION = 5
 const val MANIFEST_FILE_NAME = "manifest.json"
 const val PAYLOAD_FILE_NAME = "payload.json"
-val SUPPORTED_BACKUP_VERSIONS = setOf(1, 2, 3, BACKUP_VERSION)
+val SUPPORTED_BACKUP_VERSIONS = setOf(1, 2, 3, 4, BACKUP_VERSION)
 
 val REQUIRED_BACKUP_SECTIONS = listOf(
     "settings",

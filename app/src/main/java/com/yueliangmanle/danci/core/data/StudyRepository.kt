@@ -10,12 +10,20 @@ import com.yueliangmanle.danci.core.database.entity.StudyEventEntity
 import com.yueliangmanle.danci.core.database.entity.StudySessionEntity
 import com.yueliangmanle.danci.core.database.entity.WeeklySummaryEntity
 import com.yueliangmanle.danci.core.model.AiMemorySummary
+import com.yueliangmanle.danci.core.model.AnalyticsOverview
+import com.yueliangmanle.danci.core.model.BookProgressSnapshot
 import com.yueliangmanle.danci.core.model.CheckpointSummary
 import com.yueliangmanle.danci.core.model.ConfusionEdge
 import com.yueliangmanle.danci.core.model.DailySummary
+import com.yueliangmanle.danci.core.model.DailyTrendPoint
+import com.yueliangmanle.danci.core.model.FeedbackBucket
 import com.yueliangmanle.danci.core.model.LearnerProfile
+import com.yueliangmanle.danci.core.model.LearningAnalyticsSnapshot
 import com.yueliangmanle.danci.core.model.LearningRecord
+import com.yueliangmanle.danci.core.model.PlanApplyStatus
+import com.yueliangmanle.danci.core.model.PlanEffectSnapshot
 import com.yueliangmanle.danci.core.model.PlanHistoryEntry
+import com.yueliangmanle.danci.core.model.PronunciationUsageSnapshot
 import com.yueliangmanle.danci.core.model.StudyEvent
 import com.yueliangmanle.danci.core.model.StudySession
 import com.yueliangmanle.danci.core.model.WeeklySummary
@@ -102,6 +110,8 @@ class RoomStudyRepository(
                 .map(PlanHistoryEntity::asExternalModel)
                 .sortedBy(PlanHistoryEntry::generatedAt),
             checkpointSummaries = learnerProfileEntity?.checkpointSummariesJson.toCheckpointSummaries(),
+            analyticsSnapshot = learnerProfileEntity?.analyticsSnapshotJson.toAnalyticsSnapshot(),
+            longTermInsights = learnerProfileEntity?.longTermInsightsJson.toLongTermInsights(),
             confusionEdges = studyDao.getConfusionEdges(confusionLimit).map(ConfusionEdgeEntity::asExternalModel),
         )
     }
@@ -218,7 +228,12 @@ internal fun LearnerProfile.asEntity(): LearnerProfileEntity =
 
 internal fun AiMemorySummary.toLearnerProfileEntity(): LearnerProfileEntity? {
     val profile = learnerProfile
-    if (profile == null && checkpointSummaries.isEmpty()) {
+    if (
+        profile == null &&
+        checkpointSummaries.isEmpty() &&
+        analyticsSnapshot == LearningAnalyticsSnapshot() &&
+        longTermInsights.isEmpty()
+    ) {
         return null
     }
     return LearnerProfileEntity(
@@ -227,7 +242,9 @@ internal fun AiMemorySummary.toLearnerProfileEntity(): LearnerProfileEntity? {
         weakSpots = profile?.weakSpots.orEmpty(),
         preferredQuestionTypes = profile?.preferredQuestionTypes.orEmpty(),
         commonMistakePatterns = profile?.commonMistakePatterns.orEmpty(),
-        checkpointSummariesJson = checkpointSummaries.toJsonString(),
+        checkpointSummariesJson = checkpointSummaries.toCheckpointSummariesJsonString(),
+        analyticsSnapshotJson = analyticsSnapshot.toJsonString(),
+        longTermInsightsJson = longTermInsights.toLongTermInsightsJsonString(),
         updatedAt = profile?.updatedAt ?: checkpointSummaries.maxOfOrNull(CheckpointSummary::windowEndAt) ?: java.time.Instant.EPOCH,
     )
 }
@@ -366,7 +383,7 @@ private fun String?.toCheckpointSummaries(): List<CheckpointSummary> =
         }
     }.getOrDefault(emptyList())
 
-private fun List<CheckpointSummary>.toJsonString(): String =
+private fun List<CheckpointSummary>.toCheckpointSummariesJsonString(): String =
     JSONArray(
         map { summary ->
             JSONObject()
@@ -381,6 +398,159 @@ private fun List<CheckpointSummary>.toJsonString(): String =
         },
     ).toString()
 
+private fun String?.toAnalyticsSnapshot(): LearningAnalyticsSnapshot =
+    runCatching {
+        JSONObject(this ?: "{}").toLearningAnalyticsSnapshot()
+    }.getOrDefault(LearningAnalyticsSnapshot())
+
+private fun LearningAnalyticsSnapshot.toJsonString(): String =
+    if (this == LearningAnalyticsSnapshot()) {
+        "{}"
+    } else {
+        toJsonObject().toString()
+    }
+
+private fun JSONObject.toLearningAnalyticsSnapshot(): LearningAnalyticsSnapshot =
+    LearningAnalyticsSnapshot(
+        overview = optJSONObject("overview")?.toAnalyticsOverview() ?: AnalyticsOverview(),
+        dailyTrend = optJSONArray("dailyTrend").mapJsonObjects(JSONObject::toDailyTrendPoint),
+        feedbackBreakdown = optJSONArray("feedbackBreakdown").mapJsonObjects(JSONObject::toFeedbackBucket),
+        bookProgress = optJSONArray("bookProgress").mapJsonObjects(JSONObject::toBookProgressSnapshot),
+        planEffects = optJSONArray("planEffects").mapJsonObjects(JSONObject::toPlanEffectSnapshot),
+        pronunciationUsage = optJSONObject("pronunciationUsage")?.toPronunciationUsageSnapshot()
+            ?: PronunciationUsageSnapshot(),
+    )
+
+private fun LearningAnalyticsSnapshot.toJsonObject(): JSONObject =
+    JSONObject()
+        .put("overview", overview.toJsonObject())
+        .put("dailyTrend", JSONArray(dailyTrend.map(DailyTrendPoint::toJsonObject)))
+        .put("feedbackBreakdown", JSONArray(feedbackBreakdown.map(FeedbackBucket::toJsonObject)))
+        .put("bookProgress", JSONArray(bookProgress.map(BookProgressSnapshot::toJsonObject)))
+        .put("planEffects", JSONArray(planEffects.map(PlanEffectSnapshot::toJsonObject)))
+        .put("pronunciationUsage", pronunciationUsage.toJsonObject())
+
+private fun JSONObject.toAnalyticsOverview(): AnalyticsOverview =
+    AnalyticsOverview(
+        accuracyRate = optFloatOrNull("accuracyRate"),
+        studiedDays = optInt("studiedDays"),
+        masteredCount = optInt("masteredCount"),
+    )
+
+private fun AnalyticsOverview.toJsonObject(): JSONObject =
+    JSONObject()
+        .put("accuracyRate", accuracyRate?.toDouble())
+        .put("studiedDays", studiedDays)
+        .put("masteredCount", masteredCount)
+
+private fun JSONObject.toDailyTrendPoint(): DailyTrendPoint =
+    DailyTrendPoint(
+        date = optString("date"),
+        studiedCount = optInt("studiedCount"),
+        correctRate = optFloatOrNull("correctRate") ?: 0f,
+    )
+
+private fun DailyTrendPoint.toJsonObject(): JSONObject =
+    JSONObject()
+        .put("date", date)
+        .put("studiedCount", studiedCount)
+        .put("correctRate", correctRate.toDouble())
+
+private fun JSONObject.toFeedbackBucket(): FeedbackBucket =
+    FeedbackBucket(
+        label = optString("label"),
+        count = optInt("count"),
+        ratio = optFloatOrNull("ratio") ?: 0f,
+    )
+
+private fun FeedbackBucket.toJsonObject(): JSONObject =
+    JSONObject()
+        .put("label", label)
+        .put("count", count)
+        .put("ratio", ratio.toDouble())
+
+private fun JSONObject.toBookProgressSnapshot(): BookProgressSnapshot =
+    BookProgressSnapshot(
+        bookId = optString("bookId"),
+        bookName = optString("bookName"),
+        completedCount = optInt("completedCount"),
+        totalCount = optInt("totalCount"),
+    )
+
+private fun BookProgressSnapshot.toJsonObject(): JSONObject =
+    JSONObject()
+        .put("bookId", bookId)
+        .put("bookName", bookName)
+        .put("completedCount", completedCount)
+        .put("totalCount", totalCount)
+
+private fun JSONObject.toPlanEffectSnapshot(): PlanEffectSnapshot =
+    PlanEffectSnapshot(
+        planVersionId = optLong("planVersionId"),
+        label = optString("label"),
+        beforeCorrectRate = optFloatOrNull("beforeCorrectRate"),
+        afterCorrectRate = optFloatOrNull("afterCorrectRate"),
+        outcomeSummary = optNullableString("outcomeSummary"),
+    )
+
+private fun PlanEffectSnapshot.toJsonObject(): JSONObject =
+    JSONObject()
+        .put("planVersionId", planVersionId)
+        .put("label", label)
+        .put("beforeCorrectRate", beforeCorrectRate?.toDouble())
+        .put("afterCorrectRate", afterCorrectRate?.toDouble())
+        .put("outcomeSummary", outcomeSummary)
+
+private fun JSONObject.toPronunciationUsageSnapshot(): PronunciationUsageSnapshot =
+    PronunciationUsageSnapshot(
+        followReadCount = optInt("followReadCount"),
+        voicePlaybackCount = optInt("voicePlaybackCount"),
+        shadowingCount = optInt("shadowingCount"),
+    )
+
+private fun PronunciationUsageSnapshot.toJsonObject(): JSONObject =
+    JSONObject()
+        .put("followReadCount", followReadCount)
+        .put("voicePlaybackCount", voicePlaybackCount)
+        .put("shadowingCount", shadowingCount)
+
+private fun String?.toLongTermInsights(): List<String> =
+    runCatching {
+        JSONArray(this ?: "[]").toStringValues()
+    }.getOrDefault(emptyList())
+
+private fun List<String>.toLongTermInsightsJsonString(): String = JSONArray(this).toString()
+
+private fun JSONObject.optNullableString(key: String): String? =
+    when {
+        !has(key) || isNull(key) -> null
+        else -> optString(key).takeIf(String::isNotBlank)
+    }
+
+private fun JSONObject.optFloatOrNull(key: String): Float? =
+    when {
+        !has(key) || isNull(key) -> null
+        else -> optDouble(key).toFloat()
+    }
+
+private fun JSONArray?.toStringValues(): List<String> =
+    this?.let { array ->
+        buildList(array.length()) {
+            repeat(array.length()) { index ->
+                array.optString(index).takeIf(String::isNotBlank)?.let(::add)
+            }
+        }
+    }.orEmpty()
+
+private fun <T> JSONArray?.mapJsonObjects(mapper: JSONObject.() -> T): List<T> =
+    this?.let { array ->
+        buildList(array.length()) {
+            repeat(array.length()) { index ->
+                array.optJSONObject(index)?.let { add(it.mapper()) }
+            }
+        }
+    }.orEmpty()
+
 private fun JSONObject.optLongOrNull(key: String): Long? =
     when {
         !has(key) || isNull(key) -> null
@@ -390,8 +560,8 @@ private fun JSONObject.optLongOrNull(key: String): Long? =
 private fun String.toInstantOrNull(): java.time.Instant? =
     runCatching { java.time.Instant.parse(this) }.getOrNull()
 
-private fun String.toPlanApplyStatusOrNull(): com.yueliangmanle.danci.core.model.PlanApplyStatus? =
-    runCatching { com.yueliangmanle.danci.core.model.PlanApplyStatus.valueOf(this) }.getOrNull()
+private fun String.toPlanApplyStatusOrNull(): PlanApplyStatus? =
+    runCatching { PlanApplyStatus.valueOf(this) }.getOrNull()
 
 internal fun ConfusionEdge.asEntity(): ConfusionEdgeEntity =
     ConfusionEdgeEntity(

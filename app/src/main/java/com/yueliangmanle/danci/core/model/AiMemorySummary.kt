@@ -8,6 +8,8 @@ data class AiMemorySummary(
     val weeklySummaries: List<WeeklySummary> = emptyList(),
     val planHistory: List<PlanHistoryEntry> = emptyList(),
     val checkpointSummaries: List<CheckpointSummary> = emptyList(),
+    val analyticsSnapshot: LearningAnalyticsSnapshot = LearningAnalyticsSnapshot(),
+    val longTermInsights: List<String> = emptyList(),
     val confusionEdges: List<ConfusionEdge> = emptyList(),
 )
 

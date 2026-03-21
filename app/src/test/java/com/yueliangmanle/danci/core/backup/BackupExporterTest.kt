@@ -4,12 +4,19 @@ import com.yueliangmanle.danci.core.data.AppSettings
 import com.yueliangmanle.danci.core.database.entity.BookEntity
 import com.yueliangmanle.danci.core.database.entity.WordEntity
 import com.yueliangmanle.danci.core.model.AiMemorySummary
+import com.yueliangmanle.danci.core.model.AnalyticsOverview
+import com.yueliangmanle.danci.core.model.BookProgressSnapshot
 import com.yueliangmanle.danci.core.model.CheckpointSummary
 import com.yueliangmanle.danci.core.model.DailySummary
+import com.yueliangmanle.danci.core.model.DailyTrendPoint
+import com.yueliangmanle.danci.core.model.FeedbackBucket
 import com.yueliangmanle.danci.core.model.LearnerProfile
+import com.yueliangmanle.danci.core.model.LearningAnalyticsSnapshot
 import com.yueliangmanle.danci.core.model.PlanApplyStatus
+import com.yueliangmanle.danci.core.model.PlanEffectSnapshot
 import com.yueliangmanle.danci.core.model.PlanHistoryEntry
 import com.yueliangmanle.danci.core.model.PlanSeverity
+import com.yueliangmanle.danci.core.model.PronunciationUsageSnapshot
 import com.yueliangmanle.danci.core.model.WeeklySummary
 import java.time.Instant
 import kotlinx.coroutines.test.runTest
@@ -75,9 +82,22 @@ class BackupExporterTest {
         val payload = JSONObject(backup.serializedJson)
         val aiMemory = payload.getJSONObject("ai_memory_summary")
 
-        assertEquals(4, backup.manifest.version)
+        assertEquals(5, backup.manifest.version)
         assertTrue(aiMemory.has("checkpoint_summaries"))
+        assertTrue(aiMemory.has("analytics_snapshot"))
+        assertTrue(aiMemory.has("long_term_insights"))
         assertTrue(aiMemory.getJSONArray("plan_history").getJSONObject(0).has("apply_status"))
+        assertEquals(
+            "稳住近义词误判",
+            aiMemory.getJSONObject("analytics_snapshot")
+                .getJSONArray("plan_effects")
+                .getJSONObject(0)
+                .getString("outcome_summary"),
+        )
+        assertEquals(
+            "近义词辨析仍需复习",
+            aiMemory.getJSONArray("long_term_insights").getString(0),
+        )
     }
 
     private fun sampleAiMemory(): AiMemorySummary =
@@ -141,5 +161,49 @@ class BackupExporterTest {
                     signalSummary = "近义词误判升高",
                 ),
             ),
+            analyticsSnapshot = LearningAnalyticsSnapshot(
+                overview = AnalyticsOverview(
+                    accuracyRate = 0.76f,
+                    studiedDays = 6,
+                    masteredCount = 42,
+                ),
+                dailyTrend = listOf(
+                    DailyTrendPoint(
+                        date = "2026-03-18",
+                        studiedCount = 25,
+                        correctRate = 0.76f,
+                    ),
+                ),
+                feedbackBreakdown = listOf(
+                    FeedbackBucket(
+                        label = "近义词混淆",
+                        count = 4,
+                        ratio = 0.25f,
+                    ),
+                ),
+                bookProgress = listOf(
+                    BookProgressSnapshot(
+                        bookId = "cet4",
+                        bookName = "四级核心词",
+                        completedCount = 120,
+                        totalCount = 300,
+                    ),
+                ),
+                planEffects = listOf(
+                    PlanEffectSnapshot(
+                        planVersionId = 8L,
+                        label = "回拉错词",
+                        beforeCorrectRate = 0.68f,
+                        afterCorrectRate = 0.76f,
+                        outcomeSummary = "稳住近义词误判",
+                    ),
+                ),
+                pronunciationUsage = PronunciationUsageSnapshot(
+                    followReadCount = 9,
+                    voicePlaybackCount = 15,
+                    shadowingCount = 3,
+                ),
+            ),
+            longTermInsights = listOf("近义词辨析仍需复习"),
         )
 }

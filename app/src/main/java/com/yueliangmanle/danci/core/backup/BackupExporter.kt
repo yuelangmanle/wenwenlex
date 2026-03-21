@@ -13,11 +13,18 @@ import com.yueliangmanle.danci.core.database.entity.VoicePackEntity
 import com.yueliangmanle.danci.core.database.entity.WordEntity
 import com.yueliangmanle.danci.core.database.entity.WordAudioAssetEntity
 import com.yueliangmanle.danci.core.model.AiMemorySummary
+import com.yueliangmanle.danci.core.model.AnalyticsOverview
+import com.yueliangmanle.danci.core.model.BookProgressSnapshot
 import com.yueliangmanle.danci.core.model.CheckpointSummary
 import com.yueliangmanle.danci.core.model.ConfusionEdge
 import com.yueliangmanle.danci.core.model.DailySummary
+import com.yueliangmanle.danci.core.model.DailyTrendPoint
+import com.yueliangmanle.danci.core.model.FeedbackBucket
 import com.yueliangmanle.danci.core.model.LearnerProfile
+import com.yueliangmanle.danci.core.model.LearningAnalyticsSnapshot
+import com.yueliangmanle.danci.core.model.PlanEffectSnapshot
 import com.yueliangmanle.danci.core.model.PlanHistoryEntry
+import com.yueliangmanle.danci.core.model.PronunciationUsageSnapshot
 import com.yueliangmanle.danci.core.model.WeeklySummary
 import java.io.ByteArrayOutputStream
 import java.time.Instant
@@ -287,6 +294,8 @@ internal fun AiMemorySummary.toJson(): JSONObject =
         .put("weekly_summaries", JSONArray(weeklySummaries.map(WeeklySummary::toJson)))
         .put("plan_history", JSONArray(planHistory.map(PlanHistoryEntry::toJson)))
         .put("checkpoint_summaries", JSONArray(checkpointSummaries.map(CheckpointSummary::toJson)))
+        .put("analytics_snapshot", analyticsSnapshot.toJson())
+        .put("long_term_insights", JSONArray(longTermInsights))
         .put("confusion_edges", JSONArray(confusionEdges.map(ConfusionEdge::toJson)))
 
 internal fun LearnerProfile.toJson(): JSONObject =
@@ -357,3 +366,51 @@ internal fun ConfusionEdge.toJson(): JSONObject =
         .put("weight", weight.toDouble())
         .put("mistake_count", mistakeCount)
         .put("updated_at", updatedAt.toBackupString())
+
+internal fun LearningAnalyticsSnapshot.toJson(): JSONObject =
+    JSONObject()
+        .put("overview", overview.toJson())
+        .put("daily_trend", JSONArray(dailyTrend.map(DailyTrendPoint::toJson)))
+        .put("feedback_breakdown", JSONArray(feedbackBreakdown.map(FeedbackBucket::toJson)))
+        .put("book_progress", JSONArray(bookProgress.map(BookProgressSnapshot::toJson)))
+        .put("plan_effects", JSONArray(planEffects.map(PlanEffectSnapshot::toJson)))
+        .put("pronunciation_usage", pronunciationUsage.toJson())
+
+internal fun AnalyticsOverview.toJson(): JSONObject =
+    JSONObject()
+        .put("accuracy_rate", accuracyRate?.toDouble())
+        .put("studied_days", studiedDays)
+        .put("mastered_count", masteredCount)
+
+internal fun DailyTrendPoint.toJson(): JSONObject =
+    JSONObject()
+        .put("date", date)
+        .put("studied_count", studiedCount)
+        .put("correct_rate", correctRate.toDouble())
+
+internal fun FeedbackBucket.toJson(): JSONObject =
+    JSONObject()
+        .put("label", label)
+        .put("count", count)
+        .put("ratio", ratio.toDouble())
+
+internal fun BookProgressSnapshot.toJson(): JSONObject =
+    JSONObject()
+        .put("book_id", bookId)
+        .put("book_name", bookName)
+        .put("completed_count", completedCount)
+        .put("total_count", totalCount)
+
+internal fun PlanEffectSnapshot.toJson(): JSONObject =
+    JSONObject()
+        .put("plan_version_id", planVersionId)
+        .put("label", label)
+        .put("before_correct_rate", beforeCorrectRate?.toDouble())
+        .put("after_correct_rate", afterCorrectRate?.toDouble())
+        .put("outcome_summary", outcomeSummary)
+
+internal fun PronunciationUsageSnapshot.toJson(): JSONObject =
+    JSONObject()
+        .put("follow_read_count", followReadCount)
+        .put("voice_playback_count", voicePlaybackCount)
+        .put("shadowing_count", shadowingCount)

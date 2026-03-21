@@ -106,4 +106,54 @@ class DanciDatabaseMigrationTest {
             assertEquals("[]", cursor.getString(0))
         }
     }
+
+    @Test
+    fun migration5To6_backfillsAnalyticsSnapshotAndLongTermInsights() {
+        val databaseName = "danci-migration-test-v6"
+        InstrumentationRegistry.getInstrumentation().targetContext.deleteDatabase(databaseName)
+        helper.createDatabase(databaseName, 5).apply {
+            execSQL(
+                """
+                INSERT INTO learner_profiles (
+                    profileId,
+                    vocabularyLevel,
+                    weakSpots,
+                    preferredQuestionTypes,
+                    commonMistakePatterns,
+                    checkpointSummariesJson,
+                    updatedAt
+                ) VALUES (
+                    'default',
+                    '提升中',
+                    'abandonprecise',
+                    'quiz',
+                    '',
+                    '[]',
+                    1774008600000
+                )
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val migratedDb = helper.runMigrationsAndValidate(
+            databaseName,
+            6,
+            true,
+            MIGRATION_5_6,
+        )
+
+        migratedDb.query(
+            """
+            SELECT analyticsSnapshotJson, longTermInsightsJson, checkpointSummariesJson
+            FROM learner_profiles
+            WHERE profileId = 'default'
+            """.trimIndent(),
+        ).use { cursor ->
+            check(cursor.moveToFirst())
+            assertEquals("{}", cursor.getString(0))
+            assertEquals("[]", cursor.getString(1))
+            assertEquals("[]", cursor.getString(2))
+        }
+    }
 }

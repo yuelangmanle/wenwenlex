@@ -14,6 +14,7 @@ import kotlinx.coroutines.test.runTest
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
@@ -143,6 +144,48 @@ class BackupImporterTest {
         assertEquals(com.yueliangmanle.danci.core.model.PlanApplyStatus.APPLIED, plan.applyStatus)
         assertEquals(com.yueliangmanle.danci.core.model.PlanSeverity.MINOR, plan.severity)
         assertEquals(com.yueliangmanle.danci.core.model.PlanHistoryEntry.DEFAULT_TRIGGER_TYPE, plan.triggerType)
+    }
+
+    @Test
+    fun importer_fillsDefaultsForVersionFourAnalyticsFields() {
+        val manifest = BackupManifest(
+            version = 4,
+            createdAt = "2026-03-18T12:30:00Z",
+            sections = REQUIRED_BACKUP_SECTIONS,
+        )
+        val payload = JSONObject()
+            .put("settings", BackupSnapshot(settings = AppSettings()).toJson().getJSONObject("settings"))
+            .put("books", JSONArray())
+            .put("book_words", JSONArray())
+            .put("words", JSONArray())
+            .put("learning_records", JSONArray())
+            .put("study_sessions", JSONArray())
+            .put("study_events", JSONArray())
+            .put(
+                "ai_memory_summary",
+                JSONObject()
+                    .put(
+                        "daily_summaries",
+                        JSONArray().put(
+                            JSONObject()
+                                .put("date", "2026-03-18")
+                                .put("studied_count", 12)
+                                .put("review_count", 5)
+                                .put("correct_rate", 0.75)
+                                .put("updated_at", "2026-03-18T08:00:00Z"),
+                        ),
+                    ),
+            )
+
+        val imported = BackupImporter().import(
+            zipEntries(
+                manifest = manifest.toJson().toString(),
+                payload = payload.toString(),
+            ),
+        )
+
+        assertTrue(imported.snapshot.aiMemorySummary.analyticsSnapshot.planEffects.isEmpty())
+        assertTrue(imported.snapshot.aiMemorySummary.longTermInsights.isEmpty())
     }
 
     private fun zipEntries(

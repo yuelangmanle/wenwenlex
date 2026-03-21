@@ -17,13 +17,20 @@ import com.yueliangmanle.danci.core.model.PHONETIC_SOURCE_LEGACY
 import com.yueliangmanle.danci.core.model.PHONETIC_STATUS_EMPTY
 import com.yueliangmanle.danci.core.model.PHONETIC_STATUS_PARTIAL
 import com.yueliangmanle.danci.core.model.AiMemorySummary
+import com.yueliangmanle.danci.core.model.AnalyticsOverview
+import com.yueliangmanle.danci.core.model.BookProgressSnapshot
 import com.yueliangmanle.danci.core.model.CheckpointSummary
 import com.yueliangmanle.danci.core.model.ConfusionEdge
 import com.yueliangmanle.danci.core.model.DailySummary
+import com.yueliangmanle.danci.core.model.DailyTrendPoint
+import com.yueliangmanle.danci.core.model.FeedbackBucket
 import com.yueliangmanle.danci.core.model.LearnerProfile
+import com.yueliangmanle.danci.core.model.LearningAnalyticsSnapshot
 import com.yueliangmanle.danci.core.model.PlanApplyStatus
+import com.yueliangmanle.danci.core.model.PlanEffectSnapshot
 import com.yueliangmanle.danci.core.model.PlanHistoryEntry
 import com.yueliangmanle.danci.core.model.PlanSeverity
+import com.yueliangmanle.danci.core.model.PronunciationUsageSnapshot
 import com.yueliangmanle.danci.core.model.WeeklySummary
 import java.io.ByteArrayInputStream
 import java.util.zip.ZipInputStream
@@ -306,6 +313,9 @@ internal fun JSONObject.toAiMemorySummary(version: Int = BACKUP_VERSION): AiMemo
         weeklySummaries = optJSONArray("weekly_summaries").mapObjects(JSONObject::toWeeklySummary),
         planHistory = optJSONArray("plan_history").mapObjects { toPlanHistoryEntry(version) },
         checkpointSummaries = optJSONArray("checkpoint_summaries").mapObjects(JSONObject::toCheckpointSummary),
+        analyticsSnapshot = optJSONObject("analytics_snapshot")?.toLearningAnalyticsSnapshot()
+            ?: LearningAnalyticsSnapshot(),
+        longTermInsights = optJSONArray("long_term_insights").toStringList(),
         confusionEdges = optJSONArray("confusion_edges").mapObjects(JSONObject::toConfusionEdge),
     )
 
@@ -392,6 +402,62 @@ internal fun JSONObject.toConfusionEdge(): ConfusionEdge =
         updatedAt = optInstant("updated_at") ?: java.time.Instant.EPOCH,
     )
 
+internal fun JSONObject.toLearningAnalyticsSnapshot(): LearningAnalyticsSnapshot =
+    LearningAnalyticsSnapshot(
+        overview = optJSONObject("overview")?.toAnalyticsOverview() ?: AnalyticsOverview(),
+        dailyTrend = optJSONArray("daily_trend").mapObjects(JSONObject::toDailyTrendPoint),
+        feedbackBreakdown = optJSONArray("feedback_breakdown").mapObjects(JSONObject::toFeedbackBucket),
+        bookProgress = optJSONArray("book_progress").mapObjects(JSONObject::toBookProgressSnapshot),
+        planEffects = optJSONArray("plan_effects").mapObjects(JSONObject::toPlanEffectSnapshot),
+        pronunciationUsage = optJSONObject("pronunciation_usage")?.toPronunciationUsageSnapshot()
+            ?: PronunciationUsageSnapshot(),
+    )
+
+internal fun JSONObject.toAnalyticsOverview(): AnalyticsOverview =
+    AnalyticsOverview(
+        accuracyRate = optFloatOrNull("accuracy_rate"),
+        studiedDays = optInt("studied_days", 0),
+        masteredCount = optInt("mastered_count", 0),
+    )
+
+internal fun JSONObject.toDailyTrendPoint(): DailyTrendPoint =
+    DailyTrendPoint(
+        date = getString("date"),
+        studiedCount = optInt("studied_count", 0),
+        correctRate = optDouble("correct_rate", 0.0).toFloat(),
+    )
+
+internal fun JSONObject.toFeedbackBucket(): FeedbackBucket =
+    FeedbackBucket(
+        label = getString("label"),
+        count = optInt("count", 0),
+        ratio = optDouble("ratio", 0.0).toFloat(),
+    )
+
+internal fun JSONObject.toBookProgressSnapshot(): BookProgressSnapshot =
+    BookProgressSnapshot(
+        bookId = getString("book_id"),
+        bookName = optNullableString("book_name").orEmpty(),
+        completedCount = optInt("completed_count", 0),
+        totalCount = optInt("total_count", 0),
+    )
+
+internal fun JSONObject.toPlanEffectSnapshot(): PlanEffectSnapshot =
+    PlanEffectSnapshot(
+        planVersionId = getLong("plan_version_id"),
+        label = getString("label"),
+        beforeCorrectRate = optFloatOrNull("before_correct_rate"),
+        afterCorrectRate = optFloatOrNull("after_correct_rate"),
+        outcomeSummary = optNullableString("outcome_summary"),
+    )
+
+internal fun JSONObject.toPronunciationUsageSnapshot(): PronunciationUsageSnapshot =
+    PronunciationUsageSnapshot(
+        followReadCount = optInt("follow_read_count", 0),
+        voicePlaybackCount = optInt("voice_playback_count", 0),
+        shadowingCount = optInt("shadowing_count", 0),
+    )
+
 private fun JSONObject.optNullableString(key: String): String? =
     when (val value = opt(key)) {
         null,
@@ -421,6 +487,14 @@ private fun JSONObject.optBooleanOrNull(key: String): Boolean? =
         JSONObject.NULL -> null
         is Boolean -> value
         else -> value.toString().toBooleanStrictOrNull()
+    }
+
+private fun JSONObject.optFloatOrNull(key: String): Float? =
+    when (val value = opt(key)) {
+        null,
+        JSONObject.NULL -> null
+        is Number -> value.toFloat()
+        else -> value.toString().toFloatOrNull()
     }
 
 private fun JSONObject.optInstant(key: String) = optNullableString(key).toBackupInstantOrNull()
