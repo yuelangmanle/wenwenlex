@@ -1,6 +1,7 @@
 package com.yueliangmanle.danci.core.data
 
 import android.content.Context
+import com.yueliangmanle.danci.core.ai.PlanContextCompactor
 import com.yueliangmanle.danci.core.analytics.StudyAnalyticsAggregator
 import com.yueliangmanle.danci.core.analytics.SummaryBuilder
 import com.yueliangmanle.danci.core.analytics.SummaryContext
@@ -30,6 +31,7 @@ class AiMemoryRepository(
     private val wordRepository: WordRepository,
     private val builtInWordsProvider: () -> List<com.yueliangmanle.danci.core.model.Word>,
     private val analyticsAggregator: StudyAnalyticsAggregator = StudyAnalyticsAggregator(),
+    private val planContextCompactor: PlanContextCompactor = PlanContextCompactor(),
     private val summaryBuilder: SummaryBuilder = SummaryBuilder(),
     private val nowProvider: () -> Instant = { Instant.now() },
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
@@ -54,18 +56,32 @@ class AiMemoryRepository(
         val recentEvents = studyRepository.getStudyEventsSince(referenceTime.minus(30, ChronoUnit.DAYS))
         val existingSummary = studyRepository.loadAiMemorySummary()
         if (recentEvents.isEmpty()) {
-            return existingSummary
+            val compactedSummary = existingSummary.copy(
+                checkpointSummaries = planContextCompactor.compact(
+                    checkpointSummaries = existingSummary.checkpointSummaries,
+                    referenceTime = referenceTime,
+                ),
+            )
+            if (compactedSummary != existingSummary) {
+                studyRepository.saveAiMemorySummary(compactedSummary)
+            }
+            return compactedSummary
         }
 
         val aggregated = analyticsAggregator.aggregate(
             events = recentEvents,
             referenceTime = referenceTime,
         )
-        val summary = AiMemorySummary(
+        val summary = existingSummary.copy(
             learnerProfile = aggregated.learnerProfile,
             dailySummaries = aggregated.dailySummaries.takeLast(7),
             weeklySummaries = aggregated.weeklySummaries.takeLast(4),
-            planHistory = existingSummary.planHistory,
+            checkpointSummaries = planContextCompactor.buildCheckpointSummaries(
+                events = recentEvents,
+                planHistory = existingSummary.planHistory,
+                existingSummaries = existingSummary.checkpointSummaries,
+                referenceTime = referenceTime,
+            ),
             confusionEdges = aggregated.confusionEdges,
         )
         studyRepository.saveAiMemorySummary(summary)

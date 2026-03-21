@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.yueliangmanle.danci.core.database.DanciDatabase
 import com.yueliangmanle.danci.core.database.entity.LearnerProfileEntity
 import com.yueliangmanle.danci.core.database.entity.PlanHistoryEntity
+import com.yueliangmanle.danci.core.model.AiMemorySummary
 import java.time.Instant
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -119,6 +120,35 @@ class RoomStudyRepositoryTest {
             com.yueliangmanle.danci.core.model.PlanApplyStatus.PENDING_CONFIRMATION,
             summary.checkpointSummaries.single().decisionStatus,
         )
+    }
+
+    @Test
+    fun saveAiMemorySummary_persistsCheckpointSummariesWhenLearnerProfileIsNull() = runTest {
+        val db = buildTestDatabase().also { database = it }
+        val repository = RoomStudyRepository(db.studyDao())
+
+        repository.saveAiMemorySummary(
+            AiMemorySummary(
+                learnerProfile = null,
+                checkpointSummaries = listOf(
+                    com.yueliangmanle.danci.core.model.CheckpointSummary(
+                        checkpointId = "checkpoint-20260321-1",
+                        windowStartAt = Instant.parse("2026-03-21T08:00:00Z"),
+                        windowEndAt = Instant.parse("2026-03-21T08:30:00Z"),
+                        effectivePlanVersionId = 11L,
+                        candidatePlanVersionId = 12L,
+                        decisionStatus = com.yueliangmanle.danci.core.model.PlanApplyStatus.APPLIED,
+                        effectSummary = "执行效果稳定",
+                        signalSummary = "阶段复习完成",
+                    ),
+                ),
+            ),
+        )
+
+        val restored = repository.loadAiMemorySummary()
+
+        assertEquals(1, restored.checkpointSummaries.size)
+        assertEquals("checkpoint-20260321-1", restored.checkpointSummaries.single().checkpointId)
     }
 
     private fun buildTestDatabase(): DanciDatabase =
