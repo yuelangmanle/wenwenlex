@@ -1,10 +1,12 @@
 package com.yueliangmanle.danci.core.analytics
 
 import com.yueliangmanle.danci.core.model.AnalyticsOverview
+import com.yueliangmanle.danci.core.model.CheckpointSummary
 import com.yueliangmanle.danci.core.model.DailySummary
 import com.yueliangmanle.danci.core.model.DailyTrendPoint
 import com.yueliangmanle.danci.core.model.FeedbackBucket
 import com.yueliangmanle.danci.core.model.LearningAnalyticsSnapshot
+import com.yueliangmanle.danci.core.model.PlanApplyStatus
 import com.yueliangmanle.danci.core.model.PlanEffectSnapshot
 import com.yueliangmanle.danci.core.model.PronunciationUsageSnapshot
 import com.yueliangmanle.danci.core.model.StudyEvent
@@ -13,6 +15,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -46,6 +49,31 @@ class SummaryBuilderTest {
         assertTrue(payload.longTermInsights.isNotEmpty())
         assertTrue(payload.longTermInsights.any { it.contains("发音") })
         assertTrue(payload.longTermInsights.any { it.contains("调整") || it.contains("正确率回升") })
+    }
+
+    @Test
+    fun buildContext_prefersLatestCheckpointWhenItPointsToNewerCandidatePlan() {
+        val payload = SummaryBuilder().buildContext(
+            sevenDay = sampleDailySummaries(count = 7),
+            thirtyDay = sampleWeeklySummaries(count = 4),
+            rawEvents = sampleEvents(count = 40),
+            analyticsSnapshot = sampleAnalyticsSnapshot(),
+            checkpointSummaries = listOf(
+                CheckpointSummary(
+                    checkpointId = "checkpoint-newer",
+                    windowStartAt = Instant.parse("2026-03-20T08:00:00Z"),
+                    windowEndAt = Instant.parse("2026-03-20T08:30:00Z"),
+                    effectivePlanVersionId = 7L,
+                    candidatePlanVersionId = 9L,
+                    decisionStatus = PlanApplyStatus.PENDING_CONFIRMATION,
+                    effectSummary = "当前还在观察更激进的回拉方案",
+                    signalSummary = "最近 20 题里近义词误判明显升高",
+                ),
+            ),
+        )
+
+        assertTrue(payload.longTermInsights.any { it.contains("最近检查点显示") })
+        assertFalse(payload.longTermInsights.any { it.contains("先回拉易混词，再恢复推进") })
     }
 
     private fun sampleDailySummaries(count: Int): List<DailySummary> =

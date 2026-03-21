@@ -123,7 +123,14 @@ class SummaryBuilder {
         planEffects: List<PlanEffectSnapshot>,
         checkpointSummaries: List<CheckpointSummary>,
     ): String? {
+        val latestCheckpoint = checkpointSummaries.maxByOrNull(CheckpointSummary::windowEndAt)
         val latestEffect = planEffects.firstOrNull()
+        if (shouldPreferCheckpoint(latestCheckpoint, latestEffect)) {
+            return latestCheckpoint?.let {
+                "最近检查点显示${it.effectSummary}，当前重点信号是${it.signalSummary}。"
+            }
+        }
+
         if (latestEffect != null) {
             return buildString {
                 append("最近一次调整")
@@ -137,8 +144,26 @@ class SummaryBuilder {
             }
         }
 
-        val latestCheckpoint = checkpointSummaries.maxByOrNull(CheckpointSummary::windowEndAt) ?: return null
-        return "最近检查点显示${latestCheckpoint.effectSummary}，当前重点信号是${latestCheckpoint.signalSummary}。"
+        return latestCheckpoint?.let {
+            "最近检查点显示${it.effectSummary}，当前重点信号是${it.signalSummary}。"
+        }
+    }
+
+    private fun shouldPreferCheckpoint(
+        latestCheckpoint: CheckpointSummary?,
+        latestEffect: PlanEffectSnapshot?,
+    ): Boolean {
+        if (latestCheckpoint == null) {
+            return false
+        }
+        if (latestEffect == null) {
+            return true
+        }
+        val checkpointPlanIds = setOfNotNull(
+            latestCheckpoint.candidatePlanVersionId,
+            latestCheckpoint.effectivePlanVersionId,
+        )
+        return checkpointPlanIds.isNotEmpty() && latestEffect.planVersionId !in checkpointPlanIds
     }
 
     private fun buildWeakSpotInsight(

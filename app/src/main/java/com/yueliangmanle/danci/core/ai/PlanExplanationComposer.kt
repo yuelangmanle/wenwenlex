@@ -4,18 +4,10 @@ import com.yueliangmanle.danci.core.model.PlanApplyStatus
 import com.yueliangmanle.danci.core.model.PlanHistoryEntry
 
 class PlanExplanationComposer {
-    fun composeHeadline(entry: PlanHistoryEntry): String =
-        listOfNotNull(
-            entry.summary.takeIf { it.isNotBlank() },
-            entry.executionEffect?.takeIf { it.isNotBlank() }?.let { "效果：$it" },
-        ).joinToString(" · ")
+    fun composeHeadline(entry: PlanHistoryEntry): String = entry.summary
 
     fun composeReason(entry: PlanHistoryEntry): String =
-        buildList {
-            entry.reasonSummary?.takeIf { it.isNotBlank() }?.let(::add)
-            entry.executionEffect?.takeIf { it.isNotBlank() }?.let { add("最近执行效果：$it") }
-            entry.abnormalSignals.takeIf { it.isNotEmpty() }?.let { add("异常信号：${it.joinToString("；")}") }
-        }.joinToString("；").ifBlank { "当前以稳态调整为主。" }
+        entry.reasonSummary ?: entry.abnormalSignals.joinToString("；").ifBlank { "当前以稳态调整为主。" }
 
     fun composeDecisionLabel(entry: PlanHistoryEntry): String =
         when (entry.applyStatus) {

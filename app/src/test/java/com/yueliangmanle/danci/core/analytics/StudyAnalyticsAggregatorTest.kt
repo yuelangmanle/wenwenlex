@@ -207,6 +207,75 @@ class StudyAnalyticsAggregatorTest {
         assertTrue(summary.dailySummaries.isNotEmpty())
     }
 
+    @Test
+    fun refreshMemorySummary_rebuildsAnalyticsSnapshotAndInsightsWhenRecentEventsAreEmpty() = runTest {
+        val repository = AiMemoryRepository(
+            studyRepository = FakeStudyRepository(
+                recentEvents = emptyList(),
+                initialSummary = AiMemorySummary(
+                    learnerProfile = LearnerProfile(
+                        vocabularyLevel = "提升中",
+                        weakSpots = listOf("word:1"),
+                        preferredQuestionTypes = listOf("quiz"),
+                        commonMistakePatterns = listOf("confused_with"),
+                        updatedAt = Instant.parse("2026-03-20T08:00:00Z"),
+                    ),
+                    weeklySummaries = listOf(
+                        WeeklySummary(
+                            weekStartDate = "2026-03-16",
+                            studiedCount = 36,
+                            correctRate = 0.68f,
+                            trendSummary = "先稳住复习",
+                            persistentWeakSpots = listOf("word:1"),
+                            updatedAt = Instant.parse("2026-03-20T08:00:00Z"),
+                        ),
+                    ),
+                    planHistory = listOf(
+                        PlanHistoryEntry(
+                            id = 9L,
+                            generatedAt = Instant.parse("2026-03-20T07:30:00Z"),
+                            summary = "先回拉易混词",
+                            changeSummary = "先回拉易混词",
+                        ),
+                    ),
+                    checkpointSummaries = listOf(
+                        checkpointSummary(
+                            checkpointId = "checkpoint-1",
+                            windowStartAt = "2026-03-01T08:00:00Z",
+                            windowEndAt = "2026-03-01T08:30:00Z",
+                        ),
+                        checkpointSummary(
+                            checkpointId = "checkpoint-2",
+                            windowStartAt = "2026-03-10T08:00:00Z",
+                            windowEndAt = "2026-03-10T08:30:00Z",
+                        ),
+                        checkpointSummary(
+                            checkpointId = "checkpoint-3",
+                            windowStartAt = "2026-03-18T08:00:00Z",
+                            windowEndAt = "2026-03-18T08:30:00Z",
+                        ),
+                        checkpointSummary(
+                            checkpointId = "checkpoint-4",
+                            windowStartAt = "2026-03-20T08:00:00Z",
+                            windowEndAt = "2026-03-20T08:30:00Z",
+                        ),
+                    ),
+                ),
+            ),
+            wordRepository = FakeWordRepository(),
+            builtInWordsProvider = { emptyList() },
+            nowProvider = { Instant.parse("2026-03-21T12:00:00Z") },
+        )
+
+        val summary = repository.refreshMemorySummary(referenceTime = Instant.parse("2026-03-21T12:00:00Z"))
+
+        assertEquals(3, summary.checkpointSummaries.size)
+        assertEquals(1, summary.analyticsSnapshot.planEffects.size)
+        assertEquals(9L, summary.analyticsSnapshot.planEffects.single().planVersionId)
+        assertFalse(summary.longTermInsights.isEmpty())
+        assertTrue(summary.longTermInsights.any { it.contains("最近一次调整") || it.contains("最近检查点") })
+    }
+
     private fun mistakeEvent(happenedAt: String): StudyEvent =
         StudyEvent(
             wordId = 1L,

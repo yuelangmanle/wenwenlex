@@ -2,6 +2,7 @@ package com.yueliangmanle.danci.core.data
 
 import android.content.Context
 import com.yueliangmanle.danci.core.ai.PlanContextCompactor
+import com.yueliangmanle.danci.core.analytics.AggregatedAnalytics
 import com.yueliangmanle.danci.core.analytics.LearningDashboardComposer
 import com.yueliangmanle.danci.core.analytics.StudyAnalyticsAggregator
 import com.yueliangmanle.danci.core.analytics.SummaryBuilder
@@ -9,6 +10,10 @@ import com.yueliangmanle.danci.core.analytics.SummaryContext
 import com.yueliangmanle.danci.core.database.DanciDatabase
 import com.yueliangmanle.danci.core.database.buildDanciDatabase
 import com.yueliangmanle.danci.core.model.AiMemorySummary
+import com.yueliangmanle.danci.core.model.AnalyticsOverview
+import com.yueliangmanle.danci.core.model.LearnerProfile
+import com.yueliangmanle.danci.core.model.LearningAnalyticsSnapshot
+import com.yueliangmanle.danci.core.model.PronunciationUsageSnapshot
 import com.yueliangmanle.danci.core.model.StudyEvent
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -58,11 +63,22 @@ class AiMemoryRepository(
         val recentEvents = studyRepository.getStudyEventsSince(referenceTime.minus(30, ChronoUnit.DAYS))
         val existingSummary = studyRepository.loadAiMemorySummary()
         if (recentEvents.isEmpty()) {
+            val checkpointSummaries = planContextCompactor.compact(
+                checkpointSummaries = existingSummary.checkpointSummaries,
+                referenceTime = referenceTime,
+            )
+            val analyticsSnapshot = rebuildIdleAnalyticsSnapshot(existingSummary)
+            val longTermInsights = summaryBuilder.buildLongTermInsights(
+                analyticsSnapshot = analyticsSnapshot,
+                learnerProfile = existingSummary.learnerProfile,
+                weeklyTrend = existingSummary.weeklySummaries,
+                checkpointSummaries = checkpointSummaries,
+                planEffects = analyticsSnapshot.planEffects,
+            )
             val compactedSummary = existingSummary.copy(
-                checkpointSummaries = planContextCompactor.compact(
-                    checkpointSummaries = existingSummary.checkpointSummaries,
-                    referenceTime = referenceTime,
-                ),
+                checkpointSummaries = checkpointSummaries,
+                analyticsSnapshot = analyticsSnapshot,
+                longTermInsights = longTermInsights,
             )
             if (compactedSummary != existingSummary) {
                 studyRepository.saveAiMemorySummary(compactedSummary)
@@ -117,6 +133,41 @@ class AiMemoryRepository(
             longTermInsights = summary.longTermInsights,
             planEffects = summary.analyticsSnapshot.planEffects,
             checkpointSummaries = summary.checkpointSummaries,
+        )
+    }
+
+    private fun rebuildIdleAnalyticsSnapshot(summary: AiMemorySummary): LearningAnalyticsSnapshot {
+        val storedSnapshot = summary.analyticsSnapshot
+        if (
+            summary.dailySummaries.isEmpty() &&
+            summary.weeklySummaries.isEmpty() &&
+            summary.planHistory.isEmpty() &&
+            storedSnapshot == LearningAnalyticsSnapshot()
+        ) {
+            return storedSnapshot
+        }
+
+        val rebuilt = learningDashboardComposer.compose(
+            aggregated = AggregatedAnalytics(
+                dailySummaries = summary.dailySummaries,
+                weeklySummaries = summary.weeklySummaries,
+                learnerProfile = summary.learnerProfile ?: LearnerProfile(),
+                feedbackBreakdown = storedSnapshot.feedbackBreakdown,
+                pronunciationUsage = storedSnapshot.pronunciationUsage,
+                performanceEvents = emptyList(),
+            ),
+            planHistory = summary.planHistory,
+            activeBookTitle = null,
+        )
+
+        return rebuilt.copy(
+            overview = storedSnapshot.overview.takeUnless { it == AnalyticsOverview() } ?: rebuilt.overview,
+            dailyTrend = rebuilt.dailyTrend.ifEmpty { storedSnapshot.dailyTrend },
+            feedbackBreakdown = rebuilt.feedbackBreakdown.ifEmpty { storedSnapshot.feedbackBreakdown },
+            planEffects = rebuilt.planEffects.ifEmpty { storedSnapshot.planEffects },
+            pronunciationUsage = storedSnapshot.pronunciationUsage
+                .takeUnless { it == PronunciationUsageSnapshot() }
+                ?: rebuilt.pronunciationUsage,
         )
     }
 
