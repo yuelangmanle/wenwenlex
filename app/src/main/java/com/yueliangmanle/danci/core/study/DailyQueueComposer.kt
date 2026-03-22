@@ -53,6 +53,7 @@ class DailyQueueComposer {
                 else -> 0
             },
         )
+        reviewCount = reviewCount.coerceAtMost(remainingAfterRescue)
         val remainingAfterReview = (remainingAfterRescue - reviewCount).coerceAtLeast(0)
         val newWordBudget = when {
             remainingAfterReview == 0 -> 0
