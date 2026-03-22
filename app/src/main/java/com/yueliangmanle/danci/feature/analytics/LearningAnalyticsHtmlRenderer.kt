@@ -1,10 +1,16 @@
 package com.yueliangmanle.danci.feature.analytics
 
+import com.yueliangmanle.danci.core.data.AppSettings
+import com.yueliangmanle.danci.core.model.GoalProgressSnapshot
 import com.yueliangmanle.danci.core.model.LearningAnalyticsSnapshot
 import kotlin.math.roundToInt
 
 class LearningAnalyticsHtmlRenderer {
-    fun render(snapshot: LearningAnalyticsSnapshot): String =
+    fun render(
+        snapshot: LearningAnalyticsSnapshot,
+        settings: AppSettings = AppSettings(),
+        goalProgress: GoalProgressSnapshot = GoalProgressSnapshot(),
+    ): String =
         buildString {
             appendLine("<!doctype html>")
             appendLine("<html>")
@@ -113,6 +119,7 @@ class LearningAnalyticsHtmlRenderer {
             appendLine("""<div class="stack">""")
             appendLine("""<section class="card"><h1>学习统计看板</h1><p class="meta">最近趋势、反馈、计划效果和发音使用概况</p></section>""")
             appendLine(renderOverviewSection(snapshot))
+            appendLine(renderGoalProgressSection(settings, goalProgress))
             appendLine(renderTrendSection(snapshot))
             appendLine(renderFeedbackSection(snapshot))
             appendLine(renderPlanEffectsSection(snapshot))
@@ -132,6 +139,60 @@ class LearningAnalyticsHtmlRenderer {
             <span class="chip">正确率 $accuracy</span>
             <span class="chip">学习天数 ${overview.studiedDays}</span>
             <span class="chip">已掌握 ${overview.masteredCount}</span>
+          </div>
+        </section>
+        """.trimIndent()
+    }
+
+    private fun renderGoalProgressSection(
+        settings: AppSettings,
+        goalProgress: GoalProgressSnapshot,
+    ): String {
+        val weeklyGoal = settings.weeklyGoal.coerceAtLeast(1)
+        val weeklyProgress = (goalProgress.currentWeekCompletedCount.toFloat() / weeklyGoal.toFloat()).coerceIn(0f, 1f)
+        val weeklyWidth = (weeklyProgress * 100f).roundToInt()
+        val phaseTargetWords = goalProgress.phaseTargetWords.takeIf { it > 0 } ?: settings.phaseTargetWords
+        val phaseTitle = goalProgress.phaseName ?: settings.phaseName
+        val phaseCopy = if (!phaseTitle.isNullOrBlank() && phaseTargetWords > 0) {
+            "${phaseTitle} · ${goalProgress.phaseCompletedWords} / $phaseTargetWords"
+        } else if (!phaseTitle.isNullOrBlank()) {
+            "${phaseTitle} · 已完成 ${goalProgress.phaseCompletedWords} 词"
+        } else if (phaseTargetWords > 0) {
+            "当前阶段 · ${goalProgress.phaseCompletedWords} / $phaseTargetWords"
+        } else {
+            "还没有设置阶段目标"
+        }
+        val phaseWidth = if (phaseTargetWords > 0) {
+            ((goalProgress.phaseCompletedWords.toFloat() / phaseTargetWords.toFloat()).coerceIn(0f, 1f) * 100f).roundToInt()
+        } else {
+            0
+        }
+
+        return """
+        <section class="card">
+          <h2>目标推进</h2>
+          <div class="bars">
+            <div class="bar-row">
+              <div class="bar-label">
+                <span>本周目标</span>
+                <span>${goalProgress.currentWeekCompletedCount} / $weeklyGoal</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" style="width: ${weeklyWidth}%"></div></div>
+            </div>
+            <div class="bar-row">
+              <div class="bar-label">
+                <span>连续学习</span>
+                <span>${goalProgress.currentStreakDays} 天 · 最佳 ${goalProgress.bestStreakDays} 天</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" style="width: ${(goalProgress.currentStreakDays.coerceAtMost(14) / 14f * 100f).roundToInt()}%"></div></div>
+            </div>
+            <div class="bar-row">
+              <div class="bar-label">
+                <span>当前阶段</span>
+                <span>${escapeHtml(phaseCopy)}</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" style="width: ${phaseWidth}%"></div></div>
+            </div>
           </div>
         </section>
         """.trimIndent()

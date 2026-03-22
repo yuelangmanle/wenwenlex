@@ -218,6 +218,56 @@ private fun HeroCard(state: HomeUiState) {
                     .fillMaxWidth()
                     .height(10.dp),
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                state.weeklyGoalValue?.let { weeklyGoalValue ->
+                    GoalProjectionCard(
+                        modifier = Modifier.weight(1f),
+                        title = "本周目标",
+                        value = weeklyGoalValue,
+                        progress = state.weeklyGoalProgress,
+                    )
+                }
+                state.phaseSummary?.let { phaseSummary ->
+                    GoalProjectionCard(
+                        modifier = Modifier.weight(1f),
+                        title = "当前阶段",
+                        value = phaseSummary,
+                        progress = state.phaseProgress,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GoalProjectionCard(
+    modifier: Modifier = Modifier,
+    title: String,
+    value: String,
+    progress: Float,
+) {
+    Card(modifier = modifier) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            LinearProgressIndicator(
+                progress = { progress.coerceIn(0f, 1f) },
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }

@@ -57,4 +57,24 @@ class LearningAnalyticsScreenTest {
         composeRule.onNodeWithText("刷新统计").performClick()
         assertTrue(clicked)
     }
+
+    @Test
+    fun analyticsScreen_showsGoalProgressSection() {
+        composeRule.setContent {
+            LearningAnalyticsScreen(
+                state = LearningAnalyticsUiState(
+                    overviewCards = listOf(AnalyticsCardUiModel("正确率", "78%")),
+                    goalProgressCards = listOf(
+                        AnalyticsCardUiModel("本周目标", "18 / 40"),
+                        AnalyticsCardUiModel("当前阶段", "六级冲刺 · 320 / 1200"),
+                    ),
+                ),
+                onRefreshClick = {},
+            )
+        }
+
+        composeRule.onNodeWithText("目标推进").assertIsDisplayed()
+        composeRule.onNodeWithText("本周目标").assertIsDisplayed()
+        composeRule.onNodeWithText("当前阶段").assertIsDisplayed()
+    }
 }

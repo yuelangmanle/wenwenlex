@@ -35,6 +35,7 @@ fun MeScreen(
     onAdjustReminderTimeClick: () -> Unit,
     onExportBackupClick: () -> Unit,
     onRestoreBackupClick: () -> Unit,
+    onOpenGoalSettingsClick: () -> Unit = {},
     onOpenAiSettingsClick: () -> Unit,
     onOpenAiPlanCenterClick: () -> Unit = {},
     onOpenLearningAnalyticsClick: () -> Unit = {},
@@ -64,11 +65,14 @@ fun MeScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         HeroCard(state = state)
-        DailyGoalCard(
+        GoalSettingsEntryCard(
             dailyGoal = state.dailyGoal,
+            weeklyGoal = state.weeklyGoal,
+            phaseName = state.phaseName,
+            phaseTargetWords = state.phaseTargetWords,
+            phaseCompletedWords = state.phaseCompletedWords,
             isWorking = state.isWorking,
-            onDecreaseClick = onDailyGoalDecreaseClick,
-            onIncreaseClick = onDailyGoalIncreaseClick,
+            onOpenGoalSettingsClick = onOpenGoalSettingsClick,
         )
         ReminderCard(
             enabled = state.reminderEnabled,
@@ -244,13 +248,18 @@ private fun HeroCard(state: MeUiState) {
                 )
                 HeroMetric(
                     modifier = Modifier.weight(1f),
-                    label = "本周打卡",
-                    value = "${state.weeklyActiveDays}/7",
+                    label = "最佳记录",
+                    value = "${state.bestStreakDays} 天",
                 )
             }
             LinearProgressIndicator(
                 progress = { state.weeklyActiveDays.coerceIn(0, 7) / 7f },
                 modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                text = "本周已活跃 ${state.weeklyActiveDays} / 7 天",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -281,11 +290,14 @@ private fun HeroMetric(
 }
 
 @Composable
-private fun DailyGoalCard(
+private fun GoalSettingsEntryCard(
     dailyGoal: Int,
+    weeklyGoal: Int,
+    phaseName: String?,
+    phaseTargetWords: Int,
+    phaseCompletedWords: Int,
     isWorking: Boolean,
-    onDecreaseClick: () -> Unit,
-    onIncreaseClick: () -> Unit,
+    onOpenGoalSettingsClick: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -293,32 +305,34 @@ private fun DailyGoalCard(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = "每日目标",
+                text = "目标设置与阶段管理",
                 style = MaterialTheme.typography.titleMedium,
             )
             Text(
-                text = "现在每天计划学习 $dailyGoal 词。",
+                text = "每日 $dailyGoal 词 · 每周 $weeklyGoal 词",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Row(
+            Text(
+                text = if (!phaseName.isNullOrBlank() || phaseTargetWords > 0) {
+                    val title = phaseName ?: "当前阶段"
+                    if (phaseTargetWords > 0) {
+                        "$title · 已完成 $phaseCompletedWords / $phaseTargetWords"
+                    } else {
+                        "$title · 已完成 $phaseCompletedWords 词"
+                    }
+                } else {
+                    "还没有设置阶段目标，可以补上这一轮要推进的词量。"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(
+                onClick = onOpenGoalSettingsClick,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                enabled = !isWorking,
             ) {
-                OutlinedButton(
-                    onClick = onDecreaseClick,
-                    modifier = Modifier.weight(1f),
-                    enabled = !isWorking && dailyGoal > 5,
-                ) {
-                    Text("-5")
-                }
-                Button(
-                    onClick = onIncreaseClick,
-                    modifier = Modifier.weight(1f),
-                    enabled = !isWorking,
-                ) {
-                    Text("+5")
-                }
+                Text("打开目标设置")
             }
         }
     }

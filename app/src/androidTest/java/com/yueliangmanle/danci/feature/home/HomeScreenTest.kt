@@ -122,6 +122,33 @@ class HomeScreenTest {
     }
 
     @Test
+    fun homeScreen_showsWeeklyAndPhaseGoalSummary() {
+        composeRule.setContent {
+            HomeScreen(
+                state = HomeUiState(
+                    headline = "今天先回稳高风险词",
+                    activeBookTitle = "四级核心词",
+                    weeklyGoalValue = "18 / 40",
+                    weeklyGoalProgress = 0.45f,
+                    phaseSummary = "六级冲刺 · 320 / 1200",
+                    phaseProgress = 320f / 1200f,
+                ),
+                onStartNewWordsClick = {},
+                onStartReviewClick = {},
+                onOpenMistakesClick = {},
+                onAnalyzePlanClick = {},
+                onOpenLearningAnalyticsClick = {},
+                onOpenPlanCenterClick = {},
+            )
+        }
+
+        composeRule.onNodeWithText("本周目标").assertIsDisplayed()
+        composeRule.onNodeWithText("18 / 40").assertIsDisplayed()
+        composeRule.onNodeWithText("当前阶段").assertIsDisplayed()
+        composeRule.onNodeWithText("六级冲刺 · 320 / 1200").assertIsDisplayed()
+    }
+
+    @Test
     fun homeScreen_invokesLearningAnalyticsAction() {
         var clicked = false
 

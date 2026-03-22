@@ -20,6 +20,7 @@ const val AI_SETTINGS_ROUTE = "ai_settings"
 
 @Composable
 fun MeRoute(
+    onOpenGoalSettingsClick: () -> Unit = {},
     onOpenAiSettingsClick: () -> Unit = {},
     onOpenAiPlanCenterClick: () -> Unit = {},
     onOpenLearningAnalyticsClick: () -> Unit = {},
@@ -76,6 +77,7 @@ fun MeRoute(
         onRestoreBackupClick = {
             launchAction { restoreLatestBackup() }
         },
+        onOpenGoalSettingsClick = onOpenGoalSettingsClick,
         onOpenAiSettingsClick = onOpenAiSettingsClick,
         onOpenAiPlanCenterClick = onOpenAiPlanCenterClick,
         onOpenLearningAnalyticsClick = onOpenLearningAnalyticsClick,

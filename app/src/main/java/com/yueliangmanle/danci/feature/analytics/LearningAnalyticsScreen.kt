@@ -58,6 +58,7 @@ fun LearningAnalyticsScreen(
             onRefreshClick = onRefreshClick,
         )
         OverviewGrid(cards = state.overviewCards)
+        GoalProgressSection(cards = state.goalProgressCards)
         HtmlBoardCard(html = state.chartHtml)
         InsightCard(insights = state.insightBullets)
         state.errorMessage?.let { message ->
@@ -67,6 +68,37 @@ fun LearningAnalyticsScreen(
                     modifier = Modifier.padding(16.dp),
                     color = MaterialTheme.colorScheme.error,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun GoalProgressSection(cards: List<AnalyticsCardUiModel>) {
+    if (cards.isEmpty()) {
+        return
+    }
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            text = "目标推进",
+            style = MaterialTheme.typography.titleMedium,
+        )
+        cards.chunked(2).forEach { rowCards ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                rowCards.forEach { card ->
+                    OverviewCard(
+                        card = card,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                if (rowCards.size == 1) {
+                    Box(modifier = Modifier.weight(1f))
+                }
             }
         }
     }

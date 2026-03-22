@@ -21,6 +21,8 @@ import com.yueliangmanle.danci.feature.books.BookImportRoute
 import com.yueliangmanle.danci.feature.books.BooksRoute
 import com.yueliangmanle.danci.feature.books.bookDetailRoute
 import com.yueliangmanle.danci.feature.home.HomeRoute
+import com.yueliangmanle.danci.feature.goals.GOAL_SETTINGS_ROUTE
+import com.yueliangmanle.danci.feature.goals.GoalSettingsRoute
 import com.yueliangmanle.danci.feature.me.AiSettingsRoute
 import com.yueliangmanle.danci.feature.me.AI_SETTINGS_ROUTE
 import com.yueliangmanle.danci.feature.me.MeRoute
@@ -80,6 +82,9 @@ fun DanciNavHost(
                         },
                     )
                     TopLevelDestination.ME -> MeRoute(
+                        onOpenGoalSettingsClick = {
+                            navController.navigate(GOAL_SETTINGS_ROUTE)
+                        },
                         onOpenAiSettingsClick = {
                             navController.navigate(AI_SETTINGS_ROUTE)
                         },
@@ -132,6 +137,9 @@ fun DanciNavHost(
         }
         composable(route = LEARNING_ANALYTICS_ROUTE) {
             LearningAnalyticsRoute()
+        }
+        composable(route = GOAL_SETTINGS_ROUTE) {
+            GoalSettingsRoute()
         }
         composable(route = AI_PLAN_CENTER_ROUTE) {
             AiPlanCenterRoute(

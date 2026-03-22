@@ -1,7 +1,6 @@
 package com.yueliangmanle.danci.feature.home
 
 import android.content.Context
-import com.yueliangmanle.danci.core.data.BookRepository
 import com.yueliangmanle.danci.core.ai.AiPlanAdjustmentResult
 import com.yueliangmanle.danci.core.ai.PlanSource
 import com.yueliangmanle.danci.core.model.AiMemorySummary
@@ -14,6 +13,7 @@ import com.yueliangmanle.danci.core.data.buildSettingsRepository
 import com.yueliangmanle.danci.core.data.buildBookRepository
 import com.yueliangmanle.danci.core.data.syncBuiltInCatalogToDatabase
 import com.yueliangmanle.danci.core.database.buildDanciDatabase
+import com.yueliangmanle.danci.core.goal.GoalProgressTracker
 import com.yueliangmanle.danci.core.model.Book
 import com.yueliangmanle.danci.core.model.LearningRecord
 import com.yueliangmanle.danci.core.study.ReviewScheduler
@@ -36,6 +36,10 @@ data class HomeUiState(
     val estimatedMinutes: Int = 0,
     val streakDays: Int = 0,
     val activeBookTitle: String = "",
+    val weeklyGoalValue: String? = null,
+    val weeklyGoalProgress: Float = 0f,
+    val phaseSummary: String? = null,
+    val phaseProgress: Float = 0f,
     val aiSuggestionTitle: String? = null,
     val aiSuggestion: String? = null,
     val aiSuggestionMeta: String? = null,
@@ -67,6 +71,7 @@ class HomeViewModel(
             now = now,
         )
         val dailyGoal = settings.dailyGoal
+        val goalProgress = aiMemorySummary.goalProgress
         val unseenWords = max(dailyGoal, activeBook?.wordCount ?: dailyGoal)
         val plan = todayTaskEngine.build(
             dailyGoal = dailyGoal,
@@ -80,13 +85,17 @@ class HomeViewModel(
         return HomeUiState(
             headline = plan.queueHeadline,
             todayGoalCount = dailyGoal,
-            completedCount = 0,
+            completedCount = goalProgress.currentDayCompletedCount,
             newWordCount = plan.newWordCount,
             reviewCount = plan.reviewCount,
             mistakeCount = reviewSummary.recentMistakeWords,
             estimatedMinutes = plan.estimatedMinutes,
-            streakDays = reviewSummary.streakDays,
+            streakDays = max(reviewSummary.streakDays, goalProgress.currentStreakDays),
             activeBookTitle = activeBook?.title ?: "还未选择词书",
+            weeklyGoalValue = "${goalProgress.currentWeekCompletedCount} / ${settings.weeklyGoal}",
+            weeklyGoalProgress = progressRatio(goalProgress.currentWeekCompletedCount, settings.weeklyGoal),
+            phaseSummary = goalProgress.toPhaseSummary(),
+            phaseProgress = progressRatio(goalProgress.phaseCompletedWords, goalProgress.phaseTargetWords),
             aiSuggestionTitle = "今日节奏建议",
             aiSuggestion = if (plan.rescueCount > 0) {
                 "先把高风险词回稳，再开始今天的新词，推进会更稳。"
@@ -153,14 +162,25 @@ class HomeViewModel(
 suspend fun loadHomeViewModel(context: Context): HomeViewModel {
     return withContext(Dispatchers.IO) {
         syncBuiltInCatalogToDatabase(context)
+        val now = Instant.now()
         val settings = buildSettingsRepository(context).getSettings()
         val books = buildBookRepository(context).getAllBooks()
         val studyRepository = RoomStudyRepository(buildDanciDatabase(context.applicationContext).studyDao())
-        val aiMemorySummary = buildAiMemoryRepository(context).refreshMemorySummary()
+        val learningRecords = studyRepository.getAllLearningRecords()
+        val studyEvents = studyRepository.getAllStudyEvents()
+        val goalProgress = GoalProgressTracker().build(
+            records = learningRecords,
+            settings = settings,
+            now = now,
+            studyEvents = studyEvents,
+        )
+        val aiMemorySummary = buildAiMemoryRepository(context)
+            .refreshMemorySummary()
+            .copy(goalProgress = goalProgress)
         HomeViewModel(
             settings = settings,
             books = books,
-            learningRecords = studyRepository.getAllLearningRecords(),
+            learningRecords = learningRecords,
             aiMemorySummary = aiMemorySummary,
         )
     }
@@ -173,3 +193,25 @@ private fun PlanHistoryEntry.statusLabel(): String =
         PlanApplyStatus.REJECTED -> "最近调整已拒绝"
         PlanApplyStatus.SUPERSEDED -> "最近调整已被覆盖"
     }
+
+private fun progressRatio(
+    completed: Int,
+    goal: Int,
+): Float =
+    if (goal <= 0) {
+        0f
+    } else {
+        (completed.toFloat() / goal.toFloat()).coerceIn(0f, 1f)
+    }
+
+private fun com.yueliangmanle.danci.core.model.GoalProgressSnapshot.toPhaseSummary(): String? {
+    if (phaseName.isNullOrBlank() && phaseTargetWords <= 0) {
+        return null
+    }
+    val title = phaseName ?: "当前阶段"
+    return if (phaseTargetWords > 0) {
+        "$title · $phaseCompletedWords / $phaseTargetWords"
+    } else {
+        "$title · 已完成 $phaseCompletedWords 词"
+    }
+}

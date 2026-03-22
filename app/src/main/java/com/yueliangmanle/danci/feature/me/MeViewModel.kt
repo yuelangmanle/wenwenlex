@@ -4,6 +4,7 @@ import com.yueliangmanle.danci.core.data.BackupRepository
 import com.yueliangmanle.danci.core.data.SettingsRepository
 import com.yueliangmanle.danci.core.data.StudyRepository
 import com.yueliangmanle.danci.core.data.AiProfileRepository
+import com.yueliangmanle.danci.core.goal.GoalProgressTracker
 import com.yueliangmanle.danci.core.worker.DailyReminderScheduler
 import java.io.File
 import java.time.Instant
@@ -15,8 +16,13 @@ data class MeUiState(
     val isLoading: Boolean = false,
     val isWorking: Boolean = false,
     val dailyGoal: Int = 20,
+    val weeklyGoal: Int = 70,
     val streakDays: Int = 0,
+    val bestStreakDays: Int = 0,
     val weeklyActiveDays: Int = 0,
+    val phaseName: String? = null,
+    val phaseTargetWords: Int = 0,
+    val phaseCompletedWords: Int = 0,
     val reminderEnabled: Boolean = false,
     val reminderTimeLabel: String = "21:00",
     val backupSummary: String = "还没有本地备份",
@@ -32,6 +38,7 @@ class MeViewModel(
     private val backupRepository: BackupRepository,
     private val studyRepository: StudyRepository,
     private val reminderScheduler: DailyReminderScheduler,
+    private val goalProgressTracker: GoalProgressTracker = GoalProgressTracker(),
     private val nowProvider: () -> Instant = { Instant.now() },
     private val zoneId: ZoneId = ZoneId.systemDefault(),
 ) {
@@ -42,17 +49,29 @@ class MeViewModel(
         } else {
             null
         }
+        val learningRecords = studyRepository.getAllLearningRecords()
         val events = studyRepository.getAllStudyEvents()
         val activeDates = events
             .map { event -> event.happenedAt.atZone(zoneId).toLocalDate() }
             .distinct()
             .sorted()
+        val goalProgress = goalProgressTracker.build(
+            records = learningRecords,
+            settings = settings,
+            now = nowProvider(),
+            studyEvents = events,
+        )
         val latestBackup = backupRepository.latestBackupFile()
 
         return MeUiState(
             dailyGoal = settings.dailyGoal,
-            streakDays = calculateStreakDays(activeDates),
+            weeklyGoal = settings.weeklyGoal,
+            streakDays = goalProgress.currentStreakDays,
+            bestStreakDays = goalProgress.bestStreakDays,
             weeklyActiveDays = calculateWeeklyActiveDays(activeDates),
+            phaseName = goalProgress.phaseName,
+            phaseTargetWords = goalProgress.phaseTargetWords,
+            phaseCompletedWords = goalProgress.phaseCompletedWords,
             reminderEnabled = settings.reminderEnabled,
             reminderTimeLabel = formatReminderTime(settings.reminderHour, settings.reminderMinute),
             backupSummary = latestBackup.toBackupSummary(zoneId),
@@ -116,20 +135,6 @@ class MeViewModel(
         return loadUiState(
             statusMessage = "已恢复最近一次备份：${result.file.name}",
         )
-    }
-
-    private fun calculateStreakDays(activeDates: List<LocalDate>): Int {
-        if (activeDates.isEmpty()) {
-            return 0
-        }
-        val activeDateSet = activeDates.toSet()
-        var cursor = LocalDate.ofInstant(nowProvider(), zoneId)
-        var streak = 0
-        while (activeDateSet.contains(cursor)) {
-            streak += 1
-            cursor = cursor.minusDays(1)
-        }
-        return streak
     }
 
     private fun calculateWeeklyActiveDays(activeDates: List<LocalDate>): Int {

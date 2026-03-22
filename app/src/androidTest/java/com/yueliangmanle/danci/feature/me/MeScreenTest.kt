@@ -32,6 +32,7 @@ class MeScreenTest {
                 onAdjustReminderTimeClick = {},
                 onExportBackupClick = {},
                 onRestoreBackupClick = {},
+                onOpenGoalSettingsClick = {},
                 onOpenAiSettingsClick = {},
                 onOpenLearningAnalyticsClick = {},
                 onOpenPronunciationSettingsClick = {},
@@ -53,6 +54,7 @@ class MeScreenTest {
                 onAdjustReminderTimeClick = {},
                 onExportBackupClick = {},
                 onRestoreBackupClick = {},
+                onOpenGoalSettingsClick = {},
                 onOpenAiSettingsClick = {},
                 onOpenLearningAnalyticsClick = {},
                 onOpenPronunciationSettingsClick = {},
@@ -73,6 +75,7 @@ class MeScreenTest {
                 onAdjustReminderTimeClick = {},
                 onExportBackupClick = {},
                 onRestoreBackupClick = {},
+                onOpenGoalSettingsClick = {},
                 onOpenAiSettingsClick = {},
                 onOpenLearningAnalyticsClick = { clicked = true },
                 onOpenPronunciationSettingsClick = {},
@@ -81,5 +84,31 @@ class MeScreenTest {
 
         composeRule.onNodeWithText("打开学习统计").performScrollTo().performClick()
         assertTrue(clicked)
+    }
+
+    @Test
+    fun meScreen_showsGoalSettingsEntry() {
+        composeRule.setContent {
+            MeScreen(
+                state = MeUiState(
+                    dailyGoal = 20,
+                    weeklyGoal = 70,
+                    phaseName = "六级冲刺",
+                    phaseTargetWords = 1200,
+                    phaseCompletedWords = 480,
+                ),
+                onReminderEnabledChange = {},
+                onAdjustReminderTimeClick = {},
+                onExportBackupClick = {},
+                onRestoreBackupClick = {},
+                onOpenGoalSettingsClick = {},
+                onOpenAiSettingsClick = {},
+                onOpenLearningAnalyticsClick = {},
+                onOpenPronunciationSettingsClick = {},
+            )
+        }
+
+        composeRule.onNodeWithText("目标设置与阶段管理").assertIsDisplayed()
+        composeRule.onNodeWithText("打开目标设置").performScrollTo().assertIsDisplayed()
     }
 }
