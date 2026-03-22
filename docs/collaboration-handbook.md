@@ -13,7 +13,7 @@
 - 仓库地址：[yuelangmanle/wenwenlex](https://github.com/yuelangmanle/wenwenlex)
 - 当前正式版本：`1.6`
 - 当前正式发布：`2026-03-22` 已发布 `v1.6`
-- 当前开发主线：下一轮范围待规划
+- 当前开发主线：`v1.7` 范围已锁定，聚焦动态复习、阶段目标和交付护栏
 - 平台：Android
 - 开发语言：Kotlin
 - UI 技术：Jetpack Compose
@@ -61,6 +61,7 @@
 - `v1.5` 发版记录：[release-v1.5-ai-plan-smoke.md](./release-v1.5-ai-plan-smoke.md)
 - `v1.6` 学习统计与 AI 闭环计划：[2026-03-21-v1.6-learning-analytics-ai-loop.md](./superpowers/plans/2026-03-21-v1.6-learning-analytics-ai-loop.md)
 - `v1.6` 发版基线：[release-v1.6-analytics-smoke.md](./release-v1.6-analytics-smoke.md)
+- `v1.7` 学习效果与交付护栏规格：[2026-03-22-v1.7-learning-effect-delivery-guardrails-design.md](./superpowers/specs/2026-03-22-v1.7-learning-effect-delivery-guardrails-design.md)
 - 发布页面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
 - 构建页面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 
@@ -130,13 +131,19 @@ README.md               项目入口说明
 - 如果涉及正式发版，`CHANGELOG.md` 已更新
 - 如果涉及流程变化，`docs/collaboration-handbook.md` 或 `docs/release-signing.md` 已更新
 
-### 7.4 当前已锁定的 `1.6` 范围
+### 7.4 当前已锁定的 `1.7` 范围
 
-- 主目标：把学习统计沉淀、可视化回看和 AI 计划调整效果追踪做成第一版闭环
-- 当前已落仓：学习统计页 / HTML 可视化看板、长期统计摘要、AI 计划中心效果回看、AI 输入摘要增强
-- 配套要求：如引入新统计结构，必须同步补数据库迁移、备份兼容、测试和文档；当前主线已升级到 Room `v6` 与备份 `v5`
-- 明确不纳入：云端账号、自建服务器、多端同步、新一轮发音引擎替换、大规模词库工具链重构
-- 发版门槛：`Android CI` 与 `Android Release` 全绿，且四份主文档与发版记录同步更新
+- 主目标：把“动态复习 + 阶段目标 + 升级/发版/诊断护栏”做成第一版正式底座
+- 范围包含：
+  - 动态复习引擎 `v1`
+  - 日 / 周 / 阶段目标系统 `v1`
+  - 学习反馈采集增强
+  - 升级安全增强
+  - 发版护栏增强
+  - 诊断与排障工具
+- 配套要求：如引入新的学习记录字段、目标状态或诊断快照，必须同步补数据库迁移、备份兼容、测试和文档；本轮预计升级到 Room `v7` 与备份 `v6`
+- 明确不纳入：云端账号、自建服务器、多端同步、自动热更新体系、整套发音链路重写
+- 发版门槛：动态复习引擎接管今日队列核心排序，升级前快照与迁移校验打通，诊断包可导出，`Android CI` 与 `Android Release` 全绿，且主文档与发版记录同步更新
 
 ## 8. 打包与发版规则
 

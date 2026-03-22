@@ -5,7 +5,7 @@
 ## 当前状态
 
 - 当前正式版本：`1.6`
-- 当前开发主线：下一轮范围待锁定
+- 当前开发主线：`1.7` 范围已锁定，聚焦动态复习、阶段目标和交付护栏
 - 版本规则：每次迭代递增 `0.1`，按 `1.0 -> 1.1 -> ... -> 1.9 -> 2.0` 进位
 - 正式发包界面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
 - 当前正式版本页面：[v1.6](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.6)
@@ -30,6 +30,7 @@
 - [v1.5 发版记录](docs/release-v1.5-ai-plan-smoke.md)
 - [v1.6 学习统计与 AI 闭环计划](docs/superpowers/plans/2026-03-21-v1.6-learning-analytics-ai-loop.md)
 - [v1.6 学习统计发版基线](docs/release-v1.6-analytics-smoke.md)
+- [v1.7 学习效果与交付护栏规格](docs/superpowers/specs/2026-03-22-v1.7-learning-effect-delivery-guardrails-design.md)
 
 ## 1.1 已实现能力
 
@@ -146,6 +147,18 @@
   - 两个 voice pack manifest
   - `wenwenlex-voice-pack-checksums.txt`
 - 发版和资产核对细节见 [v1.6 学习统计发版基线](docs/release-v1.6-analytics-smoke.md)
+
+## 1.7 已锁定方向
+
+- 学习效果主线：
+  - 动态复习引擎 `v1`
+  - 日 / 周 / 阶段目标系统 `v1`
+  - 学习反馈采集增强
+- 工程交付主线：
+  - 升级安全增强
+  - 发版护栏增强
+  - 诊断与排障工具
+- 规格文档见 [v1.7 学习效果与交付护栏规格](docs/superpowers/specs/2026-03-22-v1.7-learning-effect-delivery-guardrails-design.md)
 
 ## 内置词库来源
 
