@@ -20,6 +20,7 @@ import com.yueliangmanle.danci.core.study.CardFeedback
 fun StudyScreen(
     state: StudyUiState,
     onFeedbackClick: (CardFeedback) -> Unit,
+    onSkipClick: () -> Unit,
     onOpenDetailClick: () -> Unit,
     onPlayPronunciationClick: () -> Unit,
     onOpenPlanCenterClick: () -> Unit,
@@ -158,27 +159,37 @@ fun StudyScreen(
                 Text("返回单词详情")
             }
         } else {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Button(
-                    onClick = { onFeedbackClick(CardFeedback.NOT_KNOWN) },
-                    modifier = Modifier.weight(1f),
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Text("不认识")
+                    Button(
+                        onClick = { onFeedbackClick(CardFeedback.NOT_KNOWN) },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("不认识")
+                    }
+                    Button(
+                        onClick = { onFeedbackClick(CardFeedback.FUZZY) },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("模糊")
+                    }
+                    Button(
+                        onClick = { onFeedbackClick(CardFeedback.KNOWN) },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("认识")
+                    }
                 }
-                Button(
-                    onClick = { onFeedbackClick(CardFeedback.FUZZY) },
-                    modifier = Modifier.weight(1f),
+                OutlinedButton(
+                    onClick = onSkipClick,
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("模糊")
-                }
-                Button(
-                    onClick = { onFeedbackClick(CardFeedback.KNOWN) },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("认识")
+                    Text("暂时跳过")
                 }
             }
         }

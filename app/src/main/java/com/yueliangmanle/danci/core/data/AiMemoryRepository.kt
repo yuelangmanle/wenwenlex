@@ -13,6 +13,7 @@ import com.yueliangmanle.danci.core.model.AiMemorySummary
 import com.yueliangmanle.danci.core.model.AnalyticsOverview
 import com.yueliangmanle.danci.core.model.LearnerProfile
 import com.yueliangmanle.danci.core.model.LearningAnalyticsSnapshot
+import com.yueliangmanle.danci.core.model.LearningRecord
 import com.yueliangmanle.danci.core.model.PronunciationUsageSnapshot
 import com.yueliangmanle.danci.core.model.StudyEvent
 import java.time.Instant
@@ -28,8 +29,16 @@ fun interface StudyEventRecorder {
     fun record(event: StudyEvent)
 }
 
+fun interface LearningRecordRecorder {
+    fun record(record: LearningRecord)
+}
+
 object NoOpStudyEventRecorder : StudyEventRecorder {
     override fun record(event: StudyEvent) = Unit
+}
+
+object NoOpLearningRecordRecorder : LearningRecordRecorder {
+    override fun record(record: LearningRecord) = Unit
 }
 
 class AiMemoryRepository(
@@ -42,7 +51,7 @@ class AiMemoryRepository(
     private val summaryBuilder: SummaryBuilder = SummaryBuilder(),
     private val nowProvider: () -> Instant = { Instant.now() },
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
-) : StudyEventRecorder {
+) : StudyEventRecorder, LearningRecordRecorder {
     private val seedMutex = Mutex()
 
     @Volatile
@@ -53,7 +62,17 @@ class AiMemoryRepository(
             runCatching {
                 ensureSeededWords()
                 studyRepository.appendEvent(event)
-                refreshMemorySummary()
+                refreshMemorySummary(referenceTime = event.happenedAt)
+            }
+        }
+    }
+
+    override fun record(record: LearningRecord) {
+        scope.launch {
+            runCatching {
+                ensureSeededWords()
+                studyRepository.upsertLearningRecord(record)
+                refreshMemorySummary(referenceTime = record.lastReviewedAt ?: nowProvider())
             }
         }
     }

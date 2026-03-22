@@ -110,6 +110,6 @@ private fun LearningRecord.shouldRescue(
 
 internal fun String?.isMistakeOutcome(): Boolean =
     when (this?.lowercase()) {
-        "wrong", "forgot", "again" -> true
+        "wrong", "forgot", "again", "not_known" -> true
         else -> false
     }

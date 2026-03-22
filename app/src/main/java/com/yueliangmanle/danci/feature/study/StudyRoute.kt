@@ -71,6 +71,10 @@ fun StudyRoute(
                 )
             }
         },
+        onSkipClick = {
+            val currentViewModel = viewModel ?: return@StudyScreen
+            state = currentViewModel.skipCurrentCard()
+        },
         onOpenDetailClick = {
             viewModel?.openCurrentWordDetail()
             onOpenDetailClick(state.currentWordId)

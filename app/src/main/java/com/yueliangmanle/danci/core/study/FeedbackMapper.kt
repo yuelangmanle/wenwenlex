@@ -15,6 +15,7 @@ class FeedbackMapper {
         current: LearningRecord,
         feedback: CardFeedback,
         answeredAt: Instant,
+        responseLatencyMs: Long? = null,
     ): LearningRecord =
         when (feedback) {
             CardFeedback.NOT_KNOWN -> current.copy(
@@ -25,7 +26,11 @@ class FeedbackMapper {
                 lapseCount = current.lapseCount + 1,
                 consecutiveCorrectCount = 0,
                 lastReviewedAt = answeredAt,
-                lastOutcome = "not_known",
+                lastOutcome = "wrong",
+                lastResponseLatencyMs = responseLatencyMs,
+                averageResponseLatencyMs = current.updatedAverageResponseLatency(responseLatencyMs),
+                consecutiveMistakeCount = current.consecutiveMistakeCount + 1,
+                lastMistakeAt = answeredAt,
             )
 
             CardFeedback.FUZZY -> current.copy(
@@ -36,6 +41,9 @@ class FeedbackMapper {
                 consecutiveCorrectCount = 0,
                 lastReviewedAt = answeredAt,
                 lastOutcome = "fuzzy",
+                lastResponseLatencyMs = responseLatencyMs,
+                averageResponseLatencyMs = current.updatedAverageResponseLatency(responseLatencyMs),
+                consecutiveMistakeCount = 0,
             )
 
             CardFeedback.KNOWN -> current.copy(
@@ -45,7 +53,17 @@ class FeedbackMapper {
                 reviewCount = current.reviewCount + 1,
                 consecutiveCorrectCount = current.consecutiveCorrectCount + 1,
                 lastReviewedAt = answeredAt,
-                lastOutcome = "known",
+                lastOutcome = "correct",
+                lastResponseLatencyMs = responseLatencyMs,
+                averageResponseLatencyMs = current.updatedAverageResponseLatency(responseLatencyMs),
+                consecutiveMistakeCount = 0,
             )
         }
+}
+
+private fun LearningRecord.updatedAverageResponseLatency(responseLatencyMs: Long?): Long? {
+    responseLatencyMs ?: return averageResponseLatencyMs ?: lastResponseLatencyMs
+    val baseline = averageResponseLatencyMs ?: lastResponseLatencyMs ?: return responseLatencyMs
+    val existingCount = reviewCount.coerceAtLeast(1)
+    return ((baseline * existingCount) + responseLatencyMs) / (existingCount + 1)
 }

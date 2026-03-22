@@ -27,6 +27,13 @@ object StudyEventType {
     const val AUDIO_PLAYED = "audio_played"
 }
 
+object StudyEventMetadataKey {
+    const val QUEUE_BUCKET = "queue_bucket"
+    const val RESPONSE_LATENCY_MS = "response_latency_ms"
+    const val SKIPPED = "skipped"
+    const val GOAL_SCOPE = "goal_scope"
+}
+
 fun studyEventMetadataOf(vararg entries: Pair<String, Any?>): String? =
     entries
         .mapNotNull { (key, value) ->

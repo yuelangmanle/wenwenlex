@@ -10,6 +10,7 @@ data class StudyCardItem(
     val meanings: List<String> = emptyList(),
     val exampleSentence: String? = null,
     val exampleTranslation: String? = null,
+    val queueBucket: String = "new",
 )
 
 class StudyQueueBuilder {

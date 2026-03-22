@@ -3,17 +3,22 @@ package com.yueliangmanle.danci.feature.study
 import android.content.Context
 import com.yueliangmanle.danci.core.ai.AiPlanAdjustmentResult
 import com.yueliangmanle.danci.core.ai.PlanSource
+import com.yueliangmanle.danci.core.data.LearningRecordRecorder
 import com.yueliangmanle.danci.core.data.NoOpStudyEventRecorder
+import com.yueliangmanle.danci.core.data.NoOpLearningRecordRecorder
+import com.yueliangmanle.danci.core.data.RoomStudyRepository
 import com.yueliangmanle.danci.core.data.StudyEventRecorder
 import com.yueliangmanle.danci.core.data.buildAiMemoryRepository
 import com.yueliangmanle.danci.core.data.buildBookRepository
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
 import com.yueliangmanle.danci.core.data.defaultLearningRecord
 import com.yueliangmanle.danci.core.data.syncBuiltInCatalogToDatabase
+import com.yueliangmanle.danci.core.database.buildDanciDatabase
 import com.yueliangmanle.danci.core.model.LearningRecord
 import com.yueliangmanle.danci.core.model.PlanApplyStatus
 import com.yueliangmanle.danci.core.model.PlanHistoryEntry
 import com.yueliangmanle.danci.core.model.StudyEvent
+import com.yueliangmanle.danci.core.model.StudyEventMetadataKey
 import com.yueliangmanle.danci.core.model.StudyEventType
 import com.yueliangmanle.danci.core.model.studyEventMetadataOf
 import com.yueliangmanle.danci.core.study.CardFeedback
@@ -51,16 +56,18 @@ data class SessionCheckpointRequest(
 
 class StudyViewModel(
     initialQueue: List<StudyCardItem>,
+    initialRecords: Map<Long, LearningRecord> = emptyMap(),
     private val feedbackMapper: FeedbackMapper = FeedbackMapper(),
     private val eventRecorder: StudyEventRecorder = NoOpStudyEventRecorder,
+    private val learningRecordRecorder: LearningRecordRecorder = NoOpLearningRecordRecorder,
     private val nowProvider: () -> Instant = { Instant.now() },
 ) {
     private val queue = initialQueue.toMutableList()
     private val records = initialQueue.associate { card ->
-        card.wordId to defaultLearningRecord(card.wordId)
+        card.wordId to (initialRecords[card.wordId] ?: defaultLearningRecord(card.wordId))
     }.toMutableMap()
     private var currentIndex = 0
-    private var currentCardPresentedAt: Instant = nowProvider()
+    private var currentCardPresentedAt: Instant = Instant.EPOCH
     private var lastPresentedWordId: Long? = null
     private var completedCount = 0
     private var recentMistakeBurst = 0
@@ -115,23 +122,28 @@ class StudyViewModel(
         val card = queue.getOrNull(currentIndex) ?: return buildUiState()
         val currentRecord = records.getValue(card.wordId)
         val answeredAt = nowProvider()
-        records[card.wordId] = feedbackMapper.applyCardFeedback(
+        val responseLatencyMs = Duration.between(currentCardPresentedAt, answeredAt).toMillis().coerceAtLeast(0L)
+        val updatedRecord = feedbackMapper.applyCardFeedback(
             current = currentRecord,
             feedback = feedback,
             answeredAt = answeredAt,
+            responseLatencyMs = responseLatencyMs,
         )
+        records[card.wordId] = updatedRecord
+        learningRecordRecorder.record(updatedRecord)
         eventRecorder.record(
             StudyEvent(
                 wordId = card.wordId,
                 eventType = StudyEventType.CARD_FEEDBACK,
-                feedback = feedback.name.lowercase(),
+                feedback = feedback.toEventFeedback(),
                 isCorrect = feedback == CardFeedback.KNOWN,
                 happenedAt = answeredAt,
-                elapsedMillis = Duration.between(currentCardPresentedAt, answeredAt).toMillis().coerceAtLeast(0L),
-                metadata = studyEventMetadataOf(
-                    "mode" to "card",
-                    "progress" to "${currentIndex + 1}/${queue.size}",
-                    "requeued" to (feedback == CardFeedback.NOT_KNOWN),
+                elapsedMillis = responseLatencyMs,
+                metadata = cardFeedbackMetadata(
+                    card = card,
+                    responseLatencyMs = responseLatencyMs,
+                    skipped = false,
+                    requeued = feedback == CardFeedback.NOT_KNOWN,
                 ),
             ),
         )
@@ -163,6 +175,33 @@ class StudyViewModel(
         return buildUiState()
     }
 
+    fun skipCurrentCard(): StudyUiState {
+        val card = queue.getOrNull(currentIndex) ?: return buildUiState()
+        val skippedAt = nowProvider()
+        val responseLatencyMs = Duration.between(currentCardPresentedAt, skippedAt).toMillis().coerceAtLeast(0L)
+        queue.add(card)
+        eventRecorder.record(
+            StudyEvent(
+                wordId = card.wordId,
+                eventType = StudyEventType.CARD_FEEDBACK,
+                happenedAt = skippedAt,
+                elapsedMillis = responseLatencyMs,
+                metadata = cardFeedbackMetadata(
+                    card = card,
+                    responseLatencyMs = responseLatencyMs,
+                    skipped = true,
+                    requeued = true,
+                ),
+            ),
+        )
+
+        currentIndex += 1
+        if (queue.getOrNull(currentIndex) != null) {
+            recordCurrentCardPresentedIfNeeded(force = true)
+        }
+        return buildUiState()
+    }
+
     fun openCurrentWordDetail() {
         val card = queue.getOrNull(currentIndex) ?: return
         eventRecorder.record(
@@ -173,6 +212,8 @@ class StudyViewModel(
                 metadata = studyEventMetadataOf(
                     "mode" to "card",
                     "source" to "study",
+                    StudyEventMetadataKey.QUEUE_BUCKET to card.queueBucket,
+                    StudyEventMetadataKey.GOAL_SCOPE to "daily",
                 ),
             ),
         )
@@ -224,20 +265,52 @@ class StudyViewModel(
                 metadata = studyEventMetadataOf(
                     "mode" to "card",
                     "hasExample" to (card.exampleSentence != null),
+                    StudyEventMetadataKey.QUEUE_BUCKET to card.queueBucket,
+                    StudyEventMetadataKey.GOAL_SCOPE to "daily",
                 ),
             ),
         )
     }
+
+    private fun cardFeedbackMetadata(
+        card: StudyCardItem,
+        responseLatencyMs: Long,
+        skipped: Boolean,
+        requeued: Boolean,
+    ): String? =
+        studyEventMetadataOf(
+            "mode" to "card",
+            "progress" to "${currentIndex + 1}/${queue.size}",
+            "requeued" to requeued,
+            StudyEventMetadataKey.QUEUE_BUCKET to card.queueBucket,
+            StudyEventMetadataKey.RESPONSE_LATENCY_MS to responseLatencyMs,
+            StudyEventMetadataKey.SKIPPED to skipped,
+            StudyEventMetadataKey.GOAL_SCOPE to "daily",
+        )
 }
 
 suspend fun loadStudyViewModel(context: Context): StudyViewModel {
     syncBuiltInCatalogToDatabase(context)
     val settings = buildSettingsRepository(context).getSettings()
+    val studyRepository = RoomStudyRepository(buildDanciDatabase(context).studyDao())
     val bookRepository = buildBookRepository(context)
     val activeBook = settings.activeBookId?.let { bookRepository.getBook(it) } ?: bookRepository.getAllBooks().first()
     val queue = StudyQueueBuilder().buildFromWords(bookRepository.getWords(activeBook.id))
+    val initialRecords = studyRepository.getAllLearningRecords().associateBy(LearningRecord::wordId)
+    val aiMemoryRepository = buildAiMemoryRepository(context)
     return StudyViewModel(
         initialQueue = queue,
-        eventRecorder = buildAiMemoryRepository(context),
+        initialRecords = queue.associate { card ->
+            card.wordId to (initialRecords[card.wordId] ?: defaultLearningRecord(card.wordId))
+        },
+        eventRecorder = aiMemoryRepository,
+        learningRecordRecorder = aiMemoryRepository,
     )
 }
+
+private fun CardFeedback.toEventFeedback(): String =
+    when (this) {
+        CardFeedback.NOT_KNOWN -> "wrong"
+        CardFeedback.FUZZY -> "fuzzy"
+        CardFeedback.KNOWN -> "correct"
+    }
