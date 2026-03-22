@@ -4,11 +4,11 @@
 
 ## 当前状态
 
-- 当前正式版本：`1.6`
-- 当前开发主线：`1.7` 正在实现，已完成动态复习、学习反馈信号和目标系统第一批落地，正在继续收口升级安全、诊断中心和发版护栏
+- 当前正式版本：`1.7`
+- 当前开发主线：下一轮版本待规划，当前稳定基线为已发布的 `1.7`，已完成动态复习、目标系统、升级安全、诊断中心和发版护栏
 - 版本规则：每次迭代递增 `0.1`，按 `1.0 -> 1.1 -> ... -> 1.9 -> 2.0` 进位
 - 正式发包界面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
-- 当前正式版本页面：[v1.6](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.6)
+- 当前正式版本页面：[v1.7](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.7)
 - 开发验证界面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 
 ## 协作文档入口
@@ -150,23 +150,30 @@
   - `wenwenlex-voice-pack-checksums.txt`
 - 发版和资产核对细节见 [v1.6 学习统计发版基线](docs/release-v1.6-analytics-smoke.md)
 
-## 1.7 当前进展
+## 1.7 已发布能力
 
-- 学习效果主线：
-  - 动态复习引擎 `v1`
-  - 日 / 周 / 阶段目标系统 `v1`
-  - 学习反馈采集增强
-- 当前已落地：
-  - 动态复习优先级、队列分桶和学习时延 / 跳过信号已接入
-  - 目标设置页、首页 / “我的”页 / 统计页目标推进投影已接通
-  - 云端 `Android CI #23400597350` 与 `Android CI #23401041819` 已通过
-- 工程交付主线：
-  - 升级安全增强
-  - 发版护栏增强
-  - 诊断与排障工具
-- 当前继续推进：
-  - 升级安全检查与诊断中心
-  - `validate_release_baseline.sh` 与工作流发版护栏
+以下内容已经在 `2026-03-22` 随 `v1.7` 正式发版：
+
+- 动态复习引擎 `v1` 已正式接管今日队列排序，结合遗忘风险、连续错误、最近反应时和跳过状态调整高风险词、新词与复习词的优先级
+- 学习反馈采集已补入真实 `lastResponseLatencyMs`、跳过语义和阶段学习信号，避免用平均时延伪造单次反馈
+- 日 / 周 / 阶段目标系统 `v1` 已落地，支持目标设置页，并在首页、“我的”页和学习统计页展示推进投影
+- 升级安全与诊断中心第一版已落地，启动时执行完整性校验，在“我的”页提供入口，并支持导出 `diagnostics.json + summary.txt` 的 zip 诊断包
+- 发版护栏已接入 `scripts/validate_release_baseline.sh`、`Android CI` 和 `Android Release`，正式发版前会校验版本号、主文档与 smoke 基线
+- Room 已升级到 `v7`，本地备份已升级到 `v6`，覆盖学习信号、目标设置与升级健康摘要，并保持对 `v1` 到 `v5` 旧备份的兼容恢复
+
+## 1.7 发版结果
+
+- 云端 `Android CI #23400597350` 已通过，覆盖学习反馈时延、跳过语义和动态复习信号修正
+- 云端 `Android CI #23401041819` 已通过，覆盖目标系统入口、首页 / “我的”页 / 统计页目标投影
+- 云端 `Android CI #23401721564` 已通过，`Build Debug APK` 与 `Connected Debug Android Test` 均为绿色
+- 云端 `Android Release #23404026655` 已通过，并已发布 [v1.7](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.7)
+- `v1.7` Release 页面当前包含：
+  - `wenwenlex-v1.7-release.apk`
+  - `wenwenlex-voice-pack-en-gb-offline-word-v1.zip`
+  - `wenwenlex-voice-pack-en-us-offline-word-v1.zip`
+  - 两个 voice pack manifest
+  - `wenwenlex-voice-pack-checksums.txt`
+- 发版和资产核对细节见 [v1.7 学习效果与交付护栏 smoke 基线](docs/release-v1.7-learning-effect-smoke.md)
 - 规格文档见 [v1.7 学习效果与交付护栏规格](docs/superpowers/specs/2026-03-22-v1.7-learning-effect-delivery-guardrails-design.md)
 
 ## 内置词库来源
@@ -195,7 +202,7 @@
 
 ### 日常升级
 
-1. 从 Releases 页面下载更高版本，例如 `1.5`、`1.6`。
+1. 从 Releases 页面下载更高版本，例如 `1.6`、`1.7`。
 2. 直接安装新 APK，Android 会覆盖旧版本，学习数据会保留。
 3. 升级前仍建议先在 App 里做一次本地备份。
 
@@ -209,7 +216,7 @@
 1. 在 [CHANGELOG.md](CHANGELOG.md) 里新增对应版本的小节，先写完整更新日志。
 2. 把代码推到目标分支。
 3. 先运行 `bash scripts/validate_release_baseline.sh <版本号>`，确认 `README`、`CHANGELOG`、主文档和 smoke 记录已经对齐。
-4. 在 GitHub Actions 里运行 `Android Release` 工作流，并输入版本号，例如 `1.7`。
+4. 在 GitHub Actions 里运行 `Android Release` 工作流，并输入版本号，例如 `1.8`。
 5. 工作流会在云端完成：
    - 校验 release baseline 文档
    - 校验版本号格式

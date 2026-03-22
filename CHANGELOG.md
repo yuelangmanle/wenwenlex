@@ -28,7 +28,10 @@
 
 - 云端 `Android CI #23400597350` 已通过，覆盖学习反馈时延、跳过语义和动态复习信号修正
 - 云端 `Android CI #23401041819` 已通过，覆盖目标系统入口、首页 / 我的 / 统计页目标投影
-- 当前本机仍缺 Java runtime，因此 `1.7` 主线验证继续以 GitHub Actions 为准；正式 `Android Release` 尚未触发
+- 云端 `Android CI #23401721564` 已通过，`Build Debug APK` 与 `Connected Debug Android Test` 均为绿色
+- 云端 `Android Release #23404026655` 已通过，`v1.7` GitHub Release 已正式发布
+- `v1.7` Release 资产已包含：`wenwenlex-v1.7-release.apk`、UK / US 两个 voice pack zip、两个 manifest 与 `wenwenlex-voice-pack-checksums.txt`
+- 由于当前本地机器仍缺 Java runtime，`1.7` 的最终验证与正式发版仍以 GitHub Actions `Android CI` / `Android Release` 为准
 
 ## [1.6] - 2026-03-22
 
