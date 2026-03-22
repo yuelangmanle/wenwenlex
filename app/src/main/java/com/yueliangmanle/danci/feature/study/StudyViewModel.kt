@@ -79,6 +79,8 @@ class StudyViewModel(
     private var checkpointDecisionLabel: String? = null
     private var checkpointPlanVersionId: Long? = null
     private var canOpenPlanCenter: Boolean = false
+    private var deferredSessionReason: String? = null
+    private var deferredCompletedCount: Int? = null
 
     init {
         recordCurrentCardPresentedIfNeeded()
@@ -87,11 +89,13 @@ class StudyViewModel(
     fun buildUiState(): StudyUiState {
         val card = queue.getOrNull(currentIndex)
         if (card == null) {
+            val deferredReason = deferredSessionReason
+            val deferredProgress = deferredCompletedCount
             return StudyUiState(
                 currentWordId = queue.lastOrNull()?.wordId ?: 0L,
-                currentWord = "今日学习完成",
-                meanings = listOf("可以回到首页继续安排下一轮复习。"),
-                progressText = "${queue.size} / ${queue.size}",
+                currentWord = if (deferredReason == null) "今日学习完成" else "本轮暂时结束",
+                meanings = listOf(deferredReason ?: "可以回到首页继续安排下一轮复习。"),
+                progressText = deferredProgress?.let { "$it / ${queue.size}" } ?: "${queue.size} / ${queue.size}",
                 isSessionComplete = true,
                 checkpointTitle = checkpointTitle,
                 checkpointSuggestion = checkpointSuggestion,
@@ -121,6 +125,7 @@ class StudyViewModel(
 
     fun submitFeedback(feedback: CardFeedback): StudyUiState {
         val card = queue.getOrNull(currentIndex) ?: return buildUiState()
+        clearDeferredSessionState()
         val currentRecord = records.getValue(card.wordId)
         val answeredAt = nowProvider()
         val responseLatencyMs = Duration.between(currentCardPresentedAt, answeredAt).toMillis().coerceAtLeast(0L)
@@ -178,6 +183,7 @@ class StudyViewModel(
 
     fun skipCurrentCard(): StudyUiState {
         val card = queue.getOrNull(currentIndex) ?: return buildUiState()
+        clearDeferredSessionState()
         val skippedAt = nowProvider()
         val responseLatencyMs = Duration.between(currentCardPresentedAt, skippedAt).toMillis().coerceAtLeast(0L)
         val hasDeferredAlternative = queue
@@ -202,6 +208,8 @@ class StudyViewModel(
         )
 
         if (!hasDeferredAlternative) {
+            deferredSessionReason = "最后一张已暂时跳过，本轮先结束，稍后会在下次会话继续。"
+            deferredCompletedCount = currentIndex.coerceAtLeast(0)
             currentIndex = queue.size
             return buildUiState()
         }
@@ -303,6 +311,11 @@ class StudyViewModel(
             StudyEventMetadataKey.SKIPPED to skipped,
             StudyEventMetadataKey.GOAL_SCOPE to "daily",
         )
+
+    private fun clearDeferredSessionState() {
+        deferredSessionReason = null
+        deferredCompletedCount = null
+    }
 }
 
 suspend fun loadStudyViewModel(context: Context): StudyViewModel {

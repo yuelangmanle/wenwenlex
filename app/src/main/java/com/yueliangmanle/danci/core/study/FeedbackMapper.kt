@@ -28,7 +28,6 @@ class FeedbackMapper {
                 lastReviewedAt = answeredAt,
                 lastOutcome = "wrong",
                 lastResponseLatencyMs = responseLatencyMs,
-                averageResponseLatencyMs = current.updatedAverageResponseLatency(responseLatencyMs),
                 consecutiveMistakeCount = current.consecutiveMistakeCount + 1,
                 lastMistakeAt = answeredAt,
             )
@@ -42,7 +41,6 @@ class FeedbackMapper {
                 lastReviewedAt = answeredAt,
                 lastOutcome = "fuzzy",
                 lastResponseLatencyMs = responseLatencyMs,
-                averageResponseLatencyMs = current.updatedAverageResponseLatency(responseLatencyMs),
                 consecutiveMistakeCount = 0,
             )
 
@@ -55,14 +53,7 @@ class FeedbackMapper {
                 lastReviewedAt = answeredAt,
                 lastOutcome = "correct",
                 lastResponseLatencyMs = responseLatencyMs,
-                averageResponseLatencyMs = current.updatedAverageResponseLatency(responseLatencyMs),
                 consecutiveMistakeCount = 0,
             )
         }
-}
-
-private fun LearningRecord.updatedAverageResponseLatency(responseLatencyMs: Long?): Long? {
-    responseLatencyMs ?: return averageResponseLatencyMs ?: lastResponseLatencyMs
-    val baseline = averageResponseLatencyMs ?: lastResponseLatencyMs ?: return responseLatencyMs
-    return (baseline + responseLatencyMs) / 2
 }

@@ -56,6 +56,30 @@ class ReviewPriorityEngineTest {
         assertEquals("later", ranked.last().bucket)
     }
 
+    @Test
+    fun rank_prefers_last_latency_over_historical_average_when_both_exist() {
+        val now = Instant.parse("2026-03-22T08:00:00Z")
+        val ranked = ReviewPriorityEngine(nowProvider = { now }).rank(
+            listOf(
+                learningRecord(
+                    wordId = 1L,
+                    lastReviewedAt = now.minus(2, ChronoUnit.DAYS),
+                    lastResponseLatencyMs = 600L,
+                    averageResponseLatencyMs = 7_500L,
+                ),
+                learningRecord(
+                    wordId = 2L,
+                    lastReviewedAt = now.minus(2, ChronoUnit.DAYS),
+                    lastResponseLatencyMs = 3_800L,
+                    averageResponseLatencyMs = 1_000L,
+                ),
+            ),
+        )
+
+        assertEquals(2L, ranked.first().wordId)
+        assertTrue(ranked.first().priorityScore > ranked[1].priorityScore)
+    }
+
     private fun learningRecord(
         wordId: Long,
         mastery: Float = 0.65f,
@@ -64,6 +88,7 @@ class ReviewPriorityEngineTest {
         lastOutcome: String? = null,
         forgettingRiskScore: Float = 0f,
         reviewPriorityScore: Float = 0f,
+        lastResponseLatencyMs: Long? = null,
         averageResponseLatencyMs: Long? = null,
         consecutiveMistakeCount: Int = 0,
         confusionWeight: Float = 0f,
@@ -82,6 +107,7 @@ class ReviewPriorityEngineTest {
             forgettingRiskScore = forgettingRiskScore,
             reviewPriorityScore = reviewPriorityScore,
             proficiencyBand = proficiencyBand,
+            lastResponseLatencyMs = lastResponseLatencyMs,
             averageResponseLatencyMs = averageResponseLatencyMs,
             consecutiveMistakeCount = consecutiveMistakeCount,
             lastMistakeAt = lastReviewedAt,

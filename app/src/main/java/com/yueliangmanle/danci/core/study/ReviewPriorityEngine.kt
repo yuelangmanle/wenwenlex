@@ -52,7 +52,7 @@ private fun LearningRecord.priorityScore(now: Instant): Float {
     val overdueScore = min(overdueHours.toFloat(), 72f) * 1.2f
     val mistakeScore = consecutiveMistakeCount * 18f +
         if (lastOutcome.isMistakeOutcome()) 10f else 0f
-    val latencyMs = averageResponseLatencyMs ?: lastResponseLatencyMs ?: 0L
+    val latencyMs = lastResponseLatencyMs ?: averageResponseLatencyMs ?: 0L
     val latencyScore = min(latencyMs / 1000f, 8f) * 2.5f
     val masteryPenalty = (1f - mastery.coerceIn(0f, 1f)) * 12f
     val proficiencyPenalty = when (proficiencyBand.lowercase()) {

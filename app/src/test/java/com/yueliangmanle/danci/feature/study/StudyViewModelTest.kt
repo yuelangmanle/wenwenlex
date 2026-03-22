@@ -164,7 +164,7 @@ class StudyViewModelTest {
     }
 
     @Test
-    fun skipCurrentCard_finishes_session_when_no_other_card_can_be_shown() {
+    fun skipCurrentCard_marks_deferred_end_when_no_other_card_can_be_shown() {
         val eventRecorder = RecordingStudyEventRecorder()
         val viewModel = StudyViewModel(
             initialQueue = listOf(
@@ -186,6 +186,9 @@ class StudyViewModelTest {
         val skipEvent = eventRecorder.events.last { it.eventType == StudyEventType.CARD_FEEDBACK }
 
         assertTrue(state.isSessionComplete)
+        assertEquals("本轮暂时结束", state.currentWord)
+        assertEquals("0 / 1", state.progressText)
+        assertTrue(state.meanings.single().contains("最后一张已暂时跳过"))
         assertEquals("true", skipEvent.metadataEntries()[StudyEventMetadataKey.SKIPPED])
         assertEquals("false", skipEvent.metadataEntries()["requeued"])
     }
