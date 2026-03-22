@@ -5,7 +5,7 @@
 ## 当前状态
 
 - 当前正式版本：`1.6`
-- 当前开发主线：`1.7` 范围已锁定，聚焦动态复习、阶段目标和交付护栏
+- 当前开发主线：`1.7` 正在实现，已完成动态复习、学习反馈信号和目标系统第一批落地，正在继续收口升级安全、诊断中心和发版护栏
 - 版本规则：每次迭代递增 `0.1`，按 `1.0 -> 1.1 -> ... -> 1.9 -> 2.0` 进位
 - 正式发包界面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
 - 当前正式版本页面：[v1.6](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.6)
@@ -32,6 +32,7 @@
 - [v1.6 学习统计发版基线](docs/release-v1.6-analytics-smoke.md)
 - [v1.7 学习效果与交付护栏规格](docs/superpowers/specs/2026-03-22-v1.7-learning-effect-delivery-guardrails-design.md)
 - [v1.7 学习效果与交付护栏计划](docs/superpowers/plans/2026-03-22-v1.7-learning-effect-delivery-guardrails.md)
+- [v1.7 学习效果与交付护栏 smoke 基线](docs/release-v1.7-learning-effect-smoke.md)
 
 ## 1.1 已实现能力
 
@@ -52,7 +53,7 @@
   - 考研 `4796`
   - 高中 `3666`
   - 雅思基础 `5026`
-- 本地 ZIP 备份与恢复，当前开发主线已升级到 `v5`，兼容导入 `v1` / `v2` / `v3` / `v4`
+- 本地 ZIP 备份与恢复，当前开发主线已升级到 `v6`，兼容导入 `v1` / `v2` / `v3` / `v4` / `v5`
 - 每日提醒、本地 AI 摘要整理与 WorkManager 后台任务
 
 ## 1.2 已发布能力
@@ -149,16 +150,23 @@
   - `wenwenlex-voice-pack-checksums.txt`
 - 发版和资产核对细节见 [v1.6 学习统计发版基线](docs/release-v1.6-analytics-smoke.md)
 
-## 1.7 已锁定方向
+## 1.7 当前进展
 
 - 学习效果主线：
   - 动态复习引擎 `v1`
   - 日 / 周 / 阶段目标系统 `v1`
   - 学习反馈采集增强
+- 当前已落地：
+  - 动态复习优先级、队列分桶和学习时延 / 跳过信号已接入
+  - 目标设置页、首页 / “我的”页 / 统计页目标推进投影已接通
+  - 云端 `Android CI #23400597350` 与 `Android CI #23401041819` 已通过
 - 工程交付主线：
   - 升级安全增强
   - 发版护栏增强
   - 诊断与排障工具
+- 当前继续推进：
+  - 升级安全检查与诊断中心
+  - `validate_release_baseline.sh` 与工作流发版护栏
 - 规格文档见 [v1.7 学习效果与交付护栏规格](docs/superpowers/specs/2026-03-22-v1.7-learning-effect-delivery-guardrails-design.md)
 
 ## 内置词库来源
@@ -200,8 +208,10 @@
 
 1. 在 [CHANGELOG.md](CHANGELOG.md) 里新增对应版本的小节，先写完整更新日志。
 2. 把代码推到目标分支。
-3. 在 GitHub Actions 里运行 `Android Release` 工作流，并输入版本号，例如 `1.6`。
-4. 工作流会在云端完成：
+3. 先运行 `bash scripts/validate_release_baseline.sh <版本号>`，确认 `README`、`CHANGELOG`、主文档和 smoke 记录已经对齐。
+4. 在 GitHub Actions 里运行 `Android Release` 工作流，并输入版本号，例如 `1.7`。
+5. 工作流会在云端完成：
+   - 校验 release baseline 文档
    - 校验版本号格式
    - 校验 native 语音包发布资产
    - 运行单元测试
@@ -210,7 +220,7 @@
    - 打包 native 语音包 zip / manifest / checksum
    - 创建或更新 GitHub Release
    - 上传安装包和 native 语音包资产到 Release 下载页
-5. 用户以后只需要去 Releases 页面看版本列表、更新日志和下载入口。
+6. 用户以后只需要去 Releases 页面看版本列表、更新日志和下载入口。
 
 ### 两种触发方式
 

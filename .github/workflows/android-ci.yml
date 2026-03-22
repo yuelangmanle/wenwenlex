@@ -31,6 +31,9 @@ jobs:
       - name: Make scripts executable
         run: chmod +x scripts/*.sh
 
+      - name: Validate release baseline
+        run: bash scripts/validate_release_baseline.sh 1.7
+
       - name: Fetch Sherpa ONNX Android JNI runtime
         run: bash scripts/fetch_sherpa_onnx_android.sh v1.12.31
 
@@ -111,6 +114,9 @@ jobs:
 
       - name: Make scripts executable
         run: chmod +x scripts/*.sh
+
+      - name: Validate release baseline
+        run: bash scripts/validate_release_baseline.sh 1.7
 
       - name: Fetch Sherpa ONNX Android JNI runtime
         run: bash scripts/fetch_sherpa_onnx_android.sh v1.12.31

@@ -13,7 +13,7 @@
 - 仓库地址：[yuelangmanle/wenwenlex](https://github.com/yuelangmanle/wenwenlex)
 - 当前正式版本：`1.6`
 - 当前正式发布：`2026-03-22` 已发布 `v1.6`
-- 当前开发主线：`v1.7` 范围已锁定，聚焦动态复习、阶段目标和交付护栏
+- 当前开发主线：`v1.7` 正在实现，已完成动态复习、学习反馈信号和目标系统第一批落地，继续收口升级安全、诊断中心和发版护栏
 - 平台：Android
 - 开发语言：Kotlin
 - UI 技术：Jetpack Compose
@@ -63,6 +63,7 @@
 - `v1.6` 发版基线：[release-v1.6-analytics-smoke.md](./release-v1.6-analytics-smoke.md)
 - `v1.7` 学习效果与交付护栏规格：[2026-03-22-v1.7-learning-effect-delivery-guardrails-design.md](./superpowers/specs/2026-03-22-v1.7-learning-effect-delivery-guardrails-design.md)
 - `v1.7` 学习效果与交付护栏计划：[2026-03-22-v1.7-learning-effect-delivery-guardrails.md](./superpowers/plans/2026-03-22-v1.7-learning-effect-delivery-guardrails.md)
+- `v1.7` smoke 基线：[release-v1.7-learning-effect-smoke.md](./release-v1.7-learning-effect-smoke.md)
 - 发布页面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
 - 构建页面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 
@@ -143,6 +144,11 @@ README.md               项目入口说明
   - 发版护栏增强
   - 诊断与排障工具
 - 配套要求：如引入新的学习记录字段、目标状态或诊断快照，必须同步补数据库迁移、备份兼容、测试和文档；本轮预计升级到 Room `v7` 与备份 `v6`
+- 当前已落仓：
+  - Room `v7` 与备份 `v6` 已落地
+  - 动态复习引擎、时延 / 跳过学习信号已落地
+  - 日 / 周 / 阶段目标页与首页 / “我的”页 / 统计页投影已落地
+  - 云端 `Android CI #23400597350` 与 `Android CI #23401041819` 已通过
 - 明确不纳入：云端账号、自建服务器、多端同步、自动热更新体系、整套发音链路重写
 - 发版门槛：动态复习引擎接管今日队列核心排序，升级前快照与迁移校验打通，诊断包可导出，`Android CI` 与 `Android Release` 全绿，且主文档与发版记录同步更新
 
@@ -158,6 +164,7 @@ README.md               项目入口说明
 
 `Android CI` 负责：
 
+- 校验 release baseline 文档
 - 校验 native 语音包发布资产
 - 运行单元测试
 - 构建 debug APK
@@ -175,6 +182,7 @@ README.md               项目入口说明
 `Android Release` 负责：
 
 - 接收版本号输入，或通过 `v*` tag 触发
+- 校验 release baseline 文档
 - 校验 native 语音包发布资产
 - 运行单元测试
 - 校验 Release 签名 secrets
@@ -191,10 +199,11 @@ README.md               项目入口说明
 
 1. 确认版本号符合 `major.minor`
 2. 先更新 [CHANGELOG.md](../CHANGELOG.md)
-3. 确认目标分支代码已推送
-4. 确认 GitHub Secrets 完整
-5. 确认正式包要使用同一把签名 key
-6. 确认对应版本的发版 smoke 文档已经新建或更新完毕
+3. 先运行 `bash scripts/validate_release_baseline.sh <version>`
+4. 确认目标分支代码已推送
+5. 确认 GitHub Secrets 完整
+6. 确认正式包要使用同一把签名 key
+7. 确认对应版本的发版 smoke 文档已经新建或更新完毕
 
 ### 8.5 正式产物规则
 
@@ -217,10 +226,11 @@ README.md               项目入口说明
 
 ### 9.2 备份规则
 
-- 当前开发主线备份版本为 `v5`
+- 当前开发主线备份版本为 `v6`
 - 备份必须覆盖：词书、单词、学习数据、多 API 路由、导入批次、音标补全任务、扩展计划历史、checkpoint 摘要、学习统计快照与长期摘要
+- 当前 `v6` 已补入学习信号、目标进度与升级健康摘要
 - API Key 不进入备份文件
-- 新版本仍必须兼容导入旧 `v1` / `v2` / `v3` / `v4` 备份
+- 新版本仍必须兼容导入旧 `v1` / `v2` / `v3` / `v4` / `v5` 备份
 
 ### 9.3 AI 路由规则
 

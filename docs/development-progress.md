@@ -6,7 +6,7 @@
 
 - 最后更新日期：`2026-03-22`
 - 当前正式版本：`1.6`
-- 当前总体状态：`v1.6 已发布并完成云端 CI / Release 归档；v1.7 范围已锁定，下一轮聚焦动态复习、阶段目标和交付护栏`
+- 当前总体状态：`v1.6 已发布并完成云端 CI / Release 归档；v1.7 正在实现，动态复习与目标系统已通过云端 CI，当前继续收口升级安全、诊断中心和发版护栏`
 
 ## 2. 当前版本快照
 
@@ -18,10 +18,11 @@
 - 当前 `1.6` 发版基线：[release-v1.6-analytics-smoke.md](./release-v1.6-analytics-smoke.md)
 - 当前 `1.7` 规格：[2026-03-22-v1.7-learning-effect-delivery-guardrails-design.md](./superpowers/specs/2026-03-22-v1.7-learning-effect-delivery-guardrails-design.md)
 - 当前 `1.7` 计划：[2026-03-22-v1.7-learning-effect-delivery-guardrails.md](./superpowers/plans/2026-03-22-v1.7-learning-effect-delivery-guardrails.md)
+- 当前 `1.7` smoke 基线：[release-v1.7-learning-effect-smoke.md](./release-v1.7-learning-effect-smoke.md)
 - 当前开发验证页面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 - 当前正式发包方式：GitHub 云端 `Android Release`
 - 当前开发验证方式：GitHub 云端 `Android CI`
-- 当前开发主线：`v1.7` 范围已锁定，聚焦动态复习、阶段目标和交付护栏
+- 当前开发主线：`v1.7` 正在实现，学习侧已落动态复习与目标系统，工程侧继续推进升级安全、诊断中心和发版护栏
 
 ## 3. 里程碑状态
 
@@ -41,7 +42,7 @@
 | 发音与朗读 v1.4 | 已完成并发版 | 已切到真实 `kokoro-en-v0_19` 模型资产、官方 Sherpa Android JNI runtime、UK/US 双 speaker、云端组装语音包与 Release checksum 对齐，并正式发版 |
 | AI 计划历史回溯 v1.5 | 已完成并发版 | 已完成计划版本持久化、AI 计划中心、计划对比 / 解释页、checkpoint 压缩记忆和备份 `v4`，并完成正式发版 |
 | 学习统计与 AI 闭环 v1.6 | 已完成并发版 | 已完成统计快照持久化、长期摘要投喂、学习统计页 / HTML 看板、首页 / 我的页入口、AI 计划中心效果回看与备份 `v5`，并完成正式发版 |
-| 学习效果与交付护栏 v1.7 | 范围已锁定 | 已确认动态复习引擎、日 / 周 / 阶段目标、升级安全、发版护栏与诊断中心作为下一轮正式主线 |
+| 学习效果与交付护栏 v1.7 | 进行中 | 动态复习、学习反馈信号和日 / 周 / 阶段目标已落仓并通过云端 `Android CI`，当前继续推进升级安全、诊断中心和发版护栏 |
 
 ## 4. 已完成模块清单
 
@@ -104,10 +105,12 @@
 - Room `2 -> 3` 发音模块迁移
 - Room `4 -> 5` AI 计划历史与 checkpoint 摘要迁移
 - Room `5 -> 6` 学习统计快照与长期摘要迁移
+- Room `6 -> 7` 学习信号、目标进度与升级健康摘要迁移
 - 备份 `v1 -> v2` 兼容导入
 - 备份 `v3` 兼容导入
 - 备份 `v4` 扩展计划历史与 checkpoint 摘要兼容导入
 - 备份 `v5` 学习统计快照与长期摘要兼容导入
+- 备份 `v6` 学习信号、目标进度与升级健康摘要兼容导入
 - 语音包清单同步、下载 worker 与桥接包安装路径
 - 原生离线单词发音引擎骨架与本地生成缓存
 - 官方 Sherpa ONNX Android JNI runtime 接入与真实 Kokoro runtime bridge
@@ -121,6 +124,7 @@
 - GitHub Actions 云端 CI
 - GitHub Actions 云端 Release
 - GitHub Actions native 语音包发布资产自检
+- release baseline 文档校验脚本与工作流护栏
 - 正式签名 APK 发版
 - GitHub Release 页面分发
 - `CHANGELOG.md` 驱动的 Release Notes
@@ -139,7 +143,10 @@
 - 当前 `1.6` 已在 `1.5` AI 计划历史基础上，把学习统计、长期摘要投喂、计划效果回看和备份 `v5` 正式接入
 - 当前 `1.6` Release 资产已确认包含：signed APK、UK / US voice pack zip、两个 manifest 与 checksum
 - 当前 `1.6` 发版归档记录见 [release-v1.6-analytics-smoke.md](./release-v1.6-analytics-smoke.md)
+- 当前 `1.7` smoke 基线见 [release-v1.7-learning-effect-smoke.md](./release-v1.7-learning-effect-smoke.md)
 - 当前本机仍缺 Java runtime，因此 `1.6` 无法在本机直接跑 Gradle；最终验证继续以 GitHub Actions 为准
+- `Android CI #23400597350` 已通过，覆盖 `fix: stabilize study latency and skip state`
+- `Android CI #23401041819` 已通过，覆盖 `feat: add goal progress surfaces and settings`
 - native 语音包发布源目录当前位于 `distribution/voice-packs/`
 - 正式 Release 已具备同时上传 APK、native 语音包 zip、manifest 和 checksum 的能力
 - 正式 Release 的 native payload 由 GitHub Actions 云端临时拉取与打包，不进入 git 仓库
@@ -168,8 +175,11 @@
 ### 7.2 本轮已落仓项
 
 - 已完成 `v1.7` 范围确认，并新增正式规格文档
-- 已确认学习效果主线为：动态复习引擎、日 / 周 / 阶段目标、学习反馈采集增强
-- 已确认工程交付主线为：升级安全、发版护栏、诊断与排障工具
+- 已完成 Room `6 -> 7` 与备份 `v6` 底座，补入学习信号、目标进度和升级健康摘要字段
+- 已完成动态复习引擎、今日队列三段配比和学习反馈时延 / 跳过信号接入
+- 已完成目标设置页、首页 / “我的”页 / 学习统计页的日 / 周 / 阶段目标投影
+- 已通过云端 `Android CI #23400597350` 与 `Android CI #23401041819`
+- 已确认工程交付主线仍为：升级安全、发版护栏、诊断与排障工具
 - 已确认本轮仍保持“无账号、无自建服务器、GitHub 云端发版”的边界
 
 ### 7.3 本轮辅助项
@@ -273,13 +283,14 @@
 - 已确认 Release 资产包含 `wenwenlex-v1.6-release.apk`、两套 voice pack zip、两个 manifest 和 `wenwenlex-voice-pack-checksums.txt`
 - 已补齐 [release-v1.6-analytics-smoke.md](./release-v1.6-analytics-smoke.md) 作为后续对接与回归基线
 
-### 2026-03-22 / v1.7 / 范围已锁定
+### 2026-03-22 / v1.7 / 动态复习与目标系统进行中
 
-- 已确认 `v1.7` 继续双主线推进：学习效果增强 + 工程交付护栏
-- 已确认学习侧优先级为：动态复习引擎、日 / 周 / 阶段目标、学习反馈采集增强
-- 已确认工程侧优先级为：升级安全、发版护栏、诊断与排障工具
-- 已新增 [2026-03-22-v1.7-learning-effect-delivery-guardrails-design.md](./superpowers/specs/2026-03-22-v1.7-learning-effect-delivery-guardrails-design.md) 作为下一轮正式规格入口
-- 已新增 [2026-03-22-v1.7-learning-effect-delivery-guardrails.md](./superpowers/plans/2026-03-22-v1.7-learning-effect-delivery-guardrails.md) 作为执行计划入口
+- 已完成 Room `6 -> 7`、备份 `v6` 和学习信号 / 目标进度底座
+- 已完成动态复习引擎、学习反馈时延 / 跳过信号与今日队列调度
+- 已完成目标设置页、首页 / “我的”页 / 学习统计页的目标推进展示
+- 已通过云端 `Android CI #23400597350` 与 `Android CI #23401041819`
+- 已新增 [release-v1.7-learning-effect-smoke.md](./release-v1.7-learning-effect-smoke.md) 作为当前 smoke 基线
+- 当前继续推进升级安全、诊断中心与发版护栏
 
 ## 10. 后续更新模板
 

@@ -9,7 +9,7 @@ on:
       version:
         description: "Release version, for example 1.0"
         required: true
-        default: "1.6"
+        default: "1.7"
 
 permissions:
   contents: write
@@ -70,6 +70,9 @@ jobs:
           echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Validate release baseline
+        run: bash scripts/validate_release_baseline.sh "${{ steps.meta.outputs.version }}"
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
