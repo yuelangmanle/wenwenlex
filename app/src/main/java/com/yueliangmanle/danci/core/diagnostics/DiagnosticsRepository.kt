@@ -1,7 +1,8 @@
 package com.yueliangmanle.danci.core.diagnostics
 
+import android.content.pm.PackageInfo
+import android.os.Build
 import android.content.Context
-import com.yueliangmanle.danci.BuildConfig
 import com.yueliangmanle.danci.core.data.AiProfileRepository
 import com.yueliangmanle.danci.core.data.BackupRepository
 import com.yueliangmanle.danci.core.data.RoomStudyRepository
@@ -29,8 +30,8 @@ class DiagnosticsRepository(
     private val verifier: DataIntegrityVerifier = DataIntegrityVerifier(),
     private val exporterFactory: (File) -> DiagnosticsExporter = { DiagnosticsExporter(it) },
     private val nowProvider: () -> Instant = { Instant.now() },
-    private val appVersionNameProvider: () -> String = { BuildConfig.VERSION_NAME },
-    private val appVersionCodeProvider: () -> Int = { BuildConfig.VERSION_CODE },
+    private val appVersionNameProvider: () -> String = { "unknown" },
+    private val appVersionCodeProvider: () -> Int = { 0 },
     private val exportDirProvider: () -> File,
 ) {
     suspend fun buildReport(): DiagnosticsReport {
@@ -131,6 +132,7 @@ private fun UpgradeHealthReport.toUpgradeHealthMap(
 fun buildDiagnosticsRepository(context: Context): DiagnosticsRepository {
     val appContext = context.applicationContext
     val database = buildDanciDatabase(appContext)
+    val installedVersion = resolveInstalledAppVersion(appContext)
     return DiagnosticsRepository(
         database = database,
         settingsRepository = buildSettingsRepository(appContext),
@@ -138,8 +140,45 @@ fun buildDiagnosticsRepository(context: Context): DiagnosticsRepository {
         aiProfileRepository = buildAiProfileRepository(appContext),
         backupRepository = buildBackupRepository(appContext),
         voicePackRepository = buildVoicePackRepository(appContext),
+        appVersionNameProvider = { installedVersion.name },
+        appVersionCodeProvider = { installedVersion.code },
         exportDirProvider = {
             appContext.getExternalFilesDir("diagnostics") ?: File(appContext.filesDir, "diagnostics")
         },
     )
 }
+
+private data class InstalledAppVersion(
+    val name: String,
+    val code: Int,
+)
+
+private fun resolveInstalledAppVersion(context: Context): InstalledAppVersion =
+    runCatching {
+        val packageInfo = context.packageManager.packageInfoCompat(context.packageName)
+        InstalledAppVersion(
+            name = packageInfo.versionName.orEmpty().ifBlank { "unknown" },
+            code = packageInfo.versionCodeCompat(),
+        )
+    }.getOrElse {
+        InstalledAppVersion(
+            name = "unknown",
+            code = 0,
+        )
+    }
+
+private fun android.content.pm.PackageManager.packageInfoCompat(packageName: String): PackageInfo =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        getPackageInfo(packageName, android.content.pm.PackageManager.PackageInfoFlags.of(0))
+    } else {
+        @Suppress("DEPRECATION")
+        getPackageInfo(packageName, 0)
+    }
+
+private fun PackageInfo.versionCodeCompat(): Int =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        longVersionCode.toInt()
+    } else {
+        @Suppress("DEPRECATION")
+        versionCode
+    }
