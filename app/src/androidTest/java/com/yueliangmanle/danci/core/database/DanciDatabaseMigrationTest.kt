@@ -6,6 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -154,6 +155,143 @@ class DanciDatabaseMigrationTest {
             assertEquals("{}", cursor.getString(0))
             assertEquals("[]", cursor.getString(1))
             assertEquals("[]", cursor.getString(2))
+        }
+    }
+
+    @Test
+    fun migration6To7_addsLearningSignalColumnsAndGoalProgressJson() {
+        val databaseName = "danci-migration-test-v7"
+        InstrumentationRegistry.getInstrumentation().targetContext.deleteDatabase(databaseName)
+        helper.createDatabase(databaseName, 6).apply {
+            execSQL(
+                """
+                INSERT INTO words (
+                    id,
+                    lemma,
+                    phoneticSource,
+                    phoneticStatus,
+                    partOfSpeech,
+                    meanings,
+                    synonyms,
+                    antonyms,
+                    similarWords,
+                    confusingWords,
+                    wordForms,
+                    tags
+                ) VALUES (
+                    1,
+                    'abandon',
+                    'legacy',
+                    'partial',
+                    '',
+                    '放弃',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    ''
+                )
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO learning_records (
+                    wordId,
+                    mastery,
+                    familiarityState,
+                    nextReviewAt,
+                    reviewCount,
+                    lapseCount,
+                    consecutiveCorrectCount,
+                    lastReviewedAt,
+                    lastOutcome,
+                    confusionWeight,
+                    similarSpellingWeight
+                ) VALUES (
+                    1,
+                    0.45,
+                    '学习中',
+                    NULL,
+                    4,
+                    1,
+                    2,
+                    1774008600000,
+                    'correct',
+                    0.1,
+                    0.2
+                )
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO learner_profiles (
+                    profileId,
+                    vocabularyLevel,
+                    weakSpots,
+                    preferredQuestionTypes,
+                    commonMistakePatterns,
+                    checkpointSummariesJson,
+                    analyticsSnapshotJson,
+                    longTermInsightsJson,
+                    updatedAt
+                ) VALUES (
+                    'default',
+                    '提升中',
+                    'abandon',
+                    'quiz',
+                    '',
+                    '[]',
+                    '{}',
+                    '[]',
+                    1774008600000
+                )
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val migratedDb = helper.runMigrationsAndValidate(
+            databaseName,
+            7,
+            true,
+            MIGRATION_6_7,
+        )
+
+        migratedDb.query(
+            """
+            SELECT
+                forgettingRiskScore,
+                reviewPriorityScore,
+                proficiencyBand,
+                lastResponseLatencyMs,
+                averageResponseLatencyMs,
+                consecutiveMistakeCount,
+                lastMistakeAt
+            FROM learning_records
+            WHERE wordId = 1
+            """.trimIndent(),
+        ).use { cursor ->
+            check(cursor.moveToFirst())
+            assertEquals(0f, cursor.getFloat(0))
+            assertEquals(0f, cursor.getFloat(1))
+            assertEquals("new", cursor.getString(2))
+            assertTrue(cursor.isNull(3))
+            assertTrue(cursor.isNull(4))
+            assertEquals(0, cursor.getInt(5))
+            assertTrue(cursor.isNull(6))
+        }
+
+        migratedDb.query(
+            """
+            SELECT goalProgressJson, upgradeHealthJson
+            FROM learner_profiles
+            WHERE profileId = 'default'
+            """.trimIndent(),
+        ).use { cursor ->
+            check(cursor.moveToFirst())
+            assertEquals("{}", cursor.getString(0))
+            assertEquals("{}", cursor.getString(1))
         }
     }
 }

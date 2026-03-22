@@ -275,6 +275,9 @@ private class FakeOrchestratorSettingsRepository : SettingsRepository {
     override suspend fun getSettings(): AppSettings = state.value
 
     override suspend fun updateDailyGoal(dailyGoal: Int) = Unit
+    override suspend fun updateWeeklyGoal(weeklyGoal: Int) = Unit
+    override suspend fun updatePhaseName(phaseName: String?) = Unit
+    override suspend fun updatePhaseTargetWords(phaseTargetWords: Int) = Unit
     override suspend fun updateActiveBookId(bookId: String?) = Unit
     override suspend fun updateAiEnabled(enabled: Boolean) = Unit
     override suspend fun updateAiBaseUrl(baseUrl: String) = Unit

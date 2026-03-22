@@ -19,5 +19,9 @@ data class LearnerProfileEntity(
     val analyticsSnapshotJson: String = "{}",
     @ColumnInfo(defaultValue = "'[]'")
     val longTermInsightsJson: String = "[]",
+    @ColumnInfo(defaultValue = "'{}'")
+    val goalProgressJson: String = "{}",
+    @ColumnInfo(defaultValue = "'{}'")
+    val upgradeHealthJson: String = "{}",
     val updatedAt: Instant = Instant.EPOCH,
 )

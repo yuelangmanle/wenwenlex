@@ -55,7 +55,7 @@ import java.time.Instant
         WordAudioAssetEntity::class,
         VoicePackEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 @TypeConverters(DanciTypeConverters::class)
@@ -90,6 +90,7 @@ fun buildDanciDatabase(context: Context): DanciDatabase {
             .addMigrations(MIGRATION_3_4)
             .addMigrations(MIGRATION_4_5)
             .addMigrations(MIGRATION_5_6)
+            .addMigrations(MIGRATION_6_7)
             .build().also { database ->
             DanciDatabaseHolder.instance = database
         }
@@ -248,6 +249,20 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE learner_profiles ADD COLUMN analyticsSnapshotJson TEXT NOT NULL DEFAULT '{}'")
         db.execSQL("ALTER TABLE learner_profiles ADD COLUMN longTermInsightsJson TEXT NOT NULL DEFAULT '[]'")
+    }
+}
+
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE learning_records ADD COLUMN forgettingRiskScore REAL NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE learning_records ADD COLUMN reviewPriorityScore REAL NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE learning_records ADD COLUMN proficiencyBand TEXT NOT NULL DEFAULT 'new'")
+        db.execSQL("ALTER TABLE learning_records ADD COLUMN lastResponseLatencyMs INTEGER")
+        db.execSQL("ALTER TABLE learning_records ADD COLUMN averageResponseLatencyMs INTEGER")
+        db.execSQL("ALTER TABLE learning_records ADD COLUMN consecutiveMistakeCount INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE learning_records ADD COLUMN lastMistakeAt INTEGER")
+        db.execSQL("ALTER TABLE learner_profiles ADD COLUMN goalProgressJson TEXT NOT NULL DEFAULT '{}'")
+        db.execSQL("ALTER TABLE learner_profiles ADD COLUMN upgradeHealthJson TEXT NOT NULL DEFAULT '{}'")
     }
 }
 

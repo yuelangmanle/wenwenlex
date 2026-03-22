@@ -20,6 +20,7 @@ import com.yueliangmanle.danci.core.model.ConfusionEdge
 import com.yueliangmanle.danci.core.model.DailySummary
 import com.yueliangmanle.danci.core.model.DailyTrendPoint
 import com.yueliangmanle.danci.core.model.FeedbackBucket
+import com.yueliangmanle.danci.core.model.GoalProgressSnapshot
 import com.yueliangmanle.danci.core.model.LearnerProfile
 import com.yueliangmanle.danci.core.model.LearningAnalyticsSnapshot
 import com.yueliangmanle.danci.core.model.PlanEffectSnapshot
@@ -106,6 +107,9 @@ internal fun BackupSnapshot.toJson(): JSONObject =
 internal fun AppSettings.toJson(): JSONObject =
     JSONObject()
         .put("daily_goal", dailyGoal)
+        .put("weekly_goal", weeklyGoal)
+        .put("phase_name", phaseName)
+        .put("phase_target_words", phaseTargetWords)
         .put("active_book_id", activeBookId)
         .put("ai_enabled", aiEnabled)
         .put("ai_base_url", aiBaseUrl)
@@ -261,6 +265,13 @@ internal fun LearningRecordEntity.toJson(): JSONObject =
         .put("last_outcome", lastOutcome)
         .put("confusion_weight", confusionWeight.toDouble())
         .put("similar_spelling_weight", similarSpellingWeight.toDouble())
+        .put("forgetting_risk_score", forgettingRiskScore.toDouble())
+        .put("review_priority_score", reviewPriorityScore.toDouble())
+        .put("proficiency_band", proficiencyBand)
+        .put("last_response_latency_ms", lastResponseLatencyMs)
+        .put("average_response_latency_ms", averageResponseLatencyMs)
+        .put("consecutive_mistake_count", consecutiveMistakeCount)
+        .put("last_mistake_at", lastMistakeAt.toBackupString())
 
 internal fun StudySessionEntity.toJson(): JSONObject =
     JSONObject()
@@ -296,7 +307,26 @@ internal fun AiMemorySummary.toJson(): JSONObject =
         .put("checkpoint_summaries", JSONArray(checkpointSummaries.map(CheckpointSummary::toJson)))
         .put("analytics_snapshot", analyticsSnapshot.toJson())
         .put("long_term_insights", JSONArray(longTermInsights))
+        .put("goal_progress", goalProgress.toJson())
+        .put("upgrade_health", upgradeHealth.toJson())
         .put("confusion_edges", JSONArray(confusionEdges.map(ConfusionEdge::toJson)))
+
+internal fun GoalProgressSnapshot.toJson(): JSONObject =
+    JSONObject()
+        .put("current_day_completed_count", currentDayCompletedCount)
+        .put("current_week_completed_count", currentWeekCompletedCount)
+        .put("current_streak_days", currentStreakDays)
+        .put("best_streak_days", bestStreakDays)
+        .put("phase_name", phaseName)
+        .put("phase_target_words", phaseTargetWords)
+        .put("phase_completed_words", phaseCompletedWords)
+
+internal fun Map<String, String>.toJson(): JSONObject =
+    JSONObject().apply {
+        entries.forEach { (key, value) ->
+            put(key, value)
+        }
+    }
 
 internal fun LearnerProfile.toJson(): JSONObject =
     JSONObject()

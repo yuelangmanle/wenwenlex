@@ -1,6 +1,7 @@
 package com.yueliangmanle.danci.core.backup
 
 import com.yueliangmanle.danci.core.data.AppSettings
+import com.yueliangmanle.danci.core.database.entity.LearningRecordEntity
 import com.yueliangmanle.danci.core.database.entity.WordEntity
 import com.yueliangmanle.danci.core.model.AiMemorySummary
 import com.yueliangmanle.danci.core.model.AnalyticsOverview
@@ -8,6 +9,7 @@ import com.yueliangmanle.danci.core.model.BookProgressSnapshot
 import com.yueliangmanle.danci.core.model.CheckpointSummary
 import com.yueliangmanle.danci.core.model.DailyTrendPoint
 import com.yueliangmanle.danci.core.model.FeedbackBucket
+import com.yueliangmanle.danci.core.model.GoalProgressSnapshot
 import com.yueliangmanle.danci.core.model.PHONETIC_SOURCE_AI
 import com.yueliangmanle.danci.core.model.PHONETIC_STATUS_COMPLETE
 import com.yueliangmanle.danci.core.model.PlanApplyStatus
@@ -30,6 +32,9 @@ class BackupRoundTripTest {
     fun settingsJsonIncludesMultiProfileRoutingFields() {
         val settings = AppSettings(
             dailyGoal = 35,
+            weeklyGoal = 80,
+            phaseName = "六级冲刺",
+            phaseTargetWords = 1500,
             activeBookId = "cet6",
             aiEnabled = true,
             defaultAiProfileId = "default-profile",
@@ -44,6 +49,9 @@ class BackupRoundTripTest {
         assertEquals("word-help", json.getString("word_help_profile_id"))
         assertEquals("plan-profile", json.getString("plan_adjustment_profile_id"))
         assertEquals("phonetic-profile", json.getString("phonetic_fill_profile_id"))
+        assertEquals(80, json.getInt("weekly_goal"))
+        assertEquals("六级冲刺", json.getString("phase_name"))
+        assertEquals(1500, json.getInt("phase_target_words"))
     }
 
     @Test
@@ -200,6 +208,19 @@ class BackupRoundTripTest {
                 ),
             ),
             longTermInsights = listOf("发音巩固后带动正确率回升"),
+            goalProgress = GoalProgressSnapshot(
+                currentDayCompletedCount = 14,
+                currentWeekCompletedCount = 58,
+                currentStreakDays = 8,
+                bestStreakDays = 13,
+                phaseName = "六级冲刺",
+                phaseTargetWords = 1500,
+                phaseCompletedWords = 612,
+            ),
+            upgradeHealth = mapOf(
+                "db_migration" to "ok",
+                "backup_integrity" to "ok",
+            ),
         )
 
         val json = summary.toJson()
@@ -212,11 +233,16 @@ class BackupRoundTripTest {
         assertTrue(json.getJSONObject("analytics_snapshot").has("plan_effects"))
         assertTrue(json.getJSONObject("analytics_snapshot").has("pronunciation_usage"))
         assertTrue(json.has("long_term_insights"))
+        assertTrue(json.has("goal_progress"))
+        assertTrue(json.has("upgrade_health"))
         assertEquals(1, restored.checkpointSummaries.size)
         assertEquals(PlanApplyStatus.PENDING_CONFIRMATION, restored.planHistory.single().applyStatus)
         assertEquals("cp-1", restored.checkpointSummaries.single().checkpointId)
         assertEquals("先复习后推进", restored.analyticsSnapshot.planEffects.single().label)
         assertEquals("发音巩固后带动正确率回升", restored.longTermInsights.single())
+        assertEquals(58, restored.goalProgress.currentWeekCompletedCount)
+        assertEquals("六级冲刺", restored.goalProgress.phaseName)
+        assertEquals("ok", restored.upgradeHealth["db_migration"])
     }
 
     @Test
@@ -259,6 +285,32 @@ class BackupRoundTripTest {
 
         assertTrue(imported.snapshot.aiMemorySummary.analyticsSnapshot.planEffects.isEmpty())
         assertTrue(imported.snapshot.aiMemorySummary.longTermInsights.isEmpty())
+    }
+
+    @Test
+    fun learningRecord_roundTripsExpandedSignals() {
+        val entity = LearningRecordEntity(
+            wordId = 1L,
+            mastery = 0.7f,
+            familiarityState = "学习中",
+            forgettingRiskScore = 0.66f,
+            reviewPriorityScore = 0.91f,
+            proficiencyBand = "unstable",
+            lastResponseLatencyMs = 4100L,
+            averageResponseLatencyMs = 3750L,
+            consecutiveMistakeCount = 3,
+            lastMistakeAt = Instant.parse("2026-03-19T10:00:00Z"),
+        )
+
+        val restored = entity.toJson().toLearningRecordEntity()
+
+        assertEquals(0.66f, restored.forgettingRiskScore, 0.0001f)
+        assertEquals(0.91f, restored.reviewPriorityScore, 0.0001f)
+        assertEquals("unstable", restored.proficiencyBand)
+        assertEquals(4100L, restored.lastResponseLatencyMs)
+        assertEquals(3750L, restored.averageResponseLatencyMs)
+        assertEquals(3, restored.consecutiveMistakeCount)
+        assertEquals(Instant.parse("2026-03-19T10:00:00Z"), restored.lastMistakeAt)
     }
 }
 

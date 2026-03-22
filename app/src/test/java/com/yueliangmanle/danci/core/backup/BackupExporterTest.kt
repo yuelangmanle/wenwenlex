@@ -2,6 +2,7 @@ package com.yueliangmanle.danci.core.backup
 
 import com.yueliangmanle.danci.core.data.AppSettings
 import com.yueliangmanle.danci.core.database.entity.BookEntity
+import com.yueliangmanle.danci.core.database.entity.LearningRecordEntity
 import com.yueliangmanle.danci.core.database.entity.WordEntity
 import com.yueliangmanle.danci.core.model.AiMemorySummary
 import com.yueliangmanle.danci.core.model.AnalyticsOverview
@@ -10,6 +11,7 @@ import com.yueliangmanle.danci.core.model.CheckpointSummary
 import com.yueliangmanle.danci.core.model.DailySummary
 import com.yueliangmanle.danci.core.model.DailyTrendPoint
 import com.yueliangmanle.danci.core.model.FeedbackBucket
+import com.yueliangmanle.danci.core.model.GoalProgressSnapshot
 import com.yueliangmanle.danci.core.model.LearnerProfile
 import com.yueliangmanle.danci.core.model.LearningAnalyticsSnapshot
 import com.yueliangmanle.danci.core.model.PlanApplyStatus
@@ -72,7 +74,25 @@ class BackupExporterTest {
         val backup = BackupExporter(
             snapshotProvider = {
                 BackupSnapshot(
-                    settings = AppSettings(),
+                    settings = AppSettings(
+                        weeklyGoal = 70,
+                        phaseName = "四级冲刺",
+                        phaseTargetWords = 1200,
+                    ),
+                    learningRecords = listOf(
+                        LearningRecordEntity(
+                            wordId = 1001L,
+                            mastery = 0.62f,
+                            familiarityState = "学习中",
+                            forgettingRiskScore = 0.58f,
+                            reviewPriorityScore = 0.84f,
+                            proficiencyBand = "unstable",
+                            lastResponseLatencyMs = 4200L,
+                            averageResponseLatencyMs = 3900L,
+                            consecutiveMistakeCount = 2,
+                            lastMistakeAt = Instant.parse("2026-03-18T10:20:00Z"),
+                        ),
+                    ),
                     aiMemorySummary = sampleAiMemory(),
                 )
             },
@@ -82,10 +102,26 @@ class BackupExporterTest {
         val payload = JSONObject(backup.serializedJson)
         val aiMemory = payload.getJSONObject("ai_memory_summary")
 
-        assertEquals(5, backup.manifest.version)
+        assertEquals(6, backup.manifest.version)
         assertTrue(aiMemory.has("checkpoint_summaries"))
         assertTrue(aiMemory.has("analytics_snapshot"))
         assertTrue(aiMemory.has("long_term_insights"))
+        assertTrue(aiMemory.has("goal_progress"))
+        assertTrue(aiMemory.has("upgrade_health"))
+        assertEquals(70, payload.getJSONObject("settings").getInt("weekly_goal"))
+        assertEquals("四级冲刺", payload.getJSONObject("settings").getString("phase_name"))
+        assertEquals(1200, payload.getJSONObject("settings").getInt("phase_target_words"))
+        assertEquals(
+            2,
+            payload.getJSONArray("learning_records")
+                .getJSONObject(0)
+                .getInt("consecutive_mistake_count"),
+        )
+        assertTrue(
+            payload.getJSONArray("learning_records")
+                .getJSONObject(0)
+                .has("last_mistake_at"),
+        )
         assertTrue(aiMemory.getJSONArray("plan_history").getJSONObject(0).has("apply_status"))
         assertEquals(
             "稳住近义词误判",
@@ -97,6 +133,10 @@ class BackupExporterTest {
         assertEquals(
             "近义词辨析仍需复习",
             aiMemory.getJSONArray("long_term_insights").getString(0),
+        )
+        assertEquals(
+            "ok",
+            aiMemory.getJSONObject("upgrade_health").getString("db_migration"),
         )
     }
 
@@ -205,5 +245,18 @@ class BackupExporterTest {
                 ),
             ),
             longTermInsights = listOf("近义词辨析仍需复习"),
+            goalProgress = GoalProgressSnapshot(
+                currentDayCompletedCount = 22,
+                currentWeekCompletedCount = 65,
+                currentStreakDays = 9,
+                bestStreakDays = 15,
+                phaseName = "四级冲刺",
+                phaseTargetWords = 1200,
+                phaseCompletedWords = 380,
+            ),
+            upgradeHealth = mapOf(
+                "db_migration" to "ok",
+                "backup_integrity" to "ok",
+            ),
         )
 }

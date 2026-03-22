@@ -143,6 +143,9 @@ class BackupRepository(
 
     private suspend fun applySettings(settings: AppSettings) {
         settingsRepository.updateDailyGoal(settings.dailyGoal)
+        settingsRepository.updateWeeklyGoal(settings.weeklyGoal)
+        settingsRepository.updatePhaseName(settings.phaseName)
+        settingsRepository.updatePhaseTargetWords(settings.phaseTargetWords)
         settingsRepository.updateActiveBookId(settings.activeBookId)
         settingsRepository.updateAiEnabled(settings.aiEnabled)
         settingsRepository.updateAiBaseUrl(settings.aiBaseUrl)

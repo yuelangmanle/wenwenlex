@@ -11,6 +11,8 @@ data class AiMemorySummary(
     val analyticsSnapshot: LearningAnalyticsSnapshot = LearningAnalyticsSnapshot(),
     val longTermInsights: List<String> = emptyList(),
     val confusionEdges: List<ConfusionEdge> = emptyList(),
+    val goalProgress: GoalProgressSnapshot = GoalProgressSnapshot(),
+    val upgradeHealth: Map<String, String> = emptyMap(),
 )
 
 data class DailySummary(

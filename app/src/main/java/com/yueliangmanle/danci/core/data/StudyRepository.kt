@@ -17,6 +17,7 @@ import com.yueliangmanle.danci.core.model.ConfusionEdge
 import com.yueliangmanle.danci.core.model.DailySummary
 import com.yueliangmanle.danci.core.model.DailyTrendPoint
 import com.yueliangmanle.danci.core.model.FeedbackBucket
+import com.yueliangmanle.danci.core.model.GoalProgressSnapshot
 import com.yueliangmanle.danci.core.model.LearnerProfile
 import com.yueliangmanle.danci.core.model.LearningAnalyticsSnapshot
 import com.yueliangmanle.danci.core.model.LearningRecord
@@ -112,6 +113,8 @@ class RoomStudyRepository(
             checkpointSummaries = learnerProfileEntity?.checkpointSummariesJson.toCheckpointSummaries(),
             analyticsSnapshot = learnerProfileEntity?.analyticsSnapshotJson.toAnalyticsSnapshot(),
             longTermInsights = learnerProfileEntity?.longTermInsightsJson.toLongTermInsights(),
+            goalProgress = learnerProfileEntity?.goalProgressJson.toGoalProgressSnapshot(),
+            upgradeHealth = learnerProfileEntity?.upgradeHealthJson.toUpgradeHealth(),
             confusionEdges = studyDao.getConfusionEdges(confusionLimit).map(ConfusionEdgeEntity::asExternalModel),
         )
     }
@@ -145,6 +148,13 @@ internal fun LearningRecordEntity.asExternalModel(): LearningRecord =
         lastOutcome = lastOutcome,
         confusionWeight = confusionWeight,
         similarSpellingWeight = similarSpellingWeight,
+        forgettingRiskScore = forgettingRiskScore,
+        reviewPriorityScore = reviewPriorityScore,
+        proficiencyBand = proficiencyBand,
+        lastResponseLatencyMs = lastResponseLatencyMs,
+        averageResponseLatencyMs = averageResponseLatencyMs,
+        consecutiveMistakeCount = consecutiveMistakeCount,
+        lastMistakeAt = lastMistakeAt,
     )
 
 internal fun LearningRecord.asEntity(): LearningRecordEntity =
@@ -160,6 +170,13 @@ internal fun LearningRecord.asEntity(): LearningRecordEntity =
         lastOutcome = lastOutcome,
         confusionWeight = confusionWeight,
         similarSpellingWeight = similarSpellingWeight,
+        forgettingRiskScore = forgettingRiskScore,
+        reviewPriorityScore = reviewPriorityScore,
+        proficiencyBand = proficiencyBand,
+        lastResponseLatencyMs = lastResponseLatencyMs,
+        averageResponseLatencyMs = averageResponseLatencyMs,
+        consecutiveMistakeCount = consecutiveMistakeCount,
+        lastMistakeAt = lastMistakeAt,
     )
 
 internal fun StudySession.asEntity(): StudySessionEntity =
@@ -232,7 +249,9 @@ internal fun AiMemorySummary.toLearnerProfileEntity(): LearnerProfileEntity? {
         profile == null &&
         checkpointSummaries.isEmpty() &&
         analyticsSnapshot == LearningAnalyticsSnapshot() &&
-        longTermInsights.isEmpty()
+        longTermInsights.isEmpty() &&
+        goalProgress == GoalProgressSnapshot() &&
+        upgradeHealth.isEmpty()
     ) {
         return null
     }
@@ -245,6 +264,8 @@ internal fun AiMemorySummary.toLearnerProfileEntity(): LearnerProfileEntity? {
         checkpointSummariesJson = checkpointSummaries.toCheckpointSummariesJsonString(),
         analyticsSnapshotJson = analyticsSnapshot.toJsonString(),
         longTermInsightsJson = longTermInsights.toLongTermInsightsJsonString(),
+        goalProgressJson = goalProgress.toJsonString(),
+        upgradeHealthJson = upgradeHealth.toJsonString(),
         updatedAt = profile?.updatedAt ?: checkpointSummaries.maxOfOrNull(CheckpointSummary::windowEndAt) ?: java.time.Instant.EPOCH,
     )
 }
@@ -520,6 +541,61 @@ private fun String?.toLongTermInsights(): List<String> =
     }.getOrDefault(emptyList())
 
 private fun List<String>.toLongTermInsightsJsonString(): String = JSONArray(this).toString()
+
+private fun String?.toGoalProgressSnapshot(): GoalProgressSnapshot =
+    runCatching {
+        JSONObject(this ?: "{}").toGoalProgressSnapshot()
+    }.getOrDefault(GoalProgressSnapshot())
+
+private fun JSONObject.toGoalProgressSnapshot(): GoalProgressSnapshot =
+    GoalProgressSnapshot(
+        currentDayCompletedCount = optInt("currentDayCompletedCount"),
+        currentWeekCompletedCount = optInt("currentWeekCompletedCount"),
+        currentStreakDays = optInt("currentStreakDays"),
+        bestStreakDays = optInt("bestStreakDays"),
+        phaseName = optNullableString("phaseName"),
+        phaseTargetWords = optInt("phaseTargetWords"),
+        phaseCompletedWords = optInt("phaseCompletedWords"),
+    )
+
+private fun GoalProgressSnapshot.toJsonString(): String =
+    if (this == GoalProgressSnapshot()) {
+        "{}"
+    } else {
+        JSONObject()
+            .put("currentDayCompletedCount", currentDayCompletedCount)
+            .put("currentWeekCompletedCount", currentWeekCompletedCount)
+            .put("currentStreakDays", currentStreakDays)
+            .put("bestStreakDays", bestStreakDays)
+            .put("phaseName", phaseName)
+            .put("phaseTargetWords", phaseTargetWords)
+            .put("phaseCompletedWords", phaseCompletedWords)
+            .toString()
+    }
+
+private fun String?.toUpgradeHealth(): Map<String, String> =
+    runCatching {
+        JSONObject(this ?: "{}").toStringMap()
+    }.getOrDefault(emptyMap())
+
+private fun JSONObject.toStringMap(): Map<String, String> =
+    buildMap {
+        val iterator = keys()
+        while (iterator.hasNext()) {
+            val key = iterator.next()
+            val value = opt(key)
+            if (value != null && value != JSONObject.NULL) {
+                put(key, value.toString())
+            }
+        }
+    }
+
+private fun Map<String, String>.toJsonString(): String =
+    if (isEmpty()) {
+        "{}"
+    } else {
+        JSONObject(this).toString()
+    }
 
 private fun JSONObject.optNullableString(key: String): String? =
     when {

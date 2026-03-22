@@ -24,6 +24,7 @@ import com.yueliangmanle.danci.core.model.ConfusionEdge
 import com.yueliangmanle.danci.core.model.DailySummary
 import com.yueliangmanle.danci.core.model.DailyTrendPoint
 import com.yueliangmanle.danci.core.model.FeedbackBucket
+import com.yueliangmanle.danci.core.model.GoalProgressSnapshot
 import com.yueliangmanle.danci.core.model.LearnerProfile
 import com.yueliangmanle.danci.core.model.LearningAnalyticsSnapshot
 import com.yueliangmanle.danci.core.model.PlanApplyStatus
@@ -97,6 +98,9 @@ internal fun String.toBackupSnapshot(version: Int = BACKUP_VERSION): BackupSnaps
 internal fun JSONObject.toAppSettings(): AppSettings =
     AppSettings(
         dailyGoal = getInt("daily_goal"),
+        weeklyGoal = optInt("weekly_goal", com.yueliangmanle.danci.core.data.DEFAULT_WEEKLY_GOAL),
+        phaseName = optNullableString("phase_name"),
+        phaseTargetWords = optInt("phase_target_words", 0),
         activeBookId = optNullableString("active_book_id"),
         aiEnabled = getBoolean("ai_enabled"),
         aiBaseUrl = optNullableString("ai_base_url") ?: com.yueliangmanle.danci.core.data.DEFAULT_AI_BASE_URL,
@@ -277,6 +281,13 @@ internal fun JSONObject.toLearningRecordEntity(): LearningRecordEntity =
         lastOutcome = optNullableString("last_outcome"),
         confusionWeight = optDouble("confusion_weight", 0.0).toFloat(),
         similarSpellingWeight = optDouble("similar_spelling_weight", 0.0).toFloat(),
+        forgettingRiskScore = optDouble("forgetting_risk_score", 0.0).toFloat(),
+        reviewPriorityScore = optDouble("review_priority_score", 0.0).toFloat(),
+        proficiencyBand = optNullableString("proficiency_band") ?: "new",
+        lastResponseLatencyMs = optLongOrNull("last_response_latency_ms"),
+        averageResponseLatencyMs = optLongOrNull("average_response_latency_ms"),
+        consecutiveMistakeCount = optInt("consecutive_mistake_count", 0),
+        lastMistakeAt = optInstant("last_mistake_at"),
     )
 
 internal fun JSONObject.toStudySessionEntity(): StudySessionEntity =
@@ -316,6 +327,9 @@ internal fun JSONObject.toAiMemorySummary(version: Int = BACKUP_VERSION): AiMemo
         analyticsSnapshot = optJSONObject("analytics_snapshot")?.toLearningAnalyticsSnapshot()
             ?: LearningAnalyticsSnapshot(),
         longTermInsights = optJSONArray("long_term_insights").toStringList(),
+        goalProgress = optJSONObject("goal_progress")?.toGoalProgressSnapshot()
+            ?: GoalProgressSnapshot(),
+        upgradeHealth = optJSONObject("upgrade_health")?.toStringMap() ?: emptyMap(),
         confusionEdges = optJSONArray("confusion_edges").mapObjects(JSONObject::toConfusionEdge),
     )
 
@@ -457,6 +471,29 @@ internal fun JSONObject.toPronunciationUsageSnapshot(): PronunciationUsageSnapsh
         voicePlaybackCount = optInt("voice_playback_count", 0),
         shadowingCount = optInt("shadowing_count", 0),
     )
+
+internal fun JSONObject.toGoalProgressSnapshot(): GoalProgressSnapshot =
+    GoalProgressSnapshot(
+        currentDayCompletedCount = optInt("current_day_completed_count", 0),
+        currentWeekCompletedCount = optInt("current_week_completed_count", 0),
+        currentStreakDays = optInt("current_streak_days", 0),
+        bestStreakDays = optInt("best_streak_days", 0),
+        phaseName = optNullableString("phase_name"),
+        phaseTargetWords = optInt("phase_target_words", 0),
+        phaseCompletedWords = optInt("phase_completed_words", 0),
+    )
+
+internal fun JSONObject.toStringMap(): Map<String, String> =
+    buildMap {
+        val iterator = keys()
+        while (iterator.hasNext()) {
+            val key = iterator.next()
+            val value = opt(key)
+            if (value != null && value != JSONObject.NULL) {
+                put(key, value.toString())
+            }
+        }
+    }
 
 private fun JSONObject.optNullableString(key: String): String? =
     when (val value = opt(key)) {

@@ -18,6 +18,9 @@ import com.yueliangmanle.danci.core.model.DEFAULT_PRONUNCIATION_MODE
 
 data class AppSettings(
     val dailyGoal: Int = 20,
+    val weeklyGoal: Int = DEFAULT_WEEKLY_GOAL,
+    val phaseName: String? = null,
+    val phaseTargetWords: Int = 0,
     val activeBookId: String? = null,
     val aiEnabled: Boolean = false,
     val aiBaseUrl: String = DEFAULT_AI_BASE_URL,
@@ -47,6 +50,12 @@ interface SettingsRepository {
     suspend fun getSettings(): AppSettings
 
     suspend fun updateDailyGoal(dailyGoal: Int)
+
+    suspend fun updateWeeklyGoal(weeklyGoal: Int)
+
+    suspend fun updatePhaseName(phaseName: String?)
+
+    suspend fun updatePhaseTargetWords(phaseTargetWords: Int)
 
     suspend fun updateActiveBookId(bookId: String?)
 
@@ -95,6 +104,9 @@ private val Context.settingsDataStore: DataStore<Preferences> by preferencesData
 
 private object SettingsPreferencesKeys {
     val dailyGoal = intPreferencesKey("daily_goal")
+    val weeklyGoal = intPreferencesKey("weekly_goal")
+    val phaseName = stringPreferencesKey("phase_name")
+    val phaseTargetWords = intPreferencesKey("phase_target_words")
     val activeBookId = stringPreferencesKey("active_book_id")
     val aiEnabled = booleanPreferencesKey("ai_enabled")
     val aiBaseUrl = stringPreferencesKey("ai_base_url")
@@ -125,6 +137,9 @@ class DataStoreSettingsRepository(
         dataStore.data.map { preferences ->
             AppSettings(
                 dailyGoal = preferences[SettingsPreferencesKeys.dailyGoal] ?: 20,
+                weeklyGoal = preferences[SettingsPreferencesKeys.weeklyGoal] ?: DEFAULT_WEEKLY_GOAL,
+                phaseName = preferences[SettingsPreferencesKeys.phaseName],
+                phaseTargetWords = preferences[SettingsPreferencesKeys.phaseTargetWords] ?: 0,
                 activeBookId = preferences[SettingsPreferencesKeys.activeBookId],
                 aiEnabled = preferences[SettingsPreferencesKeys.aiEnabled] ?: false,
                 aiBaseUrl = preferences[SettingsPreferencesKeys.aiBaseUrl] ?: DEFAULT_AI_BASE_URL,
@@ -154,6 +169,22 @@ class DataStoreSettingsRepository(
     override suspend fun updateDailyGoal(dailyGoal: Int) {
         dataStore.edit { preferences ->
             preferences[SettingsPreferencesKeys.dailyGoal] = dailyGoal.coerceAtLeast(1)
+        }
+    }
+
+    override suspend fun updateWeeklyGoal(weeklyGoal: Int) {
+        dataStore.edit { preferences ->
+            preferences[SettingsPreferencesKeys.weeklyGoal] = weeklyGoal.coerceAtLeast(1)
+        }
+    }
+
+    override suspend fun updatePhaseName(phaseName: String?) {
+        updateNullableString(SettingsPreferencesKeys.phaseName, phaseName)
+    }
+
+    override suspend fun updatePhaseTargetWords(phaseTargetWords: Int) {
+        dataStore.edit { preferences ->
+            preferences[SettingsPreferencesKeys.phaseTargetWords] = phaseTargetWords.coerceAtLeast(0)
         }
     }
 
@@ -301,5 +332,6 @@ fun AppSettings.asAiRuntimeSettings(apiKey: String? = null): AiRuntimeSettings =
 
 const val DEFAULT_AI_BASE_URL = "https://api.openai.com/v1"
 const val DEFAULT_AI_MODEL = "gpt-5-mini"
+const val DEFAULT_WEEKLY_GOAL = 140
 const val DEFAULT_REMINDER_HOUR = 21
 const val DEFAULT_REMINDER_MINUTE = 0

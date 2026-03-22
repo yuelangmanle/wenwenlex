@@ -2,9 +2,11 @@ package com.yueliangmanle.danci.core.backup
 
 import com.yueliangmanle.danci.core.data.AppSettings
 import com.yueliangmanle.danci.core.database.entity.BookEntity
+import com.yueliangmanle.danci.core.database.entity.LearningRecordEntity
 import com.yueliangmanle.danci.core.database.entity.WordEntity
 import com.yueliangmanle.danci.core.model.AiMemorySummary
 import com.yueliangmanle.danci.core.model.DailySummary
+import com.yueliangmanle.danci.core.model.GoalProgressSnapshot
 import com.yueliangmanle.danci.core.model.LearnerProfile
 import java.io.ByteArrayOutputStream
 import java.time.Instant
@@ -26,6 +28,9 @@ class BackupImporterTest {
                 BackupSnapshot(
                     settings = AppSettings(
                         dailyGoal = 35,
+                        weeklyGoal = 80,
+                        phaseName = "六级冲刺",
+                        phaseTargetWords = 1500,
                         activeBookId = "cet4",
                         aiEnabled = true,
                         aiBaseUrl = "https://api.openai.com/v1",
@@ -52,6 +57,20 @@ class BackupImporterTest {
                             wordForms = listOf("abandoned", "abandoning"),
                         ),
                     ),
+                    learningRecords = listOf(
+                        LearningRecordEntity(
+                            wordId = 1L,
+                            mastery = 0.68f,
+                            familiarityState = "学习中",
+                            forgettingRiskScore = 0.61f,
+                            reviewPriorityScore = 0.83f,
+                            proficiencyBand = "unstable",
+                            lastResponseLatencyMs = 4200L,
+                            averageResponseLatencyMs = 3800L,
+                            consecutiveMistakeCount = 2,
+                            lastMistakeAt = Instant.parse("2026-03-18T11:58:00Z"),
+                        ),
+                    ),
                     aiMemorySummary = AiMemorySummary(
                         learnerProfile = LearnerProfile(
                             vocabularyLevel = "提升中",
@@ -67,6 +86,11 @@ class BackupImporterTest {
                                 updatedAt = Instant.parse("2026-03-18T08:00:00Z"),
                             ),
                         ),
+                        goalProgress = GoalProgressSnapshot(
+                            currentWeekCompletedCount = 42,
+                            currentStreakDays = 7,
+                        ),
+                        upgradeHealth = mapOf("db_migration" to "ok"),
                     ),
                 )
             },
@@ -76,10 +100,17 @@ class BackupImporterTest {
         val imported = BackupImporter().import(archive.zippedBytes)
 
         assertEquals(35, imported.snapshot.settings.dailyGoal)
+        assertEquals(80, imported.snapshot.settings.weeklyGoal)
+        assertEquals("六级冲刺", imported.snapshot.settings.phaseName)
+        assertEquals(1500, imported.snapshot.settings.phaseTargetWords)
         assertEquals("cet4", imported.snapshot.settings.activeBookId)
         assertEquals("abandon", imported.snapshot.words.single().lemma)
+        assertEquals(0.61f, imported.snapshot.learningRecords.single().forgettingRiskScore, 0.0001f)
+        assertEquals(2, imported.snapshot.learningRecords.single().consecutiveMistakeCount)
         assertEquals("提升中", imported.snapshot.aiMemorySummary.learnerProfile?.vocabularyLevel)
         assertEquals(1, imported.snapshot.aiMemorySummary.dailySummaries.size)
+        assertEquals(42, imported.snapshot.aiMemorySummary.goalProgress.currentWeekCompletedCount)
+        assertEquals("ok", imported.snapshot.aiMemorySummary.upgradeHealth["db_migration"])
     }
 
     @Test
@@ -186,6 +217,25 @@ class BackupImporterTest {
 
         assertTrue(imported.snapshot.aiMemorySummary.analyticsSnapshot.planEffects.isEmpty())
         assertTrue(imported.snapshot.aiMemorySummary.longTermInsights.isEmpty())
+    }
+
+    @Test
+    fun importV5Backup_buildsDefaultGoalProgressWhenMissing() {
+        val payload = JSONObject()
+            .put("settings", BackupSnapshot(settings = AppSettings()).toJson().getJSONObject("settings"))
+            .put("books", JSONArray())
+            .put("book_words", JSONArray())
+            .put("words", JSONArray())
+            .put("learning_records", JSONArray())
+            .put("study_sessions", JSONArray())
+            .put("study_events", JSONArray())
+            .put("ai_memory_summary", JSONObject())
+
+        val imported = payload.toString().toBackupSnapshot(version = 5)
+
+        assertEquals(0, imported.aiMemorySummary.goalProgress.currentWeekCompletedCount)
+        assertEquals(0, imported.aiMemorySummary.goalProgress.currentStreakDays)
+        assertTrue(imported.aiMemorySummary.upgradeHealth.isEmpty())
     }
 
     private fun zipEntries(

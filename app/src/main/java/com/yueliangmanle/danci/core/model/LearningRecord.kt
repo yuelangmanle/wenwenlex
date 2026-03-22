@@ -14,4 +14,11 @@ data class LearningRecord(
     val lastOutcome: String? = null,
     val confusionWeight: Float = 0f,
     val similarSpellingWeight: Float = 0f,
+    val forgettingRiskScore: Float = 0f,
+    val reviewPriorityScore: Float = 0f,
+    val proficiencyBand: String = "new",
+    val lastResponseLatencyMs: Long? = null,
+    val averageResponseLatencyMs: Long? = null,
+    val consecutiveMistakeCount: Int = 0,
+    val lastMistakeAt: Instant? = null,
 )
