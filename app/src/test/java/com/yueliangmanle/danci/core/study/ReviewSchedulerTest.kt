@@ -4,82 +4,73 @@ import com.yueliangmanle.danci.core.model.LearningRecord
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class TodayTaskEngineTest {
+class ReviewSchedulerTest {
     @Test
-    fun build_returns_rescue_first_plan_when_backlog_is_heavy() {
+    fun summarize_includes_risk_layers_and_backlog_counts() {
         val now = Instant.parse("2026-03-22T08:00:00Z")
-        val plan = TodayTaskEngine(
+        val scheduler = ReviewScheduler(
             reviewPriorityEngine = ReviewPriorityEngine(nowProvider = { now }),
-            dailyQueueComposer = DailyQueueComposer(),
-        ).build(
-            dailyGoal = 20,
+        )
+
+        val summary = scheduler.summarize(
             learningRecords = listOf(
                 learningRecord(
                     wordId = 1L,
                     nextReviewAt = now.minus(2, ChronoUnit.DAYS),
                     lastReviewedAt = now.minus(4, ChronoUnit.HOURS),
                     lastOutcome = "wrong",
-                    forgettingRiskScore = 0.92f,
-                    reviewPriorityScore = 0.9f,
+                    forgettingRiskScore = 0.9f,
+                    reviewPriorityScore = 0.88f,
                     consecutiveMistakeCount = 3,
-                    averageResponseLatencyMs = 5_200L,
                     proficiencyBand = "unstable",
                 ),
                 learningRecord(
                     wordId = 2L,
-                    nextReviewAt = now.minus(1, ChronoUnit.DAYS),
-                    lastReviewedAt = now.minus(8, ChronoUnit.HOURS),
-                    lastOutcome = "wrong",
-                    forgettingRiskScore = 0.84f,
-                    reviewPriorityScore = 0.8f,
-                    consecutiveMistakeCount = 2,
-                    averageResponseLatencyMs = 4_100L,
-                    proficiencyBand = "unstable",
+                    nextReviewAt = now.minus(6, ChronoUnit.HOURS),
+                    lastReviewedAt = now.minus(2, ChronoUnit.DAYS),
+                    lastOutcome = "correct",
+                    forgettingRiskScore = 0.62f,
+                    reviewPriorityScore = 0.58f,
+                    proficiencyBand = "review",
                 ),
                 learningRecord(
                     wordId = 3L,
-                    nextReviewAt = now.minus(8, ChronoUnit.HOURS),
-                    lastReviewedAt = now.minus(2, ChronoUnit.DAYS),
+                    nextReviewAt = now.plus(1, ChronoUnit.DAYS),
+                    lastReviewedAt = now.minus(1, ChronoUnit.DAYS),
                     lastOutcome = "correct",
-                    forgettingRiskScore = 0.55f,
-                    reviewPriorityScore = 0.52f,
-                ),
-                learningRecord(
-                    wordId = 4L,
-                    nextReviewAt = now.minus(5, ChronoUnit.HOURS),
-                    lastReviewedAt = now.minus(3, ChronoUnit.DAYS),
-                    lastOutcome = "correct",
-                    forgettingRiskScore = 0.4f,
-                    reviewPriorityScore = 0.35f,
+                    forgettingRiskScore = 0.1f,
+                    reviewPriorityScore = 0.08f,
+                    mastery = 0.94f,
+                    proficiencyBand = "mastered",
                 ),
             ),
-            unseenWords = 50,
+            now = now,
         )
 
-        assertEquals(2, plan.rescueCount)
-        assertEquals("今天先稳住 2 个高风险词", plan.queueHeadline)
-        assertEquals(20, plan.rescueCount + plan.reviewCount + plan.newWordCount)
-        assertTrue(plan.reviewCount > 0)
-        assertTrue(plan.estimatedMinutes > 0)
+        assertEquals(2, summary.overdueWords)
+        assertEquals(1, summary.recentMistakeWords)
+        assertEquals(1, summary.rescueWords)
+        assertEquals(2, summary.highRiskWords)
+        assertEquals(2, summary.backlogWords)
+        assertEquals(1, summary.streakDays)
     }
 
     private fun learningRecord(
         wordId: Long,
+        mastery: Float = 0.65f,
         nextReviewAt: Instant? = null,
         lastReviewedAt: Instant? = null,
         lastOutcome: String? = null,
         forgettingRiskScore: Float = 0f,
         reviewPriorityScore: Float = 0f,
         consecutiveMistakeCount: Int = 0,
-        averageResponseLatencyMs: Long? = null,
         proficiencyBand: String = "review",
     ): LearningRecord =
         LearningRecord(
             wordId = wordId,
-            mastery = 0.65f,
+            mastery = mastery,
             familiarityState = "学习中",
             nextReviewAt = nextReviewAt,
             lastReviewedAt = lastReviewedAt,
@@ -87,7 +78,6 @@ class TodayTaskEngineTest {
             forgettingRiskScore = forgettingRiskScore,
             reviewPriorityScore = reviewPriorityScore,
             proficiencyBand = proficiencyBand,
-            averageResponseLatencyMs = averageResponseLatencyMs,
             consecutiveMistakeCount = consecutiveMistakeCount,
             lastMistakeAt = lastReviewedAt,
         )

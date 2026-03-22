@@ -8,10 +8,12 @@ import com.yueliangmanle.danci.core.model.AiMemorySummary
 import com.yueliangmanle.danci.core.model.PlanApplyStatus
 import com.yueliangmanle.danci.core.model.PlanHistoryEntry
 import com.yueliangmanle.danci.core.data.AppSettings
+import com.yueliangmanle.danci.core.data.RoomStudyRepository
 import com.yueliangmanle.danci.core.data.buildAiMemoryRepository
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
 import com.yueliangmanle.danci.core.data.buildBookRepository
 import com.yueliangmanle.danci.core.data.syncBuiltInCatalogToDatabase
+import com.yueliangmanle.danci.core.database.buildDanciDatabase
 import com.yueliangmanle.danci.core.model.Book
 import com.yueliangmanle.danci.core.model.LearningRecord
 import com.yueliangmanle.danci.core.study.ReviewScheduler
@@ -67,27 +69,27 @@ class HomeViewModel(
         val unseenWords = max(dailyGoal, activeBook?.wordCount ?: dailyGoal)
         val plan = todayTaskEngine.build(
             dailyGoal = dailyGoal,
-            overdueWords = reviewSummary.overdueWords,
+            learningRecords = learningRecords,
             unseenWords = unseenWords,
-            recentMistakeWords = reviewSummary.recentMistakeWords,
         )
-        val plannedStudyCount = plan.newWordCount + plan.reviewCount
         val latestPlan = aiMemorySummary.planHistory.sortedBy(PlanHistoryEntry::generatedAt).lastOrNull()
         val pendingPlanCount = aiMemorySummary.planHistory.count { it.applyStatus == PlanApplyStatus.PENDING_CONFIRMATION }
 
         return HomeUiState(
-            headline = "今天还要学 $plannedStudyCount 个词",
+            headline = plan.queueHeadline,
             todayGoalCount = dailyGoal,
             completedCount = 0,
             newWordCount = plan.newWordCount,
             reviewCount = plan.reviewCount,
-            mistakeCount = plan.mistakeCount,
+            mistakeCount = plan.rescueCount,
             estimatedMinutes = plan.estimatedMinutes,
             streakDays = reviewSummary.streakDays,
             activeBookTitle = activeBook?.title ?: "还未选择词书",
             aiSuggestionTitle = "今日节奏建议",
-            aiSuggestion = if (plan.mistakeCount > 0) {
-                "先处理错词，再开始今天的新词，能更稳地拉回记忆。"
+            aiSuggestion = if (plan.rescueCount > 0) {
+                "先把高风险词回稳，再开始今天的新词，推进会更稳。"
+            } else if (reviewSummary.backlogWords > dailyGoal) {
+                "今天先复习再推进新词，避免积压继续变重。"
             } else {
                 "今天以稳住节奏为主，先完成首页任务。"
             },
@@ -151,10 +153,12 @@ suspend fun loadHomeViewModel(context: Context): HomeViewModel {
         syncBuiltInCatalogToDatabase(context)
         val settings = buildSettingsRepository(context).getSettings()
         val books = buildBookRepository(context).getAllBooks()
+        val studyRepository = RoomStudyRepository(buildDanciDatabase(context.applicationContext).studyDao())
         val aiMemorySummary = buildAiMemoryRepository(context).refreshMemorySummary()
         HomeViewModel(
             settings = settings,
             books = books,
+            learningRecords = studyRepository.getAllLearningRecords(),
             aiMemorySummary = aiMemorySummary,
         )
     }

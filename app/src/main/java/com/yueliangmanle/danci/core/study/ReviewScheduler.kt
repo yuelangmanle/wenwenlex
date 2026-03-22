@@ -9,15 +9,21 @@ import java.time.temporal.ChronoUnit
 data class ReviewSummary(
     val overdueWords: Int,
     val recentMistakeWords: Int,
+    val rescueWords: Int,
+    val highRiskWords: Int,
+    val backlogWords: Int,
     val streakDays: Int,
 )
 
-class ReviewScheduler {
+class ReviewScheduler(
+    private val reviewPriorityEngine: ReviewPriorityEngine = ReviewPriorityEngine(),
+) {
     fun summarize(
         learningRecords: List<LearningRecord>,
         now: Instant,
         zoneId: ZoneId = ZoneId.systemDefault(),
     ): ReviewSummary {
+        val ranked = reviewPriorityEngine.rank(learningRecords, now)
         val overdueWords = learningRecords.count { record ->
             val nextReviewAt = record.nextReviewAt
             nextReviewAt != null && !nextReviewAt.isAfter(now)
@@ -31,6 +37,9 @@ class ReviewScheduler {
         return ReviewSummary(
             overdueWords = overdueWords,
             recentMistakeWords = recentMistakeWords,
+            rescueWords = ranked.count { it.bucket == "rescue" },
+            highRiskWords = ranked.count { it.priorityScore >= 35f },
+            backlogWords = ranked.count { it.bucket == "rescue" || it.priorityScore >= 25f },
             streakDays = calculateStreakDays(learningRecords, now, zoneId),
         )
     }
@@ -62,9 +71,3 @@ class ReviewScheduler {
         return streak
     }
 }
-
-private fun String?.isMistakeOutcome(): Boolean =
-    when (this?.lowercase()) {
-        "wrong", "forgot", "again" -> true
-        else -> false
-    }

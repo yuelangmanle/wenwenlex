@@ -1,0 +1,88 @@
+package com.yueliangmanle.danci.core.study
+
+import com.yueliangmanle.danci.core.model.LearningRecord
+import java.time.Instant
+import java.time.temporal.ChronoUnit
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class ReviewPriorityEngineTest {
+    @Test
+    fun rank_prioritizes_overdue_and_repeated_mistakes_first() {
+        val now = Instant.parse("2026-03-22T08:00:00Z")
+        val records = listOf(
+            learningRecord(
+                wordId = 2L,
+                nextReviewAt = now.minus(3, ChronoUnit.HOURS),
+                lastReviewedAt = now.minus(12, ChronoUnit.HOURS),
+                lastOutcome = "correct",
+                forgettingRiskScore = 0.42f,
+                reviewPriorityScore = 0.4f,
+                averageResponseLatencyMs = 4_200L,
+                proficiencyBand = "review",
+            ),
+            learningRecord(
+                wordId = 3L,
+                nextReviewAt = now.plus(1, ChronoUnit.DAYS),
+                lastReviewedAt = now.minus(2, ChronoUnit.HOURS),
+                lastOutcome = "correct",
+                forgettingRiskScore = 0.08f,
+                reviewPriorityScore = 0.1f,
+                mastery = 0.92f,
+                proficiencyBand = "mastered",
+            ),
+            learningRecord(
+                wordId = 1L,
+                nextReviewAt = now.minus(2, ChronoUnit.DAYS),
+                lastReviewedAt = now.minus(6, ChronoUnit.HOURS),
+                lastOutcome = "wrong",
+                forgettingRiskScore = 0.9f,
+                reviewPriorityScore = 0.88f,
+                averageResponseLatencyMs = 4_800L,
+                consecutiveMistakeCount = 3,
+                confusionWeight = 0.6f,
+                similarSpellingWeight = 0.4f,
+                proficiencyBand = "unstable",
+            ),
+        )
+
+        val ranked = ReviewPriorityEngine(nowProvider = { now }).rank(records)
+
+        assertEquals(1L, ranked.first().wordId)
+        assertEquals("rescue", ranked.first().bucket)
+        assertTrue(ranked.first().priorityScore > ranked[1].priorityScore)
+        assertEquals(3L, ranked.last().wordId)
+    }
+
+    private fun learningRecord(
+        wordId: Long,
+        mastery: Float = 0.65f,
+        nextReviewAt: Instant? = null,
+        lastReviewedAt: Instant? = null,
+        lastOutcome: String? = null,
+        forgettingRiskScore: Float = 0f,
+        reviewPriorityScore: Float = 0f,
+        averageResponseLatencyMs: Long? = null,
+        consecutiveMistakeCount: Int = 0,
+        confusionWeight: Float = 0f,
+        similarSpellingWeight: Float = 0f,
+        proficiencyBand: String = "review",
+    ): LearningRecord =
+        LearningRecord(
+            wordId = wordId,
+            mastery = mastery,
+            familiarityState = "学习中",
+            nextReviewAt = nextReviewAt,
+            lastReviewedAt = lastReviewedAt,
+            lastOutcome = lastOutcome,
+            confusionWeight = confusionWeight,
+            similarSpellingWeight = similarSpellingWeight,
+            forgettingRiskScore = forgettingRiskScore,
+            reviewPriorityScore = reviewPriorityScore,
+            proficiencyBand = proficiencyBand,
+            averageResponseLatencyMs = averageResponseLatencyMs,
+            consecutiveMistakeCount = consecutiveMistakeCount,
+            lastMistakeAt = lastReviewedAt,
+        )
+}

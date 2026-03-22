@@ -1,38 +1,27 @@
 package com.yueliangmanle.danci.core.study
 
-import kotlin.math.min
-import kotlin.math.roundToInt
+import com.yueliangmanle.danci.core.model.LearningRecord
 
 data class TodayPlan(
+    val rescueCount: Int,
     val newWordCount: Int,
     val reviewCount: Int,
-    val mistakeCount: Int,
     val estimatedMinutes: Int,
+    val queueHeadline: String,
 )
 
-class TodayTaskEngine {
+class TodayTaskEngine(
+    private val reviewPriorityEngine: ReviewPriorityEngine = ReviewPriorityEngine(),
+    private val dailyQueueComposer: DailyQueueComposer = DailyQueueComposer(),
+) {
     fun build(
         dailyGoal: Int,
-        overdueWords: Int,
+        learningRecords: List<LearningRecord>,
         unseenWords: Int,
-        recentMistakeWords: Int,
-    ): TodayPlan {
-        val safeDailyGoal = dailyGoal.coerceAtLeast(0)
-        val review = min(overdueWords.coerceAtLeast(0), safeDailyGoal)
-        val remaining = (safeDailyGoal - review).coerceAtLeast(0)
-        val newWords = min(unseenWords.coerceAtLeast(0), remaining)
-        val mistakes = recentMistakeWords.coerceAtLeast(0)
-        val totalItems = review + newWords + mistakes
-
-        return TodayPlan(
-            newWordCount = newWords,
-            reviewCount = review,
-            mistakeCount = mistakes,
-            estimatedMinutes = if (totalItems == 0) {
-                0
-            } else {
-                (totalItems * 0.7f).roundToInt()
-            },
+    ): TodayPlan =
+        dailyQueueComposer.compose(
+            goal = dailyGoal,
+            ranked = reviewPriorityEngine.rank(learningRecords),
+            unseenWords = unseenWords,
         )
-    }
 }
