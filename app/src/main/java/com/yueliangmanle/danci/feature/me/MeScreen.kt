@@ -40,6 +40,7 @@ fun MeScreen(
     onOpenAiPlanCenterClick: () -> Unit = {},
     onOpenLearningAnalyticsClick: () -> Unit = {},
     onOpenPronunciationSettingsClick: () -> Unit,
+    onOpenDiagnosticsClick: () -> Unit = {},
 ) {
     if (state.isLoading) {
         Box(
@@ -106,6 +107,11 @@ fun MeScreen(
             isWorking = state.isWorking,
             onOpenPronunciationSettingsClick = onOpenPronunciationSettingsClick,
         )
+        DiagnosticsEntryCard(
+            summary = state.diagnosticsSummary,
+            isWorking = state.isWorking,
+            onOpenDiagnosticsClick = onOpenDiagnosticsClick,
+        )
         state.statusMessage?.let { message ->
             Card(modifier = Modifier.fillMaxWidth()) {
                 Text(
@@ -114,6 +120,37 @@ fun MeScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DiagnosticsEntryCard(
+    summary: String,
+    isWorking: Boolean,
+    onOpenDiagnosticsClick: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "诊断中心",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = summary,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(
+                onClick = onOpenDiagnosticsClick,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isWorking,
+            ) {
+                Text("打开诊断中心")
             }
         }
     }

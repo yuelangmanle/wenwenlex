@@ -29,6 +29,7 @@ data class MeUiState(
     val canRestoreBackup: Boolean = false,
     val aiEnabled: Boolean = false,
     val aiModel: String = "gpt-5-mini",
+    val diagnosticsSummary: String = "最近还没有诊断记录",
     val statusMessage: String? = null,
 )
 
@@ -49,6 +50,7 @@ class MeViewModel(
         } else {
             null
         }
+        val aiMemorySummary = studyRepository.loadAiMemorySummary(planLimit = 50)
         val learningRecords = studyRepository.getAllLearningRecords()
         val events = studyRepository.getAllStudyEvents()
         val activeDates = events
@@ -78,6 +80,7 @@ class MeViewModel(
             canRestoreBackup = latestBackup != null,
             aiEnabled = settings.aiEnabled,
             aiModel = defaultProfile?.let { "${it.name} · ${it.model}" } ?: settings.aiModel,
+            diagnosticsSummary = aiMemorySummary.upgradeHealth.toDiagnosticsSummary(zoneId),
             statusMessage = statusMessage,
         )
     }
@@ -158,3 +161,19 @@ private fun File?.toBackupSummary(zoneId: ZoneId): String =
             .format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))
         "最近备份：$timestamp"
     } ?: "还没有本地备份"
+
+private fun Map<String, String>.toDiagnosticsSummary(zoneId: ZoneId): String {
+    val status = this["status"]
+    val checkedAt = this["checked_at"]?.let(Instant::parse)
+    val checkedAtLabel = checkedAt
+        ?.atZone(zoneId)
+        ?.format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))
+    val summary = this["summary"]
+    return when {
+        !summary.isNullOrBlank() && !checkedAtLabel.isNullOrBlank() -> "$summary（$checkedAtLabel）"
+        !summary.isNullOrBlank() -> summary
+        status == "healthy" -> "最近一次诊断未发现关键问题。"
+        status == "needs_attention" -> "最近一次诊断发现需要处理的问题。"
+        else -> "最近还没有诊断记录"
+    }
+}

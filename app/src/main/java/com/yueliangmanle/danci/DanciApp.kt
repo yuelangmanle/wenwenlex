@@ -11,6 +11,7 @@ import com.yueliangmanle.danci.app.rememberDanciAppState
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
 import com.yueliangmanle.danci.core.designsystem.component.DanciScaffold
 import com.yueliangmanle.danci.core.designsystem.theme.DanciTheme
+import com.yueliangmanle.danci.core.diagnostics.buildUpgradeSafetyCoordinator
 import com.yueliangmanle.danci.core.worker.AiSummaryRefreshScheduler
 import com.yueliangmanle.danci.core.worker.DailyReminderScheduler
 
@@ -25,6 +26,9 @@ fun DanciApp() {
         val settings = buildSettingsRepository(context).getSettings()
         DailyReminderScheduler(context).sync(settings)
         AiSummaryRefreshScheduler(context).schedule()
+        runCatching {
+            buildUpgradeSafetyCoordinator(context).runPostUpgradeChecks()
+        }
     }
 
     DanciTheme {

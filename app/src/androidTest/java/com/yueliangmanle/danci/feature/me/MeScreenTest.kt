@@ -111,4 +111,26 @@ class MeScreenTest {
         composeRule.onNodeWithText("目标设置与阶段管理").assertIsDisplayed()
         composeRule.onNodeWithText("打开目标设置").performScrollTo().assertIsDisplayed()
     }
+
+    @Test
+    fun meScreen_showsDiagnosticsEntry() {
+        composeRule.setContent {
+            MeScreen(
+                state = MeUiState(
+                    diagnosticsSummary = "最近一次诊断未发现关键问题。",
+                ),
+                onReminderEnabledChange = {},
+                onAdjustReminderTimeClick = {},
+                onExportBackupClick = {},
+                onRestoreBackupClick = {},
+                onOpenGoalSettingsClick = {},
+                onOpenAiSettingsClick = {},
+                onOpenLearningAnalyticsClick = {},
+                onOpenPronunciationSettingsClick = {},
+            )
+        }
+
+        composeRule.onNodeWithText("诊断中心").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("打开诊断中心").performScrollTo().assertIsDisplayed()
+    }
 }

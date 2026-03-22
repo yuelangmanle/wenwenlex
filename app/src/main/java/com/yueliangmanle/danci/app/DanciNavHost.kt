@@ -23,6 +23,8 @@ import com.yueliangmanle.danci.feature.books.bookDetailRoute
 import com.yueliangmanle.danci.feature.home.HomeRoute
 import com.yueliangmanle.danci.feature.goals.GOAL_SETTINGS_ROUTE
 import com.yueliangmanle.danci.feature.goals.GoalSettingsRoute
+import com.yueliangmanle.danci.feature.diagnostics.DIAGNOSTICS_ROUTE
+import com.yueliangmanle.danci.feature.diagnostics.DiagnosticsRoute
 import com.yueliangmanle.danci.feature.me.AiSettingsRoute
 import com.yueliangmanle.danci.feature.me.AI_SETTINGS_ROUTE
 import com.yueliangmanle.danci.feature.me.MeRoute
@@ -97,6 +99,9 @@ fun DanciNavHost(
                         onOpenPronunciationSettingsClick = {
                             navController.navigate(PRONUNCIATION_SETTINGS_ROUTE)
                         },
+                        onOpenDiagnosticsClick = {
+                            navController.navigate(DIAGNOSTICS_ROUTE)
+                        },
                     )
                 }
             }
@@ -140,6 +145,9 @@ fun DanciNavHost(
         }
         composable(route = GOAL_SETTINGS_ROUTE) {
             GoalSettingsRoute()
+        }
+        composable(route = DIAGNOSTICS_ROUTE) {
+            DiagnosticsRoute()
         }
         composable(route = AI_PLAN_CENTER_ROUTE) {
             AiPlanCenterRoute(
