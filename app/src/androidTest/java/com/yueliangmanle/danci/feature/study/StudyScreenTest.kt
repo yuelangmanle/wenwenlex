@@ -25,6 +25,7 @@ class StudyScreenTest {
                     progressText = "1 / 10",
                 ),
                 onFeedbackClick = {},
+                onSkipClick = {},
                 onOpenDetailClick = {},
                 onPlayPronunciationClick = {},
                 onOpenPlanCenterClick = {},
@@ -35,6 +36,7 @@ class StudyScreenTest {
         composeRule.onNodeWithText("不认识").assertIsDisplayed()
         composeRule.onNodeWithText("模糊").assertIsDisplayed()
         composeRule.onNodeWithText("认识").assertIsDisplayed()
+        composeRule.onNodeWithText("暂时跳过").assertIsDisplayed()
     }
 
     @Test
@@ -51,6 +53,7 @@ class StudyScreenTest {
                     canOpenPlanCenter = true,
                 ),
                 onFeedbackClick = {},
+                onSkipClick = {},
                 onOpenDetailClick = {},
                 onPlayPronunciationClick = {},
                 onOpenPlanCenterClick = {},
