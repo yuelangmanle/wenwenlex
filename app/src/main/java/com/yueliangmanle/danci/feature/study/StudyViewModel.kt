@@ -23,6 +23,7 @@ import com.yueliangmanle.danci.core.model.StudyEventType
 import com.yueliangmanle.danci.core.model.studyEventMetadataOf
 import com.yueliangmanle.danci.core.study.CardFeedback
 import com.yueliangmanle.danci.core.study.FeedbackMapper
+import com.yueliangmanle.danci.core.study.ReviewPriorityEngine
 import com.yueliangmanle.danci.core.study.StudyCardItem
 import com.yueliangmanle.danci.core.study.StudyQueueBuilder
 import java.time.Duration
@@ -179,7 +180,12 @@ class StudyViewModel(
         val card = queue.getOrNull(currentIndex) ?: return buildUiState()
         val skippedAt = nowProvider()
         val responseLatencyMs = Duration.between(currentCardPresentedAt, skippedAt).toMillis().coerceAtLeast(0L)
-        queue.add(card)
+        val hasDeferredAlternative = queue
+            .drop(currentIndex + 1)
+            .any { queuedCard -> queuedCard.wordId != card.wordId }
+        if (hasDeferredAlternative) {
+            queue.add(card)
+        }
         eventRecorder.record(
             StudyEvent(
                 wordId = card.wordId,
@@ -190,14 +196,24 @@ class StudyViewModel(
                     card = card,
                     responseLatencyMs = responseLatencyMs,
                     skipped = true,
-                    requeued = true,
+                    requeued = hasDeferredAlternative,
                 ),
             ),
         )
 
+        if (!hasDeferredAlternative) {
+            currentIndex = queue.size
+            return buildUiState()
+        }
+
         currentIndex += 1
+        while (queue.getOrNull(currentIndex)?.wordId == card.wordId) {
+            currentIndex += 1
+        }
         if (queue.getOrNull(currentIndex) != null) {
             recordCurrentCardPresentedIfNeeded(force = true)
+        } else {
+            currentIndex = queue.size
         }
         return buildUiState()
     }
@@ -295,8 +311,15 @@ suspend fun loadStudyViewModel(context: Context): StudyViewModel {
     val studyRepository = RoomStudyRepository(buildDanciDatabase(context).studyDao())
     val bookRepository = buildBookRepository(context)
     val activeBook = settings.activeBookId?.let { bookRepository.getBook(it) } ?: bookRepository.getAllBooks().first()
-    val queue = StudyQueueBuilder().buildFromWords(bookRepository.getWords(activeBook.id))
     val initialRecords = studyRepository.getAllLearningRecords().associateBy(LearningRecord::wordId)
+    val now = Instant.now()
+    val queueBuckets = ReviewPriorityEngine(nowProvider = { now })
+        .rank(initialRecords.values.toList(), now)
+        .associate { ranked -> ranked.wordId to ranked.bucket }
+    val queue = StudyQueueBuilder().buildFromWords(
+        words = bookRepository.getWords(activeBook.id),
+        queueBuckets = queueBuckets,
+    )
     val aiMemoryRepository = buildAiMemoryRepository(context)
     return StudyViewModel(
         initialQueue = queue,

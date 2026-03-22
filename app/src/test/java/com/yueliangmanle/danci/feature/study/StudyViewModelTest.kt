@@ -163,6 +163,33 @@ class StudyViewModelTest {
         assertEquals(2L, state.currentWordId)
     }
 
+    @Test
+    fun skipCurrentCard_finishes_session_when_no_other_card_can_be_shown() {
+        val eventRecorder = RecordingStudyEventRecorder()
+        val viewModel = StudyViewModel(
+            initialQueue = listOf(
+                StudyCardItem(
+                    wordId = 1L,
+                    word = "abandon",
+                    meanings = listOf("放弃"),
+                    queueBucket = "rescue",
+                ),
+            ),
+            eventRecorder = eventRecorder,
+            nowProvider = sequentialNowProvider(
+                Instant.parse("2026-03-22T08:00:00Z"),
+                Instant.parse("2026-03-22T08:00:04Z"),
+            ),
+        )
+
+        val state = viewModel.skipCurrentCard()
+        val skipEvent = eventRecorder.events.last { it.eventType == StudyEventType.CARD_FEEDBACK }
+
+        assertTrue(state.isSessionComplete)
+        assertEquals("true", skipEvent.metadataEntries()[StudyEventMetadataKey.SKIPPED])
+        assertEquals("false", skipEvent.metadataEntries()["requeued"])
+    }
+
     private fun sampleQueue(size: Int): List<StudyCardItem> =
         (1..size).map { index ->
             StudyCardItem(

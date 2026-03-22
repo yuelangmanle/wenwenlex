@@ -33,7 +33,7 @@ class FeedbackMapperTest {
         )
 
         assertEquals(4_200L, updated.lastResponseLatencyMs)
-        assertEquals(3_400L, updated.averageResponseLatencyMs)
+        assertEquals(3_600L, updated.averageResponseLatencyMs)
         assertEquals(1, updated.consecutiveMistakeCount)
         assertEquals("wrong", updated.lastOutcome)
         assertEquals(Instant.parse("2026-03-18T09:00:00Z"), updated.lastMistakeAt)
@@ -55,7 +55,7 @@ class FeedbackMapperTest {
         )
 
         assertEquals(1_800L, updated.lastResponseLatencyMs)
-        assertEquals(2_700L, updated.averageResponseLatencyMs)
+        assertEquals(2_400L, updated.averageResponseLatencyMs)
         assertEquals(0, updated.consecutiveMistakeCount)
         assertEquals("correct", updated.lastOutcome)
     }

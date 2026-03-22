@@ -26,7 +26,10 @@ class StudyQueueBuilder {
             )
         }
 
-    fun buildFromWords(words: List<Word>): List<StudyCardItem> =
+    fun buildFromWords(
+        words: List<Word>,
+        queueBuckets: Map<Long, String> = emptyMap(),
+    ): List<StudyCardItem> =
         words.map { word ->
             StudyCardItem(
                 wordId = word.id,
@@ -35,6 +38,7 @@ class StudyQueueBuilder {
                 meanings = word.meanings,
                 exampleSentence = word.exampleSentence,
                 exampleTranslation = word.exampleTranslation,
+                queueBucket = queueBuckets[word.id] ?: "new",
             )
         }
 }

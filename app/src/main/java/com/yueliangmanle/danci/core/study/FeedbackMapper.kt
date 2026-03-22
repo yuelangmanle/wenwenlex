@@ -64,6 +64,5 @@ class FeedbackMapper {
 private fun LearningRecord.updatedAverageResponseLatency(responseLatencyMs: Long?): Long? {
     responseLatencyMs ?: return averageResponseLatencyMs ?: lastResponseLatencyMs
     val baseline = averageResponseLatencyMs ?: lastResponseLatencyMs ?: return responseLatencyMs
-    val existingCount = reviewCount.coerceAtLeast(1)
-    return ((baseline * existingCount) + responseLatencyMs) / (existingCount + 1)
+    return (baseline + responseLatencyMs) / 2
 }
