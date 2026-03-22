@@ -31,6 +31,7 @@
 - [v1.6 学习统计与 AI 闭环计划](docs/superpowers/plans/2026-03-21-v1.6-learning-analytics-ai-loop.md)
 - [v1.6 学习统计发版基线](docs/release-v1.6-analytics-smoke.md)
 - [v1.7 学习效果与交付护栏规格](docs/superpowers/specs/2026-03-22-v1.7-learning-effect-delivery-guardrails-design.md)
+- [v1.7 学习效果与交付护栏计划](docs/superpowers/plans/2026-03-22-v1.7-learning-effect-delivery-guardrails.md)
 
 ## 1.1 已实现能力
 

@@ -17,6 +17,7 @@
 - 当前 `1.6` 实施计划：[2026-03-21-v1.6-learning-analytics-ai-loop.md](./superpowers/plans/2026-03-21-v1.6-learning-analytics-ai-loop.md)
 - 当前 `1.6` 发版基线：[release-v1.6-analytics-smoke.md](./release-v1.6-analytics-smoke.md)
 - 当前 `1.7` 规格：[2026-03-22-v1.7-learning-effect-delivery-guardrails-design.md](./superpowers/specs/2026-03-22-v1.7-learning-effect-delivery-guardrails-design.md)
+- 当前 `1.7` 计划：[2026-03-22-v1.7-learning-effect-delivery-guardrails.md](./superpowers/plans/2026-03-22-v1.7-learning-effect-delivery-guardrails.md)
 - 当前开发验证页面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 - 当前正式发包方式：GitHub 云端 `Android Release`
 - 当前开发验证方式：GitHub 云端 `Android CI`
@@ -278,6 +279,7 @@
 - 已确认学习侧优先级为：动态复习引擎、日 / 周 / 阶段目标、学习反馈采集增强
 - 已确认工程侧优先级为：升级安全、发版护栏、诊断与排障工具
 - 已新增 [2026-03-22-v1.7-learning-effect-delivery-guardrails-design.md](./superpowers/specs/2026-03-22-v1.7-learning-effect-delivery-guardrails-design.md) 作为下一轮正式规格入口
+- 已新增 [2026-03-22-v1.7-learning-effect-delivery-guardrails.md](./superpowers/plans/2026-03-22-v1.7-learning-effect-delivery-guardrails.md) 作为执行计划入口
 
 ## 10. 后续更新模板
 

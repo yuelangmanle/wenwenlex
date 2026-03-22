@@ -62,6 +62,7 @@
 - `v1.6` 学习统计与 AI 闭环计划：[2026-03-21-v1.6-learning-analytics-ai-loop.md](./superpowers/plans/2026-03-21-v1.6-learning-analytics-ai-loop.md)
 - `v1.6` 发版基线：[release-v1.6-analytics-smoke.md](./release-v1.6-analytics-smoke.md)
 - `v1.7` 学习效果与交付护栏规格：[2026-03-22-v1.7-learning-effect-delivery-guardrails-design.md](./superpowers/specs/2026-03-22-v1.7-learning-effect-delivery-guardrails-design.md)
+- `v1.7` 学习效果与交付护栏计划：[2026-03-22-v1.7-learning-effect-delivery-guardrails.md](./superpowers/plans/2026-03-22-v1.7-learning-effect-delivery-guardrails.md)
 - 发布页面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
 - 构建页面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 
