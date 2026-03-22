@@ -11,9 +11,9 @@
 
 - 项目名称：`文文Lex`
 - 仓库地址：[yuelangmanle/wenwenlex](https://github.com/yuelangmanle/wenwenlex)
-- 当前正式版本：`1.5`
-- 当前正式发布：`2026-03-21` 已发布 `v1.5`
-- 当前开发主线：`v1.6` 已进入收口，学习统计可视化、长期摘要投喂和 AI 计划效果回看已落仓，已通过 `Android CI #23384177140`，待 `Android Release`
+- 当前正式版本：`1.6`
+- 当前正式发布：`2026-03-22` 已发布 `v1.6`
+- 当前开发主线：下一轮范围待规划
 - 平台：Android
 - 开发语言：Kotlin
 - UI 技术：Jetpack Compose

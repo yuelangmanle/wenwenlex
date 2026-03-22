@@ -21,6 +21,8 @@
 ### Notes
 
 - 云端 `Android CI #23384177140` 已通过，`Build Debug APK` 与 `Connected Debug Android Test` 均为绿色
+- 云端 `Android Release #23394164552` 已通过，`v1.6` GitHub Release 已正式发布
+- `v1.6` Release 资产已包含：`wenwenlex-v1.6-release.apk`、UK / US 两个 voice pack zip、两个 manifest 与 `wenwenlex-voice-pack-checksums.txt`
 - 由于当前本地机器仍缺 Java runtime，`1.6` 的最终验证与正式发版仍以 GitHub Actions `Android CI` / `Android Release` 为准
 
 ## [1.5] - 2026-03-21

@@ -5,21 +5,21 @@
 这份文档用于记录文文Lex 的当前真实开发状态，方便后续协作者、外部支持者和未来迭代直接接手。
 
 - 最后更新日期：`2026-03-22`
-- 当前正式版本：`1.5`
-- 当前总体状态：`v1.5 已发布并完成云端 CI / Release 归档；v1.6 的学习统计看板、长期摘要投喂、计划效果回看和备份 v5 已落仓，并已通过 Android CI，当前进入 Android Release 前收口阶段`
+- 当前正式版本：`1.6`
+- 当前总体状态：`v1.6 已发布并完成云端 CI / Release 归档；学习统计看板、长期摘要投喂、计划效果回看和备份 v5 已正式上线，下一轮范围待规划`
 
 ## 2. 当前版本快照
 
 - 项目名称：`文文Lex`
 - 发布页面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
-- 当前正式版本页面：[v1.5](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.5)
-- 当前 `1.5` 发版记录：[release-v1.5-ai-plan-smoke.md](./release-v1.5-ai-plan-smoke.md)
+- 当前正式版本页面：[v1.6](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.6)
+- 当前 `1.6` 发版记录：[release-v1.6-analytics-smoke.md](./release-v1.6-analytics-smoke.md)
 - 当前 `1.6` 实施计划：[2026-03-21-v1.6-learning-analytics-ai-loop.md](./superpowers/plans/2026-03-21-v1.6-learning-analytics-ai-loop.md)
 - 当前 `1.6` 发版基线：[release-v1.6-analytics-smoke.md](./release-v1.6-analytics-smoke.md)
 - 当前开发验证页面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 - 当前正式发包方式：GitHub 云端 `Android Release`
 - 当前开发验证方式：GitHub 云端 `Android CI`
-- 当前开发主线：`v1.6` 已完成主要代码落仓，聚焦学习统计可视化、长期摘要投喂和 AI 计划效果回看；当前已通过 `Android CI #23384177140`，待 `Android Release`
+- 当前开发主线：下一轮范围待锁定
 
 ## 3. 里程碑状态
 
@@ -38,7 +38,7 @@
 | 发音与朗读 v1.3 | 已完成并发版 | 已完成 native metadata 合并、Sherpa ONNX runtime 脚手架、本地生成缓存、原生离线单词合成、安装校验、Release 资产打包与设置页错误可见化，并正式发版 |
 | 发音与朗读 v1.4 | 已完成并发版 | 已切到真实 `kokoro-en-v0_19` 模型资产、官方 Sherpa Android JNI runtime、UK/US 双 speaker、云端组装语音包与 Release checksum 对齐，并正式发版 |
 | AI 计划历史回溯 v1.5 | 已完成并发版 | 已完成计划版本持久化、AI 计划中心、计划对比 / 解释页、checkpoint 压缩记忆和备份 `v4`，并完成正式发版 |
-| 学习统计与 AI 闭环 v1.6 | 开发中（已落仓，待云端验证） | 已完成统计快照持久化、长期摘要投喂、学习统计页 / HTML 看板、首页 / 我的页入口、AI 计划中心效果回看与备份 `v5` |
+| 学习统计与 AI 闭环 v1.6 | 已完成并发版 | 已完成统计快照持久化、长期摘要投喂、学习统计页 / HTML 看板、首页 / 我的页入口、AI 计划中心效果回看与备份 `v5`，并完成正式发版 |
 
 ## 4. 已完成模块清单
 
@@ -126,18 +126,16 @@
 
 以下事实可默认作为后续协作基线：
 
-- 正式版本 `1.5` 已于 `2026-03-21` 完成云端正式发版
+- 正式版本 `1.6` 已于 `2026-03-22` 完成云端正式发版
 - `Android CI #23377258763` 已通过，覆盖 `Build Debug APK` 与 `Connected Debug Android Test`
-- `Android Release #23377422188` 已通过，并已发布 [v1.5](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.5)
+- `Android CI #23384177140` 已通过，覆盖 `Build Debug APK` 与 `Connected Debug Android Test`
+- `Android Release #23394164552` 已通过，并已发布 [v1.6](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.6)
 - 正式安装包类型为 `release-signed APK`
 - 正式版本更新日志由 [CHANGELOG.md](../CHANGELOG.md) 提供
 - 版本号规则固定为 `1.0 -> 1.1 -> ... -> 1.9 -> 2.0`
-- 当前 `1.5` 在 `1.4` 发音闭环基础上，已把 AI 计划历史、计划对比解释和备份 `v4` 正式接入
-- 当前 `1.5` Release 资产已确认包含：signed APK、UK / US voice pack zip、两个 manifest 与 checksum
-- 当前 `1.5` 发版归档记录见 [release-v1.5-ai-plan-smoke.md](./release-v1.5-ai-plan-smoke.md)
-- 当前开发主线 `1.6` 已把学习统计快照、长期摘要和计划效果回看正式接入仓库代码
-- 当前开发主线 `1.6` 已升级到 Room `v6` 与备份 `v5`
-- 当前开发主线 `1.6` 已完成云端 `Android CI #23384177140`，`Build Debug APK` 与 `Connected Debug Android Test` 全绿
+- 当前 `1.6` 已在 `1.5` AI 计划历史基础上，把学习统计、长期摘要投喂、计划效果回看和备份 `v5` 正式接入
+- 当前 `1.6` Release 资产已确认包含：signed APK、UK / US voice pack zip、两个 manifest 与 checksum
+- 当前 `1.6` 发版归档记录见 [release-v1.6-analytics-smoke.md](./release-v1.6-analytics-smoke.md)
 - 当前本机仍缺 Java runtime，因此 `1.6` 无法在本机直接跑 Gradle；最终验证继续以 GitHub Actions 为准
 - native 语音包发布源目录当前位于 `distribution/voice-packs/`
 - 正式 Release 已具备同时上传 APK、native 语音包 zip、manifest 和 checksum 的能力
@@ -260,7 +258,7 @@
 - 已确认 Release 资产包含 `wenwenlex-v1.5-release.apk`、两套 voice pack zip、两个 manifest 和 `wenwenlex-voice-pack-checksums.txt`
 - 已补齐 [release-v1.5-ai-plan-smoke.md](./release-v1.5-ai-plan-smoke.md) 作为后续对接与回归基线
 
-### 2026-03-22 / v1.6 / 开发中（已过 Android CI，待 Release）
+### 2026-03-22 / v1.6 / 已完成并发版
 
 - 已完成学习统计快照持久化、长期摘要字段落库，以及 Room `5 -> 6` 迁移
 - 已完成本地备份 `v5`，覆盖学习统计快照和长期摘要，并保持对 `v1` 到 `v4` 旧备份的兼容导入
@@ -268,7 +266,9 @@
 - 已完成长期学习摘要与计划效果数据接入 AI 计划输入，形成更稳定的连续性上下文
 - 已补齐统计入口点击测试与 AI 计划中心效果展示收紧测试
 - 已完成云端 `Android CI #23384177140`，`Build Debug APK` 与 `Connected Debug Android Test` 全绿
-- 尚未完成 `Android Release` 的最终云端回填；当前发版基线记录见 [release-v1.6-analytics-smoke.md](./release-v1.6-analytics-smoke.md)
+- 已完成云端 `Android Release #23394164552`，发布 [v1.6](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.6)
+- 已确认 Release 资产包含 `wenwenlex-v1.6-release.apk`、两套 voice pack zip、两个 manifest 和 `wenwenlex-voice-pack-checksums.txt`
+- 已补齐 [release-v1.6-analytics-smoke.md](./release-v1.6-analytics-smoke.md) 作为后续对接与回归基线
 
 ## 10. 后续更新模板
 

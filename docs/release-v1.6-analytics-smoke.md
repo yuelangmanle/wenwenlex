@@ -11,8 +11,8 @@
 
 ## 2. 当前基线状态
 
-- 当前正式版本仍是 `1.5`
-- 当前 `1.6` 代码已经落仓，并已完成 `Android CI`，但尚未完成 `Android Release` 的最终云端回填
+- 当前正式版本已切到 `1.6`
+- 当前 `1.6` 代码已经完成 `Android CI` 与 `Android Release` 回填
 - 当前本机缺少 Java runtime，无法在本机直接运行 Gradle；本轮最终验证继续以 GitHub Actions 为准
 - 当前 `1.6` 的实施计划见 [2026-03-21-v1.6-learning-analytics-ai-loop.md](./superpowers/plans/2026-03-21-v1.6-learning-analytics-ai-loop.md)
 
@@ -54,17 +54,17 @@
   - 结果：通过
   - 证据链接：<https://github.com/yuelangmanle/wenwenlex/actions/runs/23384177140>
 - 云端 Release：
-  - 运行入口：待回填
-  - 结果：待回填
-  - 证据链接：待回填
+  - 运行入口：`Android Release #23394164552`
+  - 结果：通过
+  - 证据链接：<https://github.com/yuelangmanle/wenwenlex/actions/runs/23394164552>
 - Release 页面：
-  - 标签页：待回填
-  - 资产核对：待回填
+  - 标签页：<https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.6>
+  - 资产核对：已完成
 
 ## 7. 本机归档
 
-- 当前暂未新建 `v1.6` 本机归档目录
-- 待正式 Release 通过后，再按需补充 APK / checksum 的本机归档路径
+- 本机归档目录：`/Users/yueliangmanle/Desktop/codex/danci/releases/v1.6/`
+- 当前已开始同步下载 `v1.6` Release 资产到本机目录
 
 ## 8. 已回填记录
 
@@ -74,6 +74,32 @@
 - 结果：通过
 - 证据链接：<https://github.com/yuelangmanle/wenwenlex/actions/runs/23384177140>
 - 备注：`Build Debug APK` 与 `Connected Debug Android Test` 均为绿色；其中第一次 `Android CI #23383948423` 暴露出的 analytics 单测回归已在 `b04a53f` 修复后消除
+
+### 2026-03-22 10:54 / 云端 Release
+
+- 运行入口：`Android Release #23394164552`
+- 结果：通过
+- 证据链接：<https://github.com/yuelangmanle/wenwenlex/actions/runs/23394164552>
+- 备注：正式 Release 运行基于 `codex/v1-4-real-offline-pronunciation` 分支对应提交 `a14c170`
+
+### 2026-03-22 10:54 / Release 资产核对
+
+- 运行入口：`v1.6` Release 页面
+- 结果：通过
+- 证据链接：<https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.6>
+- 备注：资产与摘要如下
+  - `wenwenlex-v1.6-release.apk`
+    `sha256 = 102cf3d76cd300c2b09ebe16b77aea514f02966eaaa581be8aedde1f26aecdcd`
+  - `wenwenlex-voice-pack-en-gb-offline-word-v1.zip`
+    `sha256 = 5163e736f30956169ab2c040e88c93423b3274a6967ffc06b3c44ed1bee8331c`
+  - `wenwenlex-voice-pack-en-us-offline-word-v1.zip`
+    `sha256 = b9199e5fc82343185493c9878a90ac56e349a8417aa4fd09bb9b80909fa6feca`
+  - `wenwenlex-voice-pack-en-gb-offline-word-v1-manifest.json`
+    `sha256 = 7e459121b795822fb453f545c8e50f7d687ffb1d59be1104183f65e8bc0e8b73`
+  - `wenwenlex-voice-pack-en-us-offline-word-v1-manifest.json`
+    `sha256 = 86496b819f37c325e9645585bfc54fff255d0fbc3184d5c5685a6664ad28624a`
+  - `wenwenlex-voice-pack-checksums.txt`
+    `sha256 = cb09b7eda559fc4df63f9bb9712286869e4549fcd15a27a3873035658c6b8930`
 
 ## 9. 回填模板
 

@@ -4,11 +4,11 @@
 
 ## 当前状态
 
-- 当前正式版本：`1.5`
-- 当前开发主线：`1.6`（已通过云端 `Android CI`，待 `Android Release`）
+- 当前正式版本：`1.6`
+- 当前开发主线：下一轮范围待锁定
 - 版本规则：每次迭代递增 `0.1`，按 `1.0 -> 1.1 -> ... -> 1.9 -> 2.0` 进位
 - 正式发包界面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
-- 当前正式版本页面：[v1.5](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.5)
+- 当前正式版本页面：[v1.6](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.6)
 - 开发验证界面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 
 ## 协作文档入口
@@ -124,9 +124,9 @@
   - `wenwenlex-voice-pack-checksums.txt`
 - 发版和资产核对细节见 [v1.5 发版记录](docs/release-v1.5-ai-plan-smoke.md)
 
-## 1.6 开发中能力
+## 1.6 已发布能力
 
-以下内容已经落到仓库当前开发主线，并已通过 `Android CI`，但还没有完成 `Android Release` 的最终正式发版，当前正式版本仍是 `1.5`：
+以下内容已经在 `2026-03-22` 随 `v1.6` 正式发版：
 
 - 学习统计页已落地，可从首页和“我的”页进入
 - 统计页第一版使用 App 内 HTML 看板，集中展示趋势、反馈分布、计划效果和发音使用
@@ -134,12 +134,18 @@
 - AI 计划中心已补入“最近调整效果”卡片，并收紧为仅在存在真实生效计划效果样本时展示
 - 本地备份已升级到 `v5`，覆盖学习统计快照和长期摘要，并保持对 `v1` 到 `v4` 旧备份的兼容恢复
 - 本轮继续保持“无账号、无自建服务器、GitHub 云端发版”的基线
-- 当前云端验证基线：`Android CI #23384177140` 已通过
 
-当前 `1.6` 计划与发版基线文档：
+## 1.6 发版结果
 
-- 实施计划：[v1.6 学习统计与 AI 闭环计划](docs/superpowers/plans/2026-03-21-v1.6-learning-analytics-ai-loop.md)
-- 发版基线：[v1.6 学习统计发版基线](docs/release-v1.6-analytics-smoke.md)
+- 云端 `Android CI #23384177140` 已通过，`Build Debug APK` 与 `Connected Debug Android Test` 均为绿色
+- 云端 `Android Release #23394164552` 已通过，并已发布 [v1.6](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.6)
+- `v1.6` Release 页面当前包含：
+  - `wenwenlex-v1.6-release.apk`
+  - `wenwenlex-voice-pack-en-gb-offline-word-v1.zip`
+  - `wenwenlex-voice-pack-en-us-offline-word-v1.zip`
+  - 两个 voice pack manifest
+  - `wenwenlex-voice-pack-checksums.txt`
+- 发版和资产核对细节见 [v1.6 学习统计发版基线](docs/release-v1.6-analytics-smoke.md)
 
 ## 内置词库来源
 
@@ -167,7 +173,7 @@
 
 ### 日常升级
 
-1. 从 Releases 页面下载更高版本，例如 `1.4`、`1.5`。
+1. 从 Releases 页面下载更高版本，例如 `1.5`、`1.6`。
 2. 直接安装新 APK，Android 会覆盖旧版本，学习数据会保留。
 3. 升级前仍建议先在 App 里做一次本地备份。
 
