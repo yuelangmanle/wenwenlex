@@ -10,6 +10,8 @@ data class RankedReviewItem(
     val wordId: Long,
     val priorityScore: Float,
     val bucket: String,
+    val isDueToday: Boolean = false,
+    val isRecentMistake: Boolean = false,
 )
 
 class ReviewPriorityEngine(
@@ -21,10 +23,22 @@ class ReviewPriorityEngine(
     ): List<RankedReviewItem> {
         return records
             .map { record ->
+                val priorityScore = record.priorityScore(now)
+                val dueAt = record.nextReviewAt
+                val isOverdue = dueAt != null && !dueAt.isAfter(now)
+                val isDueSoon = dueAt != null && !dueAt.isAfter(now.plus(12, ChronoUnit.HOURS))
+                val isRecentMistake = record.isRecentMistake(now)
+                val bucket = when {
+                    record.shouldRescue(now, priorityScore) -> "rescue"
+                    isOverdue || isDueSoon || isRecentMistake || priorityScore >= 35f -> "review"
+                    else -> "later"
+                }
                 RankedReviewItem(
                     wordId = record.wordId,
-                    priorityScore = record.priorityScore(now),
-                    bucket = record.bucket(now),
+                    priorityScore = priorityScore,
+                    bucket = bucket,
+                    isDueToday = isOverdue || isDueSoon,
+                    isRecentMistake = isRecentMistake,
                 )
             }
             .sortedByDescending(RankedReviewItem::priorityScore)
@@ -61,18 +75,6 @@ private fun LearningRecord.priorityScore(now: Instant): Float {
         recentStablePenalty
 }
 
-private fun LearningRecord.bucket(now: Instant): String {
-    val overdueHours = nextReviewAt?.let { scheduledAt ->
-        maxOf(0L, ChronoUnit.HOURS.between(scheduledAt, now))
-    } ?: 0L
-    return when {
-        consecutiveMistakeCount >= 2 -> "rescue"
-        lastOutcome.isMistakeOutcome() && overdueHours >= 12 -> "rescue"
-        confusionWeight >= 0.8f || similarSpellingWeight >= 0.8f -> "rescue"
-        else -> "review"
-    }
-}
-
 private fun LearningRecord.wasReviewedRecentlyAndStable(now: Instant): Boolean {
     val reviewedAt = lastReviewedAt ?: return false
     val withinOneDay = Duration.between(reviewedAt, now).abs() <= Duration.ofHours(24)
@@ -82,6 +84,28 @@ private fun LearningRecord.wasReviewedRecentlyAndStable(now: Instant): Boolean {
         mastery >= 0.85f &&
         reviewPriorityScore <= 0.2f &&
         forgettingRiskScore <= 0.2f
+}
+
+private fun LearningRecord.isRecentMistake(now: Instant): Boolean {
+    val reviewedAt = lastReviewedAt ?: return false
+    return lastOutcome.isMistakeOutcome() &&
+        !reviewedAt.isBefore(now.minus(3, ChronoUnit.DAYS))
+}
+
+private fun LearningRecord.shouldRescue(
+    now: Instant,
+    priorityScore: Float,
+): Boolean {
+    val overdueHours = nextReviewAt?.let { scheduledAt ->
+        maxOf(0L, ChronoUnit.HOURS.between(scheduledAt, now))
+    } ?: 0L
+    return when {
+        consecutiveMistakeCount >= 2 -> true
+        isRecentMistake(now) && overdueHours >= 12 -> true
+        (confusionWeight >= 0.8f || similarSpellingWeight >= 0.8f) && overdueHours > 0 -> true
+        priorityScore >= 60f && isRecentMistake(now) -> true
+        else -> false
+    }
 }
 
 internal fun String?.isMistakeOutcome(): Boolean =

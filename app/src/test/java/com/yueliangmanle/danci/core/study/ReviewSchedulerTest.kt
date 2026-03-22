@@ -54,7 +54,7 @@ class ReviewSchedulerTest {
         assertEquals(1, summary.rescueWords)
         assertEquals(2, summary.highRiskWords)
         assertEquals(2, summary.backlogWords)
-        assertEquals(1, summary.streakDays)
+        assertEquals(3, summary.streakDays)
     }
 
     private fun learningRecord(

@@ -53,6 +53,7 @@ class ReviewPriorityEngineTest {
         assertEquals("rescue", ranked.first().bucket)
         assertTrue(ranked.first().priorityScore > ranked[1].priorityScore)
         assertEquals(3L, ranked.last().wordId)
+        assertEquals("later", ranked.last().bucket)
     }
 
     private fun learningRecord(

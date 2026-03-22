@@ -60,10 +60,11 @@ class HomeViewModel(
     private val nowProvider: () -> Instant = { Instant.now() },
 ) {
     fun buildUiState(): HomeUiState {
+        val now = nowProvider()
         val activeBook = selectActiveBook()
         val reviewSummary = reviewScheduler.summarize(
             learningRecords = learningRecords,
-            now = nowProvider(),
+            now = now,
         )
         val dailyGoal = settings.dailyGoal
         val unseenWords = max(dailyGoal, activeBook?.wordCount ?: dailyGoal)
@@ -71,6 +72,7 @@ class HomeViewModel(
             dailyGoal = dailyGoal,
             learningRecords = learningRecords,
             unseenWords = unseenWords,
+            now = now,
         )
         val latestPlan = aiMemorySummary.planHistory.sortedBy(PlanHistoryEntry::generatedAt).lastOrNull()
         val pendingPlanCount = aiMemorySummary.planHistory.count { it.applyStatus == PlanApplyStatus.PENDING_CONFIRMATION }
@@ -81,7 +83,7 @@ class HomeViewModel(
             completedCount = 0,
             newWordCount = plan.newWordCount,
             reviewCount = plan.reviewCount,
-            mistakeCount = plan.rescueCount,
+            mistakeCount = reviewSummary.recentMistakeWords,
             estimatedMinutes = plan.estimatedMinutes,
             streakDays = reviewSummary.streakDays,
             activeBookTitle = activeBook?.title ?: "还未选择词书",

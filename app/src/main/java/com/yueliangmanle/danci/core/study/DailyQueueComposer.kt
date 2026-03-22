@@ -21,31 +21,35 @@ class DailyQueueComposer {
             )
         }
 
-        val rescueCandidates = ranked.count { it.bucket == "rescue" }
-        val reviewCandidates = ranked.count { it.bucket == "review" }
+        val rescueCandidates = ranked.filter { it.bucket == "rescue" }
+        val reviewCandidates = ranked.filter { it.bucket == "review" }
         val safeUnseenWords = unseenWords.coerceAtLeast(0)
 
         var rescueCount = min(
-            rescueCandidates,
+            rescueCandidates.size,
             max(1, (safeGoal * 0.35f).roundToInt()),
         )
-        if (rescueCandidates >= max(3, safeGoal / 3)) {
+        if (rescueCandidates.size >= max(3, safeGoal / 3)) {
             rescueCount = min(
-                rescueCandidates,
+                rescueCandidates.size,
                 max(rescueCount, (safeGoal * 0.45f).roundToInt()),
             )
         }
         rescueCount = rescueCount.coerceAtMost(safeGoal)
 
         val remainingAfterRescue = (safeGoal - rescueCount).coerceAtLeast(0)
-        val heavyRescue = rescueCandidates >= max(3, safeGoal / 3) ||
+        val heavyRescue = rescueCandidates.size >= max(3, safeGoal / 3) ||
             rescueCount >= max(3, safeGoal / 4)
+        val urgentReviewCandidates = reviewCandidates.count { candidate ->
+            candidate.isDueToday || candidate.isRecentMistake || candidate.priorityScore >= 45f
+        }
         var reviewCount = min(
-            reviewCandidates,
+            reviewCandidates.size,
             when {
                 remainingAfterRescue == 0 -> 0
-                heavyRescue -> max(1, remainingAfterRescue * 2 / 3)
-                reviewCandidates > 0 -> max(1, remainingAfterRescue / 2)
+                heavyRescue -> max(urgentReviewCandidates, max(1, remainingAfterRescue * 2 / 3))
+                urgentReviewCandidates > 0 -> max(urgentReviewCandidates, max(1, remainingAfterRescue / 2))
+                reviewCandidates.isNotEmpty() -> max(1, remainingAfterRescue / 3)
                 else -> 0
             },
         )
@@ -59,7 +63,7 @@ class DailyQueueComposer {
         var newWordCount = min(safeUnseenWords, newWordBudget)
         val leftover = safeGoal - rescueCount - reviewCount - newWordCount
         if (leftover > 0) {
-            val extraReview = min(reviewCandidates - reviewCount, leftover)
+            val extraReview = min(reviewCandidates.size - reviewCount, leftover)
             reviewCount += extraReview
             val extraNew = min(safeUnseenWords - newWordCount, leftover - extraReview)
             newWordCount += extraNew

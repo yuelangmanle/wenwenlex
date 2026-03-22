@@ -57,6 +57,7 @@ class TodayTaskEngineTest {
                 ),
             ),
             unseenWords = 50,
+            now = now,
         )
 
         assertEquals(2, plan.rescueCount)
@@ -64,6 +65,50 @@ class TodayTaskEngineTest {
         assertEquals(20, plan.rescueCount + plan.reviewCount + plan.newWordCount)
         assertTrue(plan.reviewCount > 0)
         assertTrue(plan.estimatedMinutes > 0)
+    }
+
+    @Test
+    fun build_excludes_low_priority_future_words_from_today_review_quota() {
+        val now = Instant.parse("2026-03-22T08:00:00Z")
+        val plan = TodayTaskEngine(
+            reviewPriorityEngine = ReviewPriorityEngine(nowProvider = { now }),
+            dailyQueueComposer = DailyQueueComposer(),
+        ).build(
+            dailyGoal = 12,
+            learningRecords = buildList {
+                repeat(3) { index ->
+                    add(
+                        learningRecord(
+                            wordId = index + 1L,
+                            nextReviewAt = now.minus((index + 1).toLong(), ChronoUnit.HOURS),
+                            lastReviewedAt = now.minus(2, ChronoUnit.DAYS),
+                            lastOutcome = "correct",
+                            forgettingRiskScore = 0.55f,
+                            reviewPriorityScore = 0.6f,
+                        ),
+                    )
+                }
+                repeat(20) { index ->
+                    add(
+                        learningRecord(
+                            wordId = index + 101L,
+                            nextReviewAt = now.plus(7, ChronoUnit.DAYS),
+                            lastReviewedAt = now.minus(1, ChronoUnit.HOURS),
+                            lastOutcome = "correct",
+                            forgettingRiskScore = 0.05f,
+                            reviewPriorityScore = 0.05f,
+                            averageResponseLatencyMs = 900L,
+                            proficiencyBand = "mastered",
+                        ),
+                    )
+                }
+            },
+            unseenWords = 100,
+            now = now,
+        )
+
+        assertEquals(3, plan.reviewCount)
+        assertEquals(9, plan.newWordCount)
     }
 
     private fun learningRecord(

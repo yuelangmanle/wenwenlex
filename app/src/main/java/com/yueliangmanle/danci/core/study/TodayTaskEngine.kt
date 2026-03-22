@@ -18,10 +18,11 @@ class TodayTaskEngine(
         dailyGoal: Int,
         learningRecords: List<LearningRecord>,
         unseenWords: Int,
+        now: java.time.Instant = java.time.Instant.now(),
     ): TodayPlan =
         dailyQueueComposer.compose(
             goal = dailyGoal,
-            ranked = reviewPriorityEngine.rank(learningRecords),
+            ranked = reviewPriorityEngine.rank(learningRecords, now),
             unseenWords = unseenWords,
         )
 }
