@@ -210,6 +210,54 @@ class PronunciationOrchestrator(
             return null
         }
 
+        suspend fun playPreparedSourceCacheIfAvailable(): PlaybackResult? {
+            val preferred = preferredSource ?: return null
+            val preferredType = PronunciationSourceType.fromStorageValue(preferred.sourceType)
+            val defaultPresetId = preferred.presets
+                .firstOrNull(com.yueliangmanle.danci.core.model.PronunciationSourcePreset::isDefaultPreset)
+                ?.presetId
+            val preparedAsset = when (preferredType) {
+                PronunciationSourceType.LOCAL_NATIVE -> wordAudioRepository.findPreparedAssetWithContext(
+                    wordId = word.id,
+                    accent = accent,
+                    sourceType = PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue,
+                    sourceId = preferred.id,
+                    presetId = defaultPresetId,
+                )
+                PronunciationSourceType.CLOUD_TTS -> wordAudioRepository.findPreparedAssetWithContext(
+                    wordId = word.id,
+                    accent = accent,
+                    sourceType = PlaybackSource.ONLINE_PREBUILT_CACHE.storageValue,
+                    sourceId = preferred.id,
+                    presetId = defaultPresetId,
+                )
+                PronunciationSourceType.DICTIONARY,
+                PronunciationSourceType.LOCAL_BRIDGE,
+                null -> null
+            } ?: return null
+
+            if (!audioPlayer(preparedAsset.localPath)) {
+                return null
+            }
+            val resolvedAccent = PronunciationAccent.fromStorageValue(preparedAsset.accent)
+            wordAudioRepository.markPlayed(preparedAsset)
+            val playbackSource = PlaybackSource.fromStorageValue(preparedAsset.sourceType)
+            val statusMessage = when (playbackSource) {
+                PlaybackSource.OFFLINE_NATIVE_GENERATED -> "已播放本地离线生成音频。"
+                PlaybackSource.ONLINE_PREBUILT_CACHE -> "已播放预生成云端音频缓存。"
+                else -> "已播放预生成音频缓存。"
+            }
+            return PlaybackResult(
+                success = true,
+                source = playbackSource,
+                accent = resolvedAccent,
+                statusMessage = statusMessage,
+                cacheHit = true,
+                actualSourceId = preparedAsset.sourceId ?: preferred.id,
+                actualSourceType = preparedAsset.actualSourceType ?: preferred.sourceType,
+            )
+        }
+
         suspend fun playRemoteDictionaryIfAvailable(): PlaybackResult? {
             if (wordAudioRepository.isRemoteLookupCoolingDown(word.id, accent)) {
                 return null
@@ -289,6 +337,7 @@ class PronunciationOrchestrator(
                     attempt(::playBridgeOfflineIfAvailable)?.let { return it }
                 }
                 PronunciationSourceType.LOCAL_NATIVE -> {
+                    attempt(::playPreparedSourceCacheIfAvailable)?.let { return it }
                     attempt(::playNativeIfAvailable)?.let { return it }
                     attempt(::playCachedDictionaryIfAvailable)?.let { return it }
                     attempt(::playRemoteDictionaryIfAvailable)?.let { return it }
@@ -302,6 +351,7 @@ class PronunciationOrchestrator(
                 }
                 PronunciationSourceType.CLOUD_TTS,
                 null -> {
+                    attempt(::playPreparedSourceCacheIfAvailable)?.let { return it }
                     attempt(::playCachedDictionaryIfAvailable)?.let { return it }
                     attempt(::playRemoteDictionaryIfAvailable)?.let { return it }
                     attempt(::playNativeIfAvailable)?.let { return it }

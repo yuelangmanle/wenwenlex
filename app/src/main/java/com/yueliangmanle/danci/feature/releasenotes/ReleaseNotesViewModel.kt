@@ -1,7 +1,6 @@
 package com.yueliangmanle.danci.feature.releasenotes
 
 import android.content.Context
-import com.yueliangmanle.danci.BuildConfig
 import com.yueliangmanle.danci.core.model.ReleaseNote
 import com.yueliangmanle.danci.core.releasenotes.ReleaseNotesCatalog
 import com.yueliangmanle.danci.core.releasenotes.buildReleaseNotesCatalog
@@ -30,8 +29,10 @@ class ReleaseNotesViewModel(
 suspend fun loadReleaseNotesViewModel(
     context: Context,
 ): ReleaseNotesViewModel = withContext(Dispatchers.IO) {
+    val appContext = context.applicationContext
+    val packageInfo = appContext.packageManager.getPackageInfo(appContext.packageName, 0)
     ReleaseNotesViewModel(
-        catalog = buildReleaseNotesCatalog(context.applicationContext),
-        versionName = BuildConfig.VERSION_NAME,
+        catalog = buildReleaseNotesCatalog(appContext),
+        versionName = packageInfo.versionName.orEmpty(),
     )
 }

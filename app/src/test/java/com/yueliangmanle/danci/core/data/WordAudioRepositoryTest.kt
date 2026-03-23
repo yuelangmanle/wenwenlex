@@ -246,6 +246,50 @@ class WordAudioRepositoryTest {
     }
 
     @Test
+    fun findPreparedAssetWithContext_supportsAutoAccentFallbackForCloudCache() = runTest {
+        val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val cachedFile = File(appContext.filesDir, "audio-cache/generated/auto/mimo/mimo-v2-tts/cloud.wav").apply {
+            parentFile?.mkdirs()
+            writeBytes(byteArrayOf(0x21, 0x43, 0x65))
+        }
+        val dao = FakeWordAudioAssetDao().apply {
+            upsertAsset(
+                WordAudioAssetEntity(
+                    id = 31L,
+                    wordId = 15L,
+                    sourceId = "cloud-mimo",
+                    presetId = "preset-calm",
+                    actualSourceType = "cloud_tts",
+                    namespace = "auto/mimo/mimo-v2-tts/cloud-mimo/default-preset/word/test",
+                    assetState = WordAudioAssetStatus.READY.storageValue,
+                    accent = PronunciationAccent.AUTO.storageValue,
+                    sourceType = PlaybackSource.ONLINE_PREBUILT_CACHE.storageValue,
+                    localPath = cachedFile.absolutePath,
+                    mimeType = "audio/wav",
+                    status = WordAudioAssetStatus.READY.storageValue,
+                ),
+            )
+        }
+        val repository: WordAudioRepository = RoomWordAudioRepository(
+            appContext = appContext,
+            dao = dao,
+        )
+
+        val hit = repository.findPreparedAssetWithContext(
+            wordId = 15L,
+            accent = PronunciationAccent.UK,
+            sourceType = PlaybackSource.ONLINE_PREBUILT_CACHE.storageValue,
+            expectedNamespace = "auto/mimo/mimo-v2-tts/cloud-mimo/default-preset/word/test",
+            sourceId = "cloud-mimo",
+            presetId = "preset-calm",
+        )
+
+        assertEquals(cachedFile.absolutePath, hit?.localPath)
+        assertEquals("cloud-mimo", hit?.sourceId)
+        assertEquals("preset-calm", hit?.presetId)
+    }
+
+    @Test
     fun cacheNativeGeneratedAudioWithContext_keepsDifferentSourceAssetsSeparated() = runTest {
         val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
         val now = Instant.parse("2026-03-19T12:00:00Z")

@@ -29,6 +29,14 @@ data class AudioCacheBucketSummary(
 
 interface WordAudioRepository {
     suspend fun findCachedAsset(wordId: Long, accent: PronunciationAccent): WordAudioAsset?
+    suspend fun findPreparedAssetWithContext(
+        wordId: Long,
+        accent: PronunciationAccent,
+        sourceType: String,
+        expectedNamespace: String? = null,
+        sourceId: String? = null,
+        presetId: String? = null,
+    ): WordAudioAsset? = null
     suspend fun findNativeGeneratedAsset(
         wordId: Long,
         accent: PronunciationAccent,
@@ -128,17 +136,19 @@ class RoomWordAudioRepository(
         accent: PronunciationAccent,
         expectedNamespace: String?,
     ): WordAudioAsset? =
-        findNativeGeneratedAssetWithContext(
+        findPreparedAssetWithContext(
             wordId = wordId,
             accent = accent,
+            sourceType = PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue,
             expectedNamespace = expectedNamespace,
             sourceId = null,
             presetId = null,
         )
 
-    override suspend fun findNativeGeneratedAssetWithContext(
+    override suspend fun findPreparedAssetWithContext(
         wordId: Long,
         accent: PronunciationAccent,
+        sourceType: String,
         expectedNamespace: String?,
         sourceId: String?,
         presetId: String?,
@@ -147,14 +157,14 @@ class RoomWordAudioRepository(
         candidates += dao.findAssetsForWordAccentAndSource(
             wordId,
             accent.storageValue,
-            PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue,
+            sourceType,
             WordAudioAssetStatus.READY.storageValue,
         )
         if (accent != PronunciationAccent.AUTO) {
             candidates += dao.findAssetsForWordAccentAndSource(
                 wordId,
                 PronunciationAccent.AUTO.storageValue,
-                PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue,
+                sourceType,
                 WordAudioAssetStatus.READY.storageValue,
             )
         }
@@ -168,6 +178,22 @@ class RoomWordAudioRepository(
                     asset.matchesSourceContext(sourceId = sourceId, presetId = presetId)
             }
     }
+
+    override suspend fun findNativeGeneratedAssetWithContext(
+        wordId: Long,
+        accent: PronunciationAccent,
+        expectedNamespace: String?,
+        sourceId: String?,
+        presetId: String?,
+    ): WordAudioAsset? =
+        findPreparedAssetWithContext(
+            wordId = wordId,
+            accent = accent,
+            sourceType = PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue,
+            expectedNamespace = expectedNamespace,
+            sourceId = sourceId,
+            presetId = presetId,
+        )
 
     override suspend fun cacheNativeGeneratedAudio(
         wordId: Long,

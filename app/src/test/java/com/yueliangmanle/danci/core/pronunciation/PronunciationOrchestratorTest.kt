@@ -362,6 +362,100 @@ class PronunciationOrchestratorTest {
         assertEquals("dictionary-uk", metadata["actual_source_id"])
         assertTrue(metadata["failure_stage"].isNullOrBlank())
     }
+
+    @Test
+    fun playWord_prefersPreparedCloudCacheWhenDefaultSourceIsCloud() = runTest {
+        val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val word = Word(id = 88L, lemma = "abandon")
+        val cloudFile = File(appContext.cacheDir, "cloud-prebuilt.wav").apply {
+            parentFile?.mkdirs()
+            writeBytes(byteArrayOf(0x12, 0x34, 0x56))
+        }
+        val cloudAsset = WordAudioAsset(
+            id = 12L,
+            wordId = word.id,
+            sourceId = "cloud-mimo",
+            presetId = "preset-calm",
+            actualSourceType = PronunciationSourceType.CLOUD_TTS.storageValue,
+            accent = PronunciationAccent.AUTO.storageValue,
+            sourceType = PlaybackSource.ONLINE_PREBUILT_CACHE.storageValue,
+            localPath = cloudFile.absolutePath,
+            status = WordAudioAssetStatus.READY.storageValue,
+        )
+        val wordAudioRepository = FakeOrchestratorWordAudioRepository(
+            nativeGeneratedAsset = null,
+            preparedAssetsBySourceType = mapOf(
+                PlaybackSource.ONLINE_PREBUILT_CACHE.storageValue to cloudAsset,
+            ),
+        )
+        val dictionaryAudioService = CountingDictionaryAudioService(
+            candidates = listOf(
+                DictionaryAudioCandidate(
+                    url = "https://source-b.example/abandon-uk.mp3",
+                    accent = PronunciationAccent.UK,
+                    sourceLabel = "有道词典",
+                ),
+            ),
+        )
+        val voicePackRepository = FakeOrchestratorVoicePackRepository()
+        val sourceRepository = FakeOrchestratorSourceRepository(
+            listOf(
+                orchestratorSource(
+                    id = "cloud-mimo",
+                    type = PronunciationSourceType.CLOUD_TTS,
+                    accent = PronunciationAccent.AUTO,
+                    isDefaultForWord = true,
+                    presets = listOf(
+                        com.yueliangmanle.danci.core.model.PronunciationSourcePreset(
+                            sourceId = "cloud-mimo",
+                            presetId = "preset-calm",
+                            displayName = "平静讲解",
+                            voice = "default_en",
+                            styleTemplate = "Calm",
+                            isDefaultPreset = true,
+                        ),
+                    ),
+                ),
+            ),
+        )
+        val recorder = RecordingStudyEventRecorder()
+        val orchestrator = PronunciationOrchestrator(
+            settingsRepository = FakeOrchestratorSettingsRepository(),
+            wordRepository = FakeOrchestratorWordRepository(word),
+            wordAudioRepository = wordAudioRepository,
+            voicePackRepository = voicePackRepository,
+            dictionaryAudioService = dictionaryAudioService,
+            offlineTtsEngine = OfflineTtsEngine(
+                voicePackRepository = voicePackRepository,
+                bridgeSpeaker = SystemTtsEngine(appContext),
+                audioPlayer = { true },
+            ),
+            systemTtsEngine = SystemTtsEngine(appContext),
+            telemetryRecorder = PlaybackTelemetryRecorder(recorder),
+            pronunciationSourceRegistry = PronunciationSourceRegistry(
+                sourceRepository = sourceRepository,
+                voicePackRepository = voicePackRepository,
+                settingsRepository = FakeOrchestratorSettingsRepository(),
+            ),
+            audioPlayer = { true },
+            nowProvider = { Instant.parse("2026-03-23T11:00:00Z") },
+        )
+
+        val result = orchestrator.playWord(
+            word = word,
+            accentOverride = PronunciationAccent.UK,
+        )
+
+        val metadata = recorder.events.single().metadataEntries()
+        assertEquals(PlaybackSource.ONLINE_PREBUILT_CACHE, result.source)
+        assertEquals("cloud-mimo", result.preferredSourceId)
+        assertEquals("cloud-mimo", result.actualSourceId)
+        assertEquals(0, dictionaryAudioService.resolveCalls)
+        assertEquals(cloudAsset, wordAudioRepository.markedPlayed.single())
+        assertEquals("cloud-mimo", metadata["actual_source_id"])
+        assertEquals("cloud_tts", metadata["actual_source_type"])
+        assertEquals("true", metadata["cache_hit"])
+    }
 }
 
 private fun orchestratorSource(
@@ -371,6 +465,7 @@ private fun orchestratorSource(
     isDefaultForWord: Boolean = false,
     isDefaultForLongText: Boolean = false,
     backingVoicePackId: String? = null,
+    presets: List<com.yueliangmanle.danci.core.model.PronunciationSourcePreset> = emptyList(),
 ): PronunciationSource =
     PronunciationSource(
         id = id,
@@ -381,6 +476,7 @@ private fun orchestratorSource(
         isDefaultForWord = isDefaultForWord,
         isDefaultForLongText = isDefaultForLongText,
         backingVoicePackId = backingVoicePackId,
+        presets = presets,
         createdAt = Instant.EPOCH,
         updatedAt = Instant.EPOCH,
     )
@@ -478,6 +574,7 @@ private class FakeOrchestratorWordRepository(
 private class FakeOrchestratorWordAudioRepository(
     private val nativeGeneratedAsset: WordAudioAsset?,
     private val dictionaryAssetsByUrl: Map<String, WordAudioAsset> = emptyMap(),
+    private val preparedAssetsBySourceType: Map<String, WordAudioAsset> = emptyMap(),
 ) : WordAudioRepository {
     val markedPlayed = mutableListOf<WordAudioAsset>()
     val cachedCandidateUrls = mutableListOf<String>()
@@ -492,6 +589,15 @@ private class FakeOrchestratorWordAudioRepository(
         accent: PronunciationAccent,
         expectedNamespace: String?,
     ): WordAudioAsset? = nativeGeneratedAsset
+
+    override suspend fun findPreparedAssetWithContext(
+        wordId: Long,
+        accent: PronunciationAccent,
+        sourceType: String,
+        expectedNamespace: String?,
+        sourceId: String?,
+        presetId: String?,
+    ): WordAudioAsset? = preparedAssetsBySourceType[sourceType]
 
     override suspend fun isRemoteLookupCoolingDown(
         wordId: Long,
