@@ -43,8 +43,7 @@ class DanciAppState(
             TopLevelDestination.HOME -> currentRoute == TopLevelDestination.HOME.name
             TopLevelDestination.STUDY -> {
                 currentDestination.hierarchy.any { it.route == TopLevelDestination.STUDY.name } ||
-                    currentRoute.startsWith("word_detail") ||
-                    currentRoute.startsWith("quiz")
+                    isStudyTopLevelRoute(currentRoute)
             }
             TopLevelDestination.BOOKS -> {
                 currentDestination.hierarchy.any { it.route == TopLevelDestination.BOOKS.name } ||
@@ -57,6 +56,13 @@ class DanciAppState(
             }
         }
     }
+}
+
+internal fun isStudyTopLevelRoute(route: String): Boolean {
+    return route == TopLevelDestination.STUDY.name ||
+        route.startsWith("study?mode=") ||
+        route.startsWith("word_detail") ||
+        route.startsWith("quiz")
 }
 
 @Composable
