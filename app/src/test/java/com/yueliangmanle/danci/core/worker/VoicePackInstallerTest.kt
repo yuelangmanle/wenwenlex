@@ -20,6 +20,36 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class VoicePackInstallerTest {
     @Test
+    fun download_resumesFromPartialArchive() {
+        val cacheDir = Files.createTempDirectory("voice-pack-resume-cache").toFile()
+        val targetFile = File(cacheDir, "resume-pack.zip")
+        val partFile = File("${targetFile.absolutePath}.part")
+        val fullBytes = ByteArray(4096) { index -> (index % 127).toByte() }
+        partFile.parentFile?.mkdirs()
+        partFile.writeBytes(fullBytes.copyOfRange(0, 1024))
+        val fetcher = RangeAwareFakeVoicePackRemoteFetcher(
+            routes = mapOf(
+                "https://voice-pack.test/resume-pack.zip" to fullBytes,
+            ),
+        )
+
+        try {
+            val downloader = VoicePackArchiveDownloader(remoteFetcher = fetcher)
+
+            val result = downloader.download(
+                remoteUrl = "https://voice-pack.test/resume-pack.zip",
+                targetFile = targetFile,
+            )
+
+            assertEquals(1024L, result.resumedFromBytes)
+            assertEquals(fullBytes.size.toLong(), targetFile.length())
+            assertEquals(listOf(1024L), fetcher.requestedOffsets)
+        } finally {
+            cacheDir.deleteRecursively()
+        }
+    }
+
+    @Test
     fun validateInstalledVoicePackRejectsNativeManifestWithoutLicenses() {
         val installDir = Files.createTempDirectory("voice-pack-native-test").toFile()
         try {
@@ -540,6 +570,59 @@ class VoicePackInstallerTest {
         }
     }
 
+    @Test
+    fun install_atomicallyReplacesExistingInstallDirAfterValidation() = runTest {
+        val appContext = ApplicationProvider.getApplicationContext<Context>()
+        val cacheDir = Files.createTempDirectory("voice-pack-cache").toFile()
+        val installRootDir = Files.createTempDirectory("voice-pack-install-root").toFile()
+        val archiveName = "wenwenlex-voice-pack-en-gb-offline-word-v1.zip"
+        val archiveFile = File(cacheDir, archiveName)
+        archiveFile.writeZip(
+            "manifest.json" to validNativeManifest("en-gb-offline-word-v1", "uk", "en-GB").toByteArray(),
+            "model/model.onnx" to "fake-model".toByteArray(),
+            "model/tokens.txt" to "fake-tokens".toByteArray(),
+            "licenses/DISTRIBUTION-NOTICE.txt" to "fake-license".toByteArray(),
+        )
+        val installDir = File(installRootDir, "en-gb-offline-word-v1").apply {
+            mkdirs()
+            resolve("stale.txt").writeText("old")
+        }
+        val remoteFetcher = FakeVoicePackRemoteFetcher(
+            routes = mapOf(
+                "https://voice-pack.test/$archiveName" to archiveFile.readBytes(),
+            ),
+        )
+
+        try {
+            val installer = VoicePackInstaller(
+                assetManager = appContext.assets,
+                cacheDir = cacheDir,
+                installRootDir = installRootDir,
+                remoteFetcher = remoteFetcher,
+            )
+
+            installer.install(
+                voicePack = TestVoicePackFactory.voicePack(
+                    id = "en-gb-offline-word-v1",
+                    name = "英式离线发音包",
+                    locale = "en-GB",
+                    accent = "uk",
+                    engineType = "sherpa_onnx",
+                    version = "1.4.0",
+                    downloadUrl = "https://voice-pack.test/$archiveName",
+                ),
+                onStatusChange = {},
+            )
+
+            assertTrue(File(installDir, "model/model.onnx").isFile)
+            assertTrue(File(installDir, "licenses/DISTRIBUTION-NOTICE.txt").isFile)
+            assertTrue(!File(installDir, "stale.txt").exists())
+        } finally {
+            cacheDir.deleteRecursively()
+            installRootDir.deleteRecursively()
+        }
+    }
+
     private fun assertValidationFailure(
         installDir: File,
         expectedMessage: String,
@@ -632,6 +715,33 @@ private class FakeVoicePackRemoteFetcher(
 ) : VoicePackRemoteFetcher {
     override fun downloadBytes(remoteUrl: String): ByteArray =
         routes[remoteUrl] ?: error("Missing fake remote payload for $remoteUrl")
+
+    override fun downloadText(remoteUrl: String): String =
+        downloadBytes(remoteUrl).toString(Charsets.UTF_8)
+}
+
+private class RangeAwareFakeVoicePackRemoteFetcher(
+    private val routes: Map<String, ByteArray>,
+) : VoicePackRemoteFetcher {
+    val requestedOffsets = mutableListOf<Long>()
+
+    override fun downloadBytes(remoteUrl: String): ByteArray =
+        routes[remoteUrl] ?: error("Missing fake remote payload for $remoteUrl")
+
+    override fun openStream(
+        remoteUrl: String,
+        startByte: Long,
+    ): VoicePackRemoteStream {
+        val bytes = routes[remoteUrl] ?: error("Missing fake remote payload for $remoteUrl")
+        requestedOffsets += startByte
+        val safeStart = startByte.coerceAtMost(bytes.size.toLong()).toInt()
+        return VoicePackRemoteStream(
+            inputStream = bytes.inputStream().buffered().apply { skip(safeStart.toLong()) },
+            responseCode = if (safeStart > 0) 206 else 200,
+            supportsResume = true,
+            contentLength = (bytes.size - safeStart).toLong(),
+        )
+    }
 
     override fun downloadText(remoteUrl: String): String =
         downloadBytes(remoteUrl).toString(Charsets.UTF_8)

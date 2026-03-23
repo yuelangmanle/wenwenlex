@@ -34,6 +34,11 @@ import com.yueliangmanle.danci.feature.pronunciation.AUDIO_CACHE_MANAGEMENT_ROUT
 import com.yueliangmanle.danci.feature.pronunciation.AUDIO_GENERATION_TASKS_ROUTE
 import com.yueliangmanle.danci.feature.pronunciation.AudioCacheManagementRoute
 import com.yueliangmanle.danci.feature.pronunciation.AudioGenerationTasksRoute
+import com.yueliangmanle.danci.feature.pronunciation.PRONUNCIATION_SOURCE_DETAIL_ROUTE
+import com.yueliangmanle.danci.feature.pronunciation.PronunciationSourceDetailRoute
+import com.yueliangmanle.danci.feature.pronunciation.pronunciationSourceDetailRoute
+import com.yueliangmanle.danci.feature.releasenotes.RELEASE_NOTES_ROUTE
+import com.yueliangmanle.danci.feature.releasenotes.ReleaseNotesRoute
 import com.yueliangmanle.danci.feature.quiz.QuizRoute
 import com.yueliangmanle.danci.feature.quiz.quizRoute
 import com.yueliangmanle.danci.feature.study.StudyRoute
@@ -103,6 +108,9 @@ fun DanciNavHost(
                         onOpenPronunciationSettingsClick = {
                             navController.navigate(PRONUNCIATION_SETTINGS_ROUTE)
                         },
+                        onOpenReleaseNotesClick = {
+                            navController.navigate(RELEASE_NOTES_ROUTE)
+                        },
                         onOpenDiagnosticsClick = {
                             navController.navigate(DIAGNOSTICS_ROUTE)
                         },
@@ -149,6 +157,9 @@ fun DanciNavHost(
                 onOpenTaskCenterClick = {
                     navController.navigate(AUDIO_GENERATION_TASKS_ROUTE)
                 },
+                onOpenSourceDetailClick = { sourceId ->
+                    navController.navigate(pronunciationSourceDetailRoute(sourceId))
+                },
             )
         }
         composable(route = AUDIO_CACHE_MANAGEMENT_ROUTE) {
@@ -156,6 +167,18 @@ fun DanciNavHost(
         }
         composable(route = AUDIO_GENERATION_TASKS_ROUTE) {
             AudioGenerationTasksRoute()
+        }
+        composable(route = RELEASE_NOTES_ROUTE) {
+            ReleaseNotesRoute()
+        }
+        composable(
+            route = PRONUNCIATION_SOURCE_DETAIL_ROUTE,
+            arguments = listOf(
+                navArgument("sourceId") { type = NavType.StringType },
+            ),
+        ) { backStackEntry ->
+            val sourceId = backStackEntry.arguments?.getString("sourceId").orEmpty()
+            PronunciationSourceDetailRoute(sourceId = sourceId)
         }
         composable(route = LEARNING_ANALYTICS_ROUTE) {
             LearningAnalyticsRoute()

@@ -28,6 +28,7 @@ fun PronunciationSettingsScreen(
     onRefreshCatalog: () -> Unit,
     onOpenCacheManagementClick: () -> Unit,
     onOpenTaskCenterClick: () -> Unit,
+    onOpenSourceDetailClick: (String) -> Unit,
     onSelectAccent: (String) -> Unit,
     onSelectMode: (String) -> Unit,
     onAutoCacheChanged: (Boolean) -> Unit,
@@ -126,6 +127,7 @@ fun PronunciationSettingsScreen(
                             source = source,
                             onSetDefaultWordSource = { onSetDefaultWordSource(source.id) },
                             onSetDefaultLongTextSource = { onSetDefaultLongTextSource(source.id) },
+                            onOpenSourceDetailClick = { onOpenSourceDetailClick(source.id) },
                         )
                     }
                 }
@@ -234,6 +236,7 @@ private fun PronunciationSourceRow(
     source: PronunciationSourceItemUiState,
     onSetDefaultWordSource: () -> Unit,
     onSetDefaultLongTextSource: () -> Unit,
+    onOpenSourceDetailClick: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -282,6 +285,12 @@ private fun PronunciationSourceRow(
                 ) {
                     Text(if (source.isDefaultForLongText) "当前长文本默认" else "设为长文本默认")
                 }
+            }
+            OutlinedButton(
+                onClick = onOpenSourceDetailClick,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("查看来源详情")
             }
         }
     }
@@ -480,7 +489,7 @@ private fun VoicePackRow(
 }
 
 @Composable
-private fun MessageCard(
+internal fun MessageCard(
     message: String,
     isError: Boolean,
 ) {

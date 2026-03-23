@@ -40,6 +40,7 @@ fun MeScreen(
     onOpenAiPlanCenterClick: () -> Unit = {},
     onOpenLearningAnalyticsClick: () -> Unit = {},
     onOpenPronunciationSettingsClick: () -> Unit,
+    onOpenReleaseNotesClick: () -> Unit = {},
     onOpenDiagnosticsClick: () -> Unit = {},
 ) {
     if (state.isLoading) {
@@ -107,6 +108,10 @@ fun MeScreen(
             isWorking = state.isWorking,
             onOpenPronunciationSettingsClick = onOpenPronunciationSettingsClick,
         )
+        ReleaseNotesEntryCard(
+            isWorking = state.isWorking,
+            onOpenReleaseNotesClick = onOpenReleaseNotesClick,
+        )
         DiagnosticsEntryCard(
             summary = state.diagnosticsSummary,
             isWorking = state.isWorking,
@@ -120,6 +125,36 @@ fun MeScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReleaseNotesEntryCard(
+    isWorking: Boolean,
+    onOpenReleaseNotesClick: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "更新日志",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = "在 App 内直接查看完整历史版本和当前安装版本说明。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(
+                onClick = onOpenReleaseNotesClick,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isWorking,
+            ) {
+                Text("查看更新日志")
             }
         }
     }

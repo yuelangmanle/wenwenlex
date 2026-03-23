@@ -25,6 +25,7 @@ fun MeRoute(
     onOpenAiPlanCenterClick: () -> Unit = {},
     onOpenLearningAnalyticsClick: () -> Unit = {},
     onOpenPronunciationSettingsClick: () -> Unit = {},
+    onOpenReleaseNotesClick: () -> Unit = {},
     onOpenDiagnosticsClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -83,6 +84,7 @@ fun MeRoute(
         onOpenAiPlanCenterClick = onOpenAiPlanCenterClick,
         onOpenLearningAnalyticsClick = onOpenLearningAnalyticsClick,
         onOpenPronunciationSettingsClick = onOpenPronunciationSettingsClick,
+        onOpenReleaseNotesClick = onOpenReleaseNotesClick,
         onOpenDiagnosticsClick = onOpenDiagnosticsClick,
     )
 }

@@ -5,6 +5,7 @@ import com.yueliangmanle.danci.core.data.PronunciationSourceRepository
 import com.yueliangmanle.danci.core.data.SettingsRepository
 import com.yueliangmanle.danci.core.data.VoicePackRepository
 import com.yueliangmanle.danci.core.data.WordAudioRepository
+import com.yueliangmanle.danci.core.data.buildAiProfileRepository
 import com.yueliangmanle.danci.core.data.buildPronunciationSourceRepository
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
 import com.yueliangmanle.danci.core.data.buildVoicePackRepository
@@ -241,6 +242,7 @@ suspend fun loadPronunciationSettingsViewModel(context: Context): PronunciationS
                 sourceRepository = pronunciationSourceRepository,
                 voicePackRepository = voicePackRepository,
                 settingsRepository = settingsRepository,
+                aiProfileRepository = buildAiProfileRepository(appContext),
             ),
         )
     }

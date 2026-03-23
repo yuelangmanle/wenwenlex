@@ -1,5 +1,6 @@
 package com.yueliangmanle.danci.core.pronunciation
 
+import com.yueliangmanle.danci.core.data.AiProfileRepository
 import com.yueliangmanle.danci.core.data.AppSettings
 import com.yueliangmanle.danci.core.data.PronunciationSourceRepository
 import com.yueliangmanle.danci.core.data.SettingsRepository
@@ -7,21 +8,27 @@ import com.yueliangmanle.danci.core.data.VoicePackRepository
 import com.yueliangmanle.danci.core.model.PronunciationAccent
 import com.yueliangmanle.danci.core.model.PronunciationMode
 import com.yueliangmanle.danci.core.model.PronunciationSource
+import com.yueliangmanle.danci.core.model.PronunciationSourcePreset
 import com.yueliangmanle.danci.core.model.PronunciationSourceType
 import com.yueliangmanle.danci.core.model.VoicePack
 import com.yueliangmanle.danci.core.model.VoicePackEngineType
+import com.yueliangmanle.danci.core.model.isMiMoTtsCompatible
 import java.time.Instant
 
 class PronunciationSourceRegistry(
     private val sourceRepository: PronunciationSourceRepository,
     private val voicePackRepository: VoicePackRepository,
     private val settingsRepository: SettingsRepository,
+    private val aiProfileRepository: AiProfileRepository? = null,
     private val nowProvider: () -> Instant = { Instant.now() },
 ) {
     suspend fun refreshBuiltinSources(): List<PronunciationSource> {
         val existingSources = sourceRepository.getAllSources()
         val settings = settingsRepository.getSettings()
         val readyVoicePacks = voicePackRepository.getSourceReadyVoicePacks()
+        val cloudProfiles = aiProfileRepository?.getProfiles()
+            ?.filter { it.enabled && it.isMiMoTtsCompatible() }
+            .orEmpty()
         val existingById = existingSources.associateBy(PronunciationSource::id)
         val now = nowProvider()
 
@@ -45,6 +52,16 @@ class PronunciationSourceRegistry(
                 voicePack = voicePack,
                 sortOrder = 200 + index,
                 existing = existingById[voicePack.id],
+                now = now,
+            )
+        }
+        updates += cloudProfiles.mapIndexed { index, profile ->
+            buildCloudSource(
+                profileId = profile.id,
+                profileName = profile.name,
+                sortOrder = 300 + index,
+                existing = existingById[cloudSourceId(profile.id)],
+                enabled = profile.enabled,
                 now = now,
             )
         }
@@ -269,6 +286,90 @@ class PronunciationSourceRegistry(
         )
     }
 
+    private fun buildCloudSource(
+        profileId: String,
+        profileName: String,
+        sortOrder: Int,
+        existing: PronunciationSource?,
+        enabled: Boolean,
+        now: Instant,
+    ): PronunciationSource =
+        PronunciationSource(
+            id = cloudSourceId(profileId),
+            name = "$profileName · MiMo TTS",
+            sourceType = PronunciationSourceType.CLOUD_TTS.storageValue,
+            accent = PronunciationAccent.AUTO.storageValue,
+            enabled = enabled,
+            isDefaultForWord = existing?.isDefaultForWord == true,
+            isDefaultForLongText = existing?.isDefaultForLongText == true,
+            providerProfileId = profileId,
+            backingVoicePackId = null,
+            sortOrder = existing?.sortOrder ?: sortOrder,
+            presets = buildCloudPresets(existing?.presets.orEmpty()),
+            createdAt = existing?.createdAt ?: now,
+            updatedAt = now,
+        )
+
+    private fun buildCloudPresets(
+        existing: List<PronunciationSourcePreset>,
+    ): List<PronunciationSourcePreset> {
+        val existingById = existing.associateBy(PronunciationSourcePreset::presetId)
+        val presets = listOf(
+            PronunciationSourcePreset(
+                sourceId = "",
+                presetId = "preset-calm",
+                displayName = "平静讲解",
+                voice = "default_en",
+                styleTemplate = "Slow down Calm",
+                advancedStyleEnabled = false,
+                isDefaultPreset = existingById["preset-calm"]?.isDefaultPreset ?: true,
+            ),
+            PronunciationSourcePreset(
+                sourceId = "",
+                presetId = "preset-happy",
+                displayName = "轻快鼓励",
+                voice = "default_en",
+                styleTemplate = "Happy",
+                advancedStyleEnabled = false,
+                isDefaultPreset = existingById["preset-happy"]?.isDefaultPreset ?: false,
+            ),
+            PronunciationSourcePreset(
+                sourceId = "",
+                presetId = "preset-whisper",
+                displayName = "低声提示",
+                voice = "default_en",
+                styleTemplate = "Whisper",
+                advancedStyleEnabled = false,
+                isDefaultPreset = existingById["preset-whisper"]?.isDefaultPreset ?: false,
+            ),
+            PronunciationSourcePreset(
+                sourceId = "",
+                presetId = "preset-mimo-default",
+                displayName = "MiMo 默认音色",
+                voice = "mimo_default",
+                styleTemplate = null,
+                advancedStyleEnabled = false,
+                isDefaultPreset = existingById["preset-mimo-default"]?.isDefaultPreset ?: false,
+            ),
+            PronunciationSourcePreset(
+                sourceId = "",
+                presetId = "preset-advanced",
+                displayName = "高级自定义",
+                voice = existingById["preset-advanced"]?.voice ?: "default_en",
+                styleTemplate = existingById["preset-advanced"]?.styleTemplate,
+                advancedStyleEnabled = true,
+                isDefaultPreset = existingById["preset-advanced"]?.isDefaultPreset ?: false,
+            ),
+        )
+        return if (presets.any(PronunciationSourcePreset::isDefaultPreset)) {
+            presets
+        } else {
+            presets.mapIndexed { index, preset ->
+                preset.copy(isDefaultPreset = index == 0)
+            }
+        }
+    }
+
     private fun isBuiltinLocalSource(source: PronunciationSource): Boolean =
         source.backingVoicePackId != null &&
             PronunciationSourceType.fromStorageValue(source.sourceType) in BUILTIN_LOCAL_SOURCE_TYPES
@@ -340,6 +441,8 @@ class PronunciationSourceRegistry(
     companion object {
         const val DICTIONARY_UK_SOURCE_ID = "dictionary-uk"
         const val DICTIONARY_US_SOURCE_ID = "dictionary-us"
+
+        fun cloudSourceId(profileId: String): String = "cloud-$profileId"
 
         fun dictionarySourceId(accent: PronunciationAccent): String =
             when (accent) {

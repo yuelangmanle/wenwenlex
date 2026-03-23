@@ -39,6 +39,7 @@ class RoomPronunciationSourceRepository(
             return
         }
         dao.upsertSources(sources.map(PronunciationSource::asEntity))
+        dao.deletePresetsBySourceIds(sources.map(PronunciationSource::id))
         val presets = sources.flatMap { source ->
             source.presets.map { preset -> preset.asEntity(sourceId = source.id) }
         }

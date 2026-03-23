@@ -7,6 +7,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 bash scripts/version_code.sh "$VERSION" >/dev/null
+python3 scripts/generate_release_notes_asset.py --check
 
 required_files=(
   "CHANGELOG.md"

@@ -101,6 +101,10 @@ fun AiSettingsScreen(
                     text = "支持多 API 档案、本地加密存储、全局默认与功能级覆盖切换。音标补全、词条讲解和计划调整可以分开走不同接口。",
                     style = MaterialTheme.typography.bodyMedium,
                 )
+                Text(
+                    text = "MiMo TTS 档案填写示例：Base URL = https://api.xiaomimimo.com/v1，模型 = mimo-v2-tts。",
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
         }
 

@@ -17,6 +17,7 @@ const val PRONUNCIATION_SETTINGS_ROUTE = "pronunciation_settings"
 fun PronunciationSettingsRoute(
     onOpenCacheManagementClick: () -> Unit = {},
     onOpenTaskCenterClick: () -> Unit = {},
+    onOpenSourceDetailClick: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -73,6 +74,7 @@ fun PronunciationSettingsRoute(
         },
         onOpenCacheManagementClick = onOpenCacheManagementClick,
         onOpenTaskCenterClick = onOpenTaskCenterClick,
+        onOpenSourceDetailClick = onOpenSourceDetailClick,
         onSelectAccent = { accent ->
             launchAction { updatePreferredAccent(accent) }
         },

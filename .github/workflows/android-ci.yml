@@ -31,6 +31,9 @@ jobs:
       - name: Make scripts executable
         run: chmod +x scripts/*.sh
 
+      - name: Validate in-app release notes asset
+        run: python3 scripts/generate_release_notes_asset.py --check
+
       - name: Validate release baseline
         run: bash scripts/validate_release_baseline.sh 1.7
 
@@ -114,6 +117,9 @@ jobs:
 
       - name: Make scripts executable
         run: chmod +x scripts/*.sh
+
+      - name: Validate in-app release notes asset
+        run: python3 scripts/generate_release_notes_asset.py --check
 
       - name: Validate release baseline
         run: bash scripts/validate_release_baseline.sh 1.7

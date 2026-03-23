@@ -13,6 +13,7 @@ import com.yueliangmanle.danci.core.data.SettingsRepository
 import com.yueliangmanle.danci.core.data.StudyEventRecorder
 import com.yueliangmanle.danci.core.data.WordRepository
 import com.yueliangmanle.danci.core.data.buildAiMemoryRepository
+import com.yueliangmanle.danci.core.data.buildAiProfileRepository
 import com.yueliangmanle.danci.core.data.buildPhoneticEnrichmentRepository
 import com.yueliangmanle.danci.core.data.buildPronunciationSourceRepository
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
@@ -388,6 +389,7 @@ suspend fun loadWordDetailViewModel(
             sourceRepository = pronunciationSourceRepository,
             voicePackRepository = buildVoicePackRepository(appContext),
             settingsRepository = settingsRepository,
+            aiProfileRepository = buildAiProfileRepository(appContext),
         ),
         eventRecorder = buildAiMemoryRepository(appContext),
     )

@@ -10,6 +10,7 @@ import com.yueliangmanle.danci.core.data.SettingsRepository
 import com.yueliangmanle.danci.core.data.RoomStudyRepository
 import com.yueliangmanle.danci.core.data.StudyEventRecorder
 import com.yueliangmanle.danci.core.data.buildAiMemoryRepository
+import com.yueliangmanle.danci.core.data.buildAiProfileRepository
 import com.yueliangmanle.danci.core.data.buildBookRepository
 import com.yueliangmanle.danci.core.data.buildPronunciationSourceRepository
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
@@ -412,6 +413,7 @@ suspend fun loadStudyViewModel(context: Context): StudyViewModel {
             sourceRepository = pronunciationSourceRepository,
             voicePackRepository = buildVoicePackRepository(appContext),
             settingsRepository = settingsRepository,
+            aiProfileRepository = buildAiProfileRepository(appContext),
         ),
     )
 }

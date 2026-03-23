@@ -21,6 +21,9 @@ interface PronunciationSourceDao {
     @Query("SELECT * FROM pronunciation_source_presets WHERE sourceId = :sourceId ORDER BY presetId ASC")
     suspend fun getPresetsBySource(sourceId: String): List<PronunciationSourcePresetEntity>
 
+    @Query("DELETE FROM pronunciation_source_presets WHERE sourceId IN (:sourceIds)")
+    suspend fun deletePresetsBySourceIds(sourceIds: List<String>)
+
     @Query("DELETE FROM pronunciation_source_presets")
     suspend fun clearPresets()
 

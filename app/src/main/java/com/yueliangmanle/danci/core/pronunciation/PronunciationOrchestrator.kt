@@ -2,11 +2,12 @@ package com.yueliangmanle.danci.core.pronunciation
 
 import android.content.Context
 import com.yueliangmanle.danci.core.data.SettingsRepository
-import com.yueliangmanle.danci.core.data.buildPronunciationSourceRepository
 import com.yueliangmanle.danci.core.data.VoicePackRepository
 import com.yueliangmanle.danci.core.data.WordAudioRepository
 import com.yueliangmanle.danci.core.data.WordRepository
 import com.yueliangmanle.danci.core.data.buildAiMemoryRepository
+import com.yueliangmanle.danci.core.data.buildAiProfileRepository
+import com.yueliangmanle.danci.core.data.buildPronunciationSourceRepository
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
 import com.yueliangmanle.danci.core.data.buildVoicePackRepository
 import com.yueliangmanle.danci.core.data.buildWordAudioRepository
@@ -383,6 +384,7 @@ fun buildPronunciationOrchestrator(context: Context): PronunciationOrchestrator 
             sourceRepository = buildPronunciationSourceRepository(appContext),
             voicePackRepository = voicePackRepository,
             settingsRepository = settingsRepository,
+            aiProfileRepository = buildAiProfileRepository(appContext),
         ),
     )
 }

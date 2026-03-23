@@ -22,6 +22,7 @@ import com.yueliangmanle.danci.core.pronunciation.LicenseManifestVerifier
 import com.yueliangmanle.danci.core.pronunciation.NativeVoicePackManifest
 import java.io.File
 import java.io.FileOutputStream
+import java.io.FilterInputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
@@ -155,6 +156,19 @@ internal data class VoicePackInstallResult(
 internal interface VoicePackRemoteFetcher {
     fun downloadBytes(remoteUrl: String): ByteArray
 
+    fun openStream(
+        remoteUrl: String,
+        startByte: Long = 0L,
+    ): VoicePackRemoteStream {
+        val bytes = downloadBytes(remoteUrl)
+        return VoicePackRemoteStream(
+            inputStream = bytes.inputStream().buffered(),
+            responseCode = 200,
+            supportsResume = false,
+            contentLength = bytes.size.toLong(),
+        )
+    }
+
     fun downloadText(remoteUrl: String): String
 }
 
@@ -192,6 +206,41 @@ private object HttpUrlConnectionVoicePackRemoteFetcher : VoicePackRemoteFetcher 
             connection.disconnect()
         }
     }
+
+    override fun openStream(
+        remoteUrl: String,
+        startByte: Long,
+    ): VoicePackRemoteStream {
+        val connection = URL(remoteUrl).openConnection() as HttpURLConnection
+        connection.requestMethod = "GET"
+        connection.connectTimeout = 10_000
+        connection.readTimeout = 20_000
+        connection.instanceFollowRedirects = true
+        if (startByte > 0L) {
+            connection.setRequestProperty("Range", "bytes=$startByte-")
+        }
+        connection.connect()
+        if (connection.responseCode !in 200..299) {
+            val errorBody = connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
+            connection.disconnect()
+            error("语音包下载失败：HTTP ${connection.responseCode} $errorBody")
+        }
+        val wrappedInput = object : FilterInputStream(connection.inputStream.buffered()) {
+            override fun close() {
+                try {
+                    super.close()
+                } finally {
+                    connection.disconnect()
+                }
+            }
+        }
+        return VoicePackRemoteStream(
+            inputStream = wrappedInput,
+            responseCode = connection.responseCode,
+            supportsResume = connection.responseCode == 206,
+            contentLength = connection.contentLengthLong.takeIf { it >= 0L },
+        )
+    }
 }
 
 internal class VoicePackInstaller(
@@ -207,45 +256,61 @@ internal class VoicePackInstaller(
         val downloadUrl = voicePack.downloadUrl?.takeIf(String::isNotBlank)
             ?: error("语音包缺少下载地址。")
         val installDir = File(installRootDir, voicePack.id)
-        installDir.deleteRecursively()
-        installDir.mkdirs()
+        val stagingDir = File(installRootDir, "${voicePack.id}.staging")
+        stagingDir.deleteRecursively()
+        stagingDir.mkdirs()
 
-        if (downloadUrl.startsWith("asset://")) {
-            onStatusChange(VoicePackStatus.INSTALLING.storageValue)
-            installFromAssetDirectory(
-                assetPath = downloadUrl.removePrefix("asset://"),
+        return try {
+            if (downloadUrl.startsWith("asset://")) {
+                onStatusChange(VoicePackStatus.INSTALLING.storageValue)
+                installFromAssetDirectory(
+                    assetPath = downloadUrl.removePrefix("asset://"),
+                    installDir = stagingDir,
+                )
+            } else {
+                cacheDir.mkdirs()
+                val archiveFile = File(cacheDir, resolveArchiveFileName(voicePack))
+                onStatusChange(VoicePackStatus.DOWNLOADING.storageValue)
+                val checksum = VoicePackArchiveDownloader(
+                    remoteFetcher = remoteFetcher,
+                ).download(
+                    remoteUrl = downloadUrl,
+                    targetFile = archiveFile,
+                ).checksum
+                val expectedChecksum = resolveExpectedArchiveChecksum(
+                    voicePack = voicePack,
+                    archiveFile = archiveFile,
+                )
+                if (expectedChecksum != null) {
+                    onStatusChange(VoicePackStatus.VERIFYING.storageValue)
+                    check(checksum.equals(expectedChecksum, ignoreCase = true)) {
+                        "语音包归档 checksum 校验失败。"
+                    }
+                }
+                onStatusChange(VoicePackStatus.VERIFYING.storageValue)
+                onStatusChange(VoicePackStatus.INSTALLING.storageValue)
+                unzipArchive(archiveFile, stagingDir)
+            }
+
+            check(File(stagingDir, VOICE_PACK_INSTALL_MANIFEST_FILE).exists()) {
+                "语音包安装目录缺少 manifest.json。"
+            }
+            validateInstalledVoicePack(
+                voicePack = voicePack,
+                installDir = stagingDir,
+            )
+            replaceInstallDirectory(
+                stagingDir = stagingDir,
                 installDir = installDir,
             )
-        } else {
-            cacheDir.mkdirs()
-            val archiveFile = File(cacheDir, resolveArchiveFileName(voicePack))
-            onStatusChange(VoicePackStatus.DOWNLOADING.storageValue)
-            val checksum = downloadRemoteArchive(downloadUrl, archiveFile)
-            val expectedChecksum = resolveExpectedArchiveChecksum(
-                voicePack = voicePack,
-                archiveFile = archiveFile,
+            VoicePackInstallResult(
+                installDir = installDir,
+                installedSizeBytes = installDir.directorySizeBytes(),
             )
-            if (expectedChecksum != null) {
-                onStatusChange(VoicePackStatus.VERIFYING.storageValue)
-                check(checksum.equals(expectedChecksum, ignoreCase = true)) {
-                    "语音包归档 checksum 校验失败。"
-                }
-            }
-            onStatusChange(VoicePackStatus.INSTALLING.storageValue)
-            unzipArchive(archiveFile, installDir)
+        } catch (error: Throwable) {
+            stagingDir.deleteRecursively()
+            throw mapInstallFailure(error)
         }
-
-        check(File(installDir, VOICE_PACK_INSTALL_MANIFEST_FILE).exists()) {
-            "语音包安装目录缺少 manifest.json。"
-        }
-        validateInstalledVoicePack(
-            voicePack = voicePack,
-            installDir = installDir,
-        )
-        return VoicePackInstallResult(
-            installDir = installDir,
-            installedSizeBytes = installDir.directorySizeBytes(),
-        )
     }
 
     private fun resolveExpectedArchiveChecksum(
@@ -270,15 +335,6 @@ internal class VoicePackInstaller(
             assetPath = assetPath,
             target = installDir,
         )
-    }
-
-    private fun downloadRemoteArchive(
-        remoteUrl: String,
-        targetFile: File,
-    ): String {
-        val bytes = remoteFetcher.downloadBytes(remoteUrl)
-        targetFile.outputStream().use { it.write(bytes) }
-        return sha256(bytes)
     }
 
     private fun downloadChecksumIndex(checksumsUrl: String): Map<String, String> {
@@ -366,6 +422,44 @@ private fun File.directorySizeBytes(): Long {
     return listFiles().orEmpty().sumOf(File::directorySizeBytes)
 }
 
+private fun replaceInstallDirectory(
+    stagingDir: File,
+    installDir: File,
+) {
+    val backupDir = File(installDir.parentFile, "${installDir.name}.backup")
+    backupDir.deleteRecursively()
+    if (installDir.exists()) {
+        if (!installDir.renameTo(backupDir)) {
+            installDir.deleteRecursively()
+        }
+    }
+    if (!stagingDir.renameTo(installDir)) {
+        installDir.deleteRecursively()
+        stagingDir.copyRecursively(installDir, overwrite = true)
+        stagingDir.deleteRecursively()
+    }
+    backupDir.deleteRecursively()
+}
+
+private fun mapInstallFailure(error: Throwable): IllegalStateException {
+    val message = error.message.orEmpty()
+    if (error is OutOfMemoryError) {
+        return IllegalStateException("安装时内存不足，请关闭后台应用后重试。", error)
+    }
+    val friendlyMessage = when {
+        listOf("checksum", "payload checksum", "校验").any(message::contains) ->
+            "语音包校验失败，请重新下载。"
+        listOf("no space", "空间", "storage").any(message.lowercase()::contains) ->
+            "空间不足，无法完成语音包安装。"
+        listOf("http", "download", "下载").any(message.lowercase()::contains) ->
+            "语音包下载失败，请检查网络后重试。"
+        listOf("runtime", "jni").any(message.lowercase()::contains) ->
+            "语音包运行时不兼容，请换一个版本再试。"
+        else -> message.ifBlank { "语音包安装失败，请稍后重试。" }
+    }
+    return IllegalStateException(friendlyMessage, error)
+}
+
 internal fun validateInstalledVoicePack(
     voicePack: VoicePack,
     installDir: File,
@@ -412,7 +506,7 @@ internal fun validateInstalledVoicePack(
     payloadChecksums.forEach { (relativePath, expectedSha256) ->
         val file = resolveInstallFile(installDir, relativePath)
         check(file.isFile) { "缺少 payload 文件: $relativePath" }
-        check(sha256(file.readBytes()).equals(expectedSha256, ignoreCase = true)) {
+        check(StreamingSha256().checksum(file).equals(expectedSha256, ignoreCase = true)) {
             "payload checksum 校验失败: $relativePath"
         }
     }
