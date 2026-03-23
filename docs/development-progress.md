@@ -5,22 +5,21 @@
 这份文档用于记录文文Lex 的当前真实开发状态，方便后续协作者、外部支持者和未来迭代直接接手。
 
 - 最后更新日期：`2026-03-23`
-- 当前正式版本：`1.7`
-- 当前总体状态：`v1.8 待发版收口；当前正式稳定版本仍为 v1.7`
+- 当前正式版本：`1.8`
+- 当前总体状态：`v1.8 已完成并发版；下一轮版本待规划`
 
 ## 2. 当前版本快照
 
 - 项目名称：`文文Lex`
 - 发布页面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
-- 当前正式版本页面：[v1.7](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.7)
-- 当前发版目标版本：`1.8`
+- 当前正式版本页面：[v1.8](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.8)
 - 当前 `1.8` 规格：[2026-03-22-v1.8-import-pronunciation-source-design.md](./superpowers/specs/2026-03-22-v1.8-import-pronunciation-source-design.md)
 - 当前 `1.8` 计划：[2026-03-22-v1.8-import-pronunciation-source.md](./superpowers/plans/2026-03-22-v1.8-import-pronunciation-source.md)
 - 当前 `1.8` smoke 基线：[release-v1.8-import-pronunciation-smoke.md](./release-v1.8-import-pronunciation-smoke.md)
 - 当前开发验证页面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 - 当前正式发包方式：GitHub 云端 `Android Release`
 - 当前开发验证方式：GitHub 云端 `Android CI`
-- 当前开发主线：`v1.8 导入闭环与统一发音源中心待发版收口，当前稳定基线为已发布的 v1.7`
+- 当前开发主线：`下一轮版本待规划，当前稳定基线为已发布的 v1.8`
 
 ## 3. 里程碑状态
 
@@ -41,7 +40,7 @@
 | AI 计划历史回溯 v1.5 | 已完成并发版 | 已完成计划版本持久化、AI 计划中心、计划对比 / 解释页、checkpoint 压缩记忆和备份 `v4`，并完成正式发版 |
 | 学习统计与 AI 闭环 v1.6 | 已完成并发版 | 已完成统计快照持久化、长期摘要投喂、学习统计页 / HTML 看板、首页 / 我的页入口、AI 计划中心效果回看与备份 `v5`，并完成正式发版 |
 | 学习效果与交付护栏 v1.7 | 已完成并发版 | 已完成动态复习、学习反馈信号、日 / 周 / 阶段目标、升级安全、诊断中心和发版护栏，并完成云端 `Android CI` / `Android Release` 正式归档 |
-| 导入闭环与统一发音源中心 v1.8 | 待发版收口 | 已完成导入诊断 / 修复闭环、统一发音源详情、MiMo TTS 详情、缓存分桶管理、后台音频生成与 App 内更新日志；待继续云端 `Android CI` / `Android Release` 归档 |
+| 导入闭环与统一发音源中心 v1.8 | 已完成并发版 | 已完成导入诊断 / 修复闭环、统一发音源详情、MiMo TTS 详情、缓存分桶管理、后台音频生成、App 内更新日志，并完成云端 `Android CI` / `Android Release` 正式归档 |
 
 ## 4. 已完成模块清单
 
@@ -132,23 +131,24 @@
 
 以下事实可默认作为后续协作基线：
 
-- 正式版本 `1.7` 已于 `2026-03-22` 完成云端正式发版
+- 正式版本 `1.8` 已于 `2026-03-23` 完成云端正式发版
 - `Android CI #23377258763` 已通过，覆盖 `Build Debug APK` 与 `Connected Debug Android Test`
 - `Android CI #23384177140` 已通过，覆盖 `Build Debug APK` 与 `Connected Debug Android Test`
 - `Android CI #23400597350` 已通过，覆盖 `fix: stabilize study latency and skip state`
 - `Android CI #23401041819` 已通过，覆盖 `feat: add goal progress surfaces and settings`
 - `Android CI #23401721564` 已通过，覆盖诊断中心版本信息修正后的完整 `Build Debug APK` 与 `Connected Debug Android Test`
 - `Android Release #23404026655` 已通过，并已发布 [v1.7](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.7)
+- `Android CI #23422515288` 已通过，覆盖 `Build Debug APK` 与 `Connected Debug Android Test`
+- `Android Release #23422780718` 已通过，并已发布 [v1.8](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.8)
 - 正式安装包类型为 `release-signed APK`
 - 正式版本更新日志由 [CHANGELOG.md](../CHANGELOG.md) 提供
 - 版本号规则固定为 `1.0 -> 1.1 -> ... -> 1.9 -> 2.0`
 - 当前 `1.7` 已在 `1.6` 学习统计与 AI 闭环基础上，把动态复习、目标系统、升级安全、诊断中心和发版护栏正式接入
 - 当前 `1.7` Release 资产已确认包含：signed APK、UK / US voice pack zip、两个 manifest 与 checksum
 - 当前 `1.7` 发版归档记录见 [release-v1.7-learning-effect-smoke.md](./release-v1.7-learning-effect-smoke.md)
-- 当前本机仍缺 Java runtime，因此 `1.7` 仍无法在本机直接跑 Gradle；最终验证继续以 GitHub Actions 为准
-- 当前 `v1.8` 分支已接通导入诊断 / AI 修复闭环、统一发音源第一版、MiMo TTS 详情页和 App 内更新日志
-- 当前 `v1.8` 分支的缓存管理已支持按缓存桶展示与清理，任务页已支持单词 / 整书 / 分批后台生成与失败项真实重新排队
-- 当前本机已补齐 JDK 17，可直接执行 `./gradlew :app:testDebugUnitTest` 做本地回归
+- 当前 `1.8` 发版归档记录见 [release-v1.8-import-pronunciation-smoke.md](./release-v1.8-import-pronunciation-smoke.md)
+- 当前 `1.8` Release 资产已确认包含：signed APK、UK / US voice pack zip、两个 manifest 与 checksum
+- 当前本机已补齐 JDK 17，可直接执行 `./gradlew :app:testDebugUnitTest` 做本地回归；`v1.8` 最终正式发版已同时完成云端验证
 - native 语音包发布源目录当前位于 `distribution/voice-packs/`
 - 正式 Release 已具备同时上传 APK、native 语音包 zip、manifest 和 checksum 的能力
 - 正式 Release 的 native payload 由 GitHub Actions 云端临时拉取与打包，不进入 git 仓库
@@ -299,14 +299,17 @@
 - 已确认 Release 资产包含 `wenwenlex-v1.7-release.apk`、两套 voice pack zip、两个 manifest 和 `wenwenlex-voice-pack-checksums.txt`
 - 已补齐 [release-v1.7-learning-effect-smoke.md](./release-v1.7-learning-effect-smoke.md) 作为后续对接与回归基线
 
-### 2026-03-23 / v1.8 / 待发版收口
+### 2026-03-23 / v1.8 / 已完成并发版
 
 - 已完成导入诊断 / 自动修复 / AI 修复严重问题闭环，并把诊断摘要写入导入记录
 - 已完成统一发音源中心第一版，补入 MiMo TTS 详情、API 检测、预设切换和会话级快速切换
 - 已完成多来源缓存桶与缓存管理页，以及单词 / 整书 / 分批后台音频生成和失败项真实重试
 - 已完成 App 内更新日志链路，`CHANGELOG.md` 会生成 `app/src/main/assets/release-notes/release-notes.json`
 - 已完成本地单测回归，`./gradlew :app:testDebugUnitTest --no-daemon` 通过
-- 待完成云端 `Android CI`、`Android Release`、Release 资产归档与 smoke 文档回填
+- 已完成云端 `Android CI #23422515288`，`Build Debug APK` 与 `Connected Debug Android Test` 全绿
+- 已完成云端 `Android Release #23422780718`，发布 [v1.8](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.8)
+- 已确认 Release 资产包含 `wenwenlex-v1.8-release.apk`、两套 voice pack zip、两个 manifest 和 `wenwenlex-voice-pack-checksums.txt`
+- 已补齐 [release-v1.8-import-pronunciation-smoke.md](./release-v1.8-import-pronunciation-smoke.md) 作为后续对接与回归基线
 
 ## 10. 后续更新模板
 
