@@ -9,6 +9,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.yueliangmanle.danci.core.study.isModeAwareStudyRoute
 import com.yueliangmanle.danci.feature.books.BOOK_IMPORT_ROUTE
 import com.yueliangmanle.danci.feature.me.AI_SETTINGS_ROUTE
 
@@ -60,7 +61,7 @@ class DanciAppState(
 
 internal fun isStudyTopLevelRoute(route: String): Boolean {
     return route == TopLevelDestination.STUDY.name ||
-        route.startsWith("study?mode=") ||
+        isModeAwareStudyRoute(route) ||
         route.startsWith("word_detail") ||
         route.startsWith("quiz")
 }

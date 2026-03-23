@@ -13,10 +13,12 @@ import com.yueliangmanle.danci.core.ai.loadCurrentPlanSnapshot
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
 import com.yueliangmanle.danci.core.model.AiCapability
 import com.yueliangmanle.danci.core.pronunciation.buildPronunciationOrchestrator
+import com.yueliangmanle.danci.core.study.StudyLaunchMode
 import kotlinx.coroutines.launch
 
 @Composable
 fun StudyRoute(
+    launchMode: StudyLaunchMode? = null,
     onOpenDetailClick: (Long) -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -28,6 +30,14 @@ fun StudyRoute(
     var viewModel: StudyViewModel? by remember(context) { mutableStateOf(null) }
     var state by remember(viewModel) {
         mutableStateOf(StudyUiState())
+    }
+    val sessionLabel = remember(launchMode) {
+        when (launchMode) {
+            StudyLaunchMode.NEW_WORDS -> "新词学习会话"
+            StudyLaunchMode.REVIEW -> "复习学习会话"
+            StudyLaunchMode.RECENT_MISTAKES -> "错题学习会话"
+            null -> "当前学习会话"
+        }
     }
 
     androidx.compose.runtime.LaunchedEffect(context) {
@@ -48,7 +58,7 @@ fun StudyRoute(
                 ) ?: return@launch
                 val snapshot = loadCurrentPlanSnapshot(
                     context = context,
-                    activeBookTitle = "当前学习会话",
+                    activeBookTitle = sessionLabel,
                     headline = state.progressText,
                     mistakeCount = checkpoint.mistakeBurst,
                     anomalyNotes = listOf(checkpoint.reason),
@@ -65,7 +75,7 @@ fun StudyRoute(
             scope.launch {
                 val result = pronunciationOrchestrator.playWordById(
                     wordId = state.currentWordId,
-                    contextLabel = "study",
+                    contextLabel = sessionLabel,
                 )
                 state = state.copy(
                     statusMessage = result.statusMessage,

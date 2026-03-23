@@ -13,6 +13,7 @@ import com.yueliangmanle.danci.feature.books.BookImportRoute
 import com.yueliangmanle.danci.feature.books.BooksRoute
 import com.yueliangmanle.danci.feature.books.bookDetailRoute
 import com.yueliangmanle.danci.core.study.StudyLaunchMode
+import com.yueliangmanle.danci.core.study.parseStudyLaunchMode
 import com.yueliangmanle.danci.core.study.studyRoute
 import com.yueliangmanle.danci.core.study.studyRoutePattern
 import com.yueliangmanle.danci.feature.home.HomeRoute
@@ -84,8 +85,10 @@ fun DanciNavHost(
                     nullable = false
                 },
             ),
-        ) {
+        ) { backStackEntry ->
+            val launchMode = parseStudyLaunchMode(backStackEntry.arguments?.getString("mode"))
             StudyRoute(
+                launchMode = launchMode,
                 onOpenDetailClick = { wordId ->
                     navController.navigate(wordDetailRoute(wordId))
                 },
