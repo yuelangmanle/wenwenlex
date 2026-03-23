@@ -15,12 +15,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.yueliangmanle.danci.core.study.CardFeedback
+import com.yueliangmanle.danci.core.study.StudyQueueEmptyState
 
 @Composable
 fun StudyScreen(
     state: StudyUiState,
     onFeedbackClick: (CardFeedback) -> Unit,
     onOpenDetailClick: () -> Unit,
+    onBackHomeClick: () -> Unit,
     onPlayPronunciationClick: () -> Unit,
 ) {
     Column(
@@ -38,6 +40,33 @@ fun StudyScreen(
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (state.isLoadingQueue) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "正在准备本轮单词…",
+                    modifier = Modifier.padding(20.dp),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
+            return@Column
+        }
+        if (state.emptyState != null) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        text = emptyStateMessage(state.emptyState),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    OutlinedButton(onClick = onBackHomeClick) {
+                        Text("返回首页")
+                    }
+                }
+            }
+            return@Column
+        }
         Card(
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -165,3 +194,10 @@ fun StudyScreen(
         }
     }
 }
+
+private fun emptyStateMessage(emptyState: StudyQueueEmptyState): String =
+    when (emptyState) {
+        StudyQueueEmptyState.NO_NEW_WORDS -> "当前没有可学习的新词"
+        StudyQueueEmptyState.NO_DUE_REVIEW -> "当前没有到期复习词"
+        StudyQueueEmptyState.NO_RECENT_MISTAKES -> "当前没有最近错词"
+    }

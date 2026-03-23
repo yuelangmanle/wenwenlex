@@ -1,12 +1,29 @@
 package com.yueliangmanle.danci.feature.study
 
 import com.yueliangmanle.danci.core.study.CardFeedback
+import com.yueliangmanle.danci.core.study.StudyQueueEmptyState
 import com.yueliangmanle.danci.core.study.StudyCardItem
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
 
 class StudyViewModelTest {
+    @Test
+    fun exposesEmptyStateInsteadOfRenderingCompletionCardForEmptyQueue() {
+        val viewModel = StudyViewModel(
+            initialQueue = emptyList(),
+            emptyState = StudyQueueEmptyState.NO_DUE_REVIEW,
+        )
+
+        val state = viewModel.buildUiState()
+
+        assertFalse(state.isSessionComplete)
+        assertEquals(StudyQueueEmptyState.NO_DUE_REVIEW, state.emptyState)
+        assertEquals("", state.currentWord)
+        assertEquals("", state.progressText)
+    }
+
     @Test
     fun emitsCheckpointRequestAfterFifteenCompletedWords() {
         val viewModel = StudyViewModel(initialQueue = sampleQueue(size = 15))

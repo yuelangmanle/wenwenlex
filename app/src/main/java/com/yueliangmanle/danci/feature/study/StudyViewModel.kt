@@ -4,12 +4,14 @@ import android.content.Context
 import com.yueliangmanle.danci.core.ai.AiPlanAdjustmentResult
 import com.yueliangmanle.danci.core.ai.PlanSource
 import com.yueliangmanle.danci.core.data.NoOpStudyEventRecorder
+import com.yueliangmanle.danci.core.data.RoomStudyRepository
 import com.yueliangmanle.danci.core.data.StudyEventRecorder
 import com.yueliangmanle.danci.core.data.buildAiMemoryRepository
 import com.yueliangmanle.danci.core.data.buildBookRepository
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
 import com.yueliangmanle.danci.core.data.defaultLearningRecord
 import com.yueliangmanle.danci.core.data.syncBuiltInCatalogToDatabase
+import com.yueliangmanle.danci.core.database.buildDanciDatabase
 import com.yueliangmanle.danci.core.model.LearningRecord
 import com.yueliangmanle.danci.core.model.StudyEvent
 import com.yueliangmanle.danci.core.model.StudyEventType
@@ -17,7 +19,10 @@ import com.yueliangmanle.danci.core.model.studyEventMetadataOf
 import com.yueliangmanle.danci.core.study.CardFeedback
 import com.yueliangmanle.danci.core.study.FeedbackMapper
 import com.yueliangmanle.danci.core.study.StudyCardItem
-import com.yueliangmanle.danci.core.study.StudyQueueBuilder
+import com.yueliangmanle.danci.core.study.StudyLaunchMode
+import com.yueliangmanle.danci.core.study.StudyQueueEmptyState
+import com.yueliangmanle.danci.core.study.StudyQueuePlanner
+import com.yueliangmanle.danci.core.study.defaultStudyGroupSize
 import java.time.Duration
 import java.time.Instant
 
@@ -30,6 +35,8 @@ data class StudyUiState(
     val exampleSentence: String? = null,
     val exampleTranslation: String? = null,
     val progressText: String = "",
+    val isLoadingQueue: Boolean = true,
+    val emptyState: StudyQueueEmptyState? = null,
     val isSessionComplete: Boolean = false,
     val checkpointTitle: String? = null,
     val checkpointSuggestion: String? = null,
@@ -46,6 +53,7 @@ data class SessionCheckpointRequest(
 
 class StudyViewModel(
     initialQueue: List<StudyCardItem>,
+    private val emptyState: StudyQueueEmptyState? = null,
     private val feedbackMapper: FeedbackMapper = FeedbackMapper(),
     private val eventRecorder: StudyEventRecorder = NoOpStudyEventRecorder,
     private val nowProvider: () -> Instant = { Instant.now() },
@@ -69,6 +77,15 @@ class StudyViewModel(
     }
 
     fun buildUiState(): StudyUiState {
+        if (queue.isEmpty()) {
+            return StudyUiState(
+                isLoadingQueue = false,
+                emptyState = emptyState,
+                checkpointTitle = checkpointTitle,
+                checkpointSuggestion = checkpointSuggestion,
+                checkpointSourceLabel = checkpointSourceLabel,
+            )
+        }
         val card = queue.getOrNull(currentIndex)
         if (card == null) {
             return StudyUiState(
@@ -76,6 +93,7 @@ class StudyViewModel(
                 currentWord = "今日学习完成",
                 meanings = listOf("可以回到首页继续安排下一轮复习。"),
                 progressText = "${queue.size} / ${queue.size}",
+                isLoadingQueue = false,
                 isSessionComplete = true,
                 checkpointTitle = checkpointTitle,
                 checkpointSuggestion = checkpointSuggestion,
@@ -91,6 +109,7 @@ class StudyViewModel(
             exampleSentence = card.exampleSentence,
             exampleTranslation = card.exampleTranslation,
             progressText = "${currentIndex + 1} / ${queue.size}",
+            isLoadingQueue = false,
             checkpointTitle = checkpointTitle,
             checkpointSuggestion = checkpointSuggestion,
             checkpointSourceLabel = checkpointSourceLabel,
@@ -206,14 +225,26 @@ class StudyViewModel(
     }
 }
 
-suspend fun loadStudyViewModel(context: Context): StudyViewModel {
+suspend fun loadStudyViewModel(
+    context: Context,
+    launchMode: StudyLaunchMode? = null,
+): StudyViewModel {
     syncBuiltInCatalogToDatabase(context)
     val settings = buildSettingsRepository(context).getSettings()
     val bookRepository = buildBookRepository(context)
+    val studyRepository = RoomStudyRepository(buildDanciDatabase(context).studyDao())
     val activeBook = settings.activeBookId?.let { bookRepository.getBook(it) } ?: bookRepository.getAllBooks().first()
-    val queue = StudyQueueBuilder().buildFromWords(bookRepository.getWords(activeBook.id))
+    val words = bookRepository.getWords(activeBook.id)
+    val mode = launchMode ?: StudyLaunchMode.NEW_WORDS
+    val plan = StudyQueuePlanner().plan(
+        mode = mode,
+        words = words,
+        recordsByWordId = studyRepository.getAllLearningRecords().associateBy { it.wordId },
+        groupSize = defaultStudyGroupSize(mode),
+    )
     return StudyViewModel(
-        initialQueue = queue,
+        initialQueue = plan.queue,
+        emptyState = plan.emptyState,
         eventRecorder = buildAiMemoryRepository(context),
     )
 }

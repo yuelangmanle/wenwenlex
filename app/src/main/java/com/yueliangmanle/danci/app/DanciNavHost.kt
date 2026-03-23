@@ -57,6 +57,9 @@ fun DanciNavHost(
                         onOpenDetailClick = { wordId ->
                             navController.navigate(wordDetailRoute(wordId))
                         },
+                        onBackHomeClick = {
+                            navController.navigate(TopLevelDestination.HOME.name)
+                        },
                     )
                     TopLevelDestination.BOOKS -> BooksRoute(
                         onImportClick = {
@@ -91,6 +94,9 @@ fun DanciNavHost(
                 launchMode = launchMode,
                 onOpenDetailClick = { wordId ->
                     navController.navigate(wordDetailRoute(wordId))
+                },
+                onBackHomeClick = {
+                    navController.navigate(TopLevelDestination.HOME.name)
                 },
             )
         }

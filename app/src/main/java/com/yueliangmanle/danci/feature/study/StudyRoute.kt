@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 fun StudyRoute(
     launchMode: StudyLaunchMode? = null,
     onOpenDetailClick: (Long) -> Unit = {},
+    onBackHomeClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -28,7 +29,7 @@ fun StudyRoute(
     }
     val pronunciationOrchestrator = remember(context) { buildPronunciationOrchestrator(context) }
     var viewModel: StudyViewModel? by remember(context) { mutableStateOf(null) }
-    var state by remember(viewModel) {
+    var state by remember(launchMode) {
         mutableStateOf(StudyUiState())
     }
     val sessionLabel = remember(launchMode) {
@@ -40,17 +41,18 @@ fun StudyRoute(
         }
     }
 
-    androidx.compose.runtime.LaunchedEffect(context) {
-        val loaded = loadStudyViewModel(context)
+    androidx.compose.runtime.LaunchedEffect(context, launchMode) {
+        state = StudyUiState(sessionTitle = sessionLabel)
+        val loaded = loadStudyViewModel(context, launchMode)
         viewModel = loaded
-        state = loaded.buildUiState()
+        state = loaded.buildUiState().copy(sessionTitle = sessionLabel)
     }
 
     StudyScreen(
         state = state,
         onFeedbackClick = { feedback ->
             val currentViewModel = viewModel ?: return@StudyScreen
-            state = currentViewModel.submitFeedback(feedback)
+            state = currentViewModel.submitFeedback(feedback).copy(sessionTitle = sessionLabel)
             scope.launch {
                 val settings = settingsRepository.getSettings()
                 val checkpoint = currentViewModel.consumeCheckpointRequest(
@@ -64,13 +66,14 @@ fun StudyRoute(
                     anomalyNotes = listOf(checkpoint.reason),
                 )
                 val result = buildAiStrategyCoordinator(context).adjustPlan(snapshot)
-                state = currentViewModel.applyCheckpointSuggestion(result)
+                state = currentViewModel.applyCheckpointSuggestion(result).copy(sessionTitle = sessionLabel)
             }
         },
         onOpenDetailClick = {
             viewModel?.openCurrentWordDetail()
             onOpenDetailClick(state.currentWordId)
         },
+        onBackHomeClick = onBackHomeClick,
         onPlayPronunciationClick = {
             scope.launch {
                 val result = pronunciationOrchestrator.playWordById(
