@@ -438,9 +438,9 @@ private class FakeOrchestratorSettingsRepository : SettingsRepository {
 }
 
 private class FakeOrchestratorSourceRepository(
-    private val sources: MutableList<PronunciationSource>,
+    sources: List<PronunciationSource>,
 ) : PronunciationSourceRepository {
-    constructor(sources: List<PronunciationSource>) : this(sources.toMutableList())
+    private val sources = sources.toMutableList()
 
     override suspend fun getAllSources(): List<PronunciationSource> = sources.toList()
 
