@@ -12,6 +12,9 @@ import com.yueliangmanle.danci.feature.books.BookDetailRoute
 import com.yueliangmanle.danci.feature.books.BookImportRoute
 import com.yueliangmanle.danci.feature.books.BooksRoute
 import com.yueliangmanle.danci.feature.books.bookDetailRoute
+import com.yueliangmanle.danci.core.study.StudyLaunchMode
+import com.yueliangmanle.danci.core.study.studyRoute
+import com.yueliangmanle.danci.core.study.studyRoutePattern
 import com.yueliangmanle.danci.feature.home.HomeRoute
 import com.yueliangmanle.danci.feature.me.AiSettingsRoute
 import com.yueliangmanle.danci.feature.me.AI_SETTINGS_ROUTE
@@ -40,13 +43,13 @@ fun DanciNavHost(
                 when (destination) {
                     TopLevelDestination.HOME -> HomeRoute(
                         onStartNewWordsClick = {
-                            navController.navigate(TopLevelDestination.STUDY.name)
+                            navController.navigate(studyRoute(StudyLaunchMode.NEW_WORDS))
                         },
                         onStartReviewClick = {
-                            navController.navigate(TopLevelDestination.STUDY.name)
+                            navController.navigate(studyRoute(StudyLaunchMode.REVIEW))
                         },
                         onOpenMistakesClick = {
-                            navController.navigate(TopLevelDestination.STUDY.name)
+                            navController.navigate(studyRoute(StudyLaunchMode.RECENT_MISTAKES))
                         },
                     )
                     TopLevelDestination.STUDY -> StudyRoute(
@@ -72,6 +75,21 @@ fun DanciNavHost(
                     )
                 }
             }
+        }
+        composable(
+            route = studyRoutePattern(),
+            arguments = listOf(
+                navArgument("mode") {
+                    type = NavType.StringType
+                    nullable = false
+                },
+            ),
+        ) {
+            StudyRoute(
+                onOpenDetailClick = { wordId ->
+                    navController.navigate(wordDetailRoute(wordId))
+                },
+            )
         }
         composable(
             route = "word_detail/{wordId}",
