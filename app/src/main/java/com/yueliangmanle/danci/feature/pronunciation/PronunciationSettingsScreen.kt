@@ -26,12 +26,16 @@ import com.yueliangmanle.danci.core.model.PronunciationMode
 fun PronunciationSettingsScreen(
     state: PronunciationSettingsUiState,
     onRefreshCatalog: () -> Unit,
+    onOpenCacheManagementClick: () -> Unit,
+    onOpenTaskCenterClick: () -> Unit,
     onSelectAccent: (String) -> Unit,
     onSelectMode: (String) -> Unit,
     onAutoCacheChanged: (Boolean) -> Unit,
     onAllowCellularChanged: (Boolean) -> Unit,
     onFallbackToSystemTtsChanged: (Boolean) -> Unit,
     onPreferOfflineLongTextChanged: (Boolean) -> Unit,
+    onSetDefaultWordSource: (String) -> Unit,
+    onSetDefaultLongTextSource: (String) -> Unit,
     onClearCacheClick: () -> Unit,
     onActivateVoicePack: (String) -> Unit,
     onDownloadVoicePack: (String) -> Unit,
@@ -49,17 +53,44 @@ fun PronunciationSettingsScreen(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text("发音与朗读", style = MaterialTheme.typography.headlineSmall)
+                Text("发音源中心", style = MaterialTheme.typography.headlineSmall)
                 Text(
-                    "单词优先走词典音频，例句和长文本后续可接离线语音包；兜底仍由系统朗读承担。",
+                    "这里统一管理词典发音、本地语音包和后续云端 TTS 来源。单词默认来源和长文本默认来源可以分别设置。",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Text(
+                    "单词默认：${state.defaultWordSourceLabel}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    "长文本默认：${state.defaultLongTextSourceLabel}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    OutlinedButton(
+                        onClick = onOpenCacheManagementClick,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("管理离线缓存")
+                    }
+                    OutlinedButton(
+                        onClick = onOpenTaskCenterClick,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("查看生成任务")
+                    }
+                }
                 OutlinedButton(
                     onClick = onRefreshCatalog,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("刷新语音包清单")
+                    Text("刷新发音源与语音包")
                 }
                 if (state.isLoading) {
                     Row(
@@ -69,6 +100,33 @@ fun PronunciationSettingsScreen(
                     ) {
                         CircularProgressIndicator()
                         Text("正在处理发音设置…", style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+        }
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text("可用发音源", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "优先级不再只看“词典优先/离线优先”，你也可以直接指定默认来源。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (state.sourceItems.isEmpty()) {
+                    Text(
+                        "当前还没有可用发音源，先刷新清单或安装语音包。",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                } else {
+                    state.sourceItems.forEach { source ->
+                        PronunciationSourceRow(
+                            source = source,
+                            onSetDefaultWordSource = { onSetDefaultWordSource(source.id) },
+                            onSetDefaultLongTextSource = { onSetDefaultLongTextSource(source.id) },
+                        )
                     }
                 }
             }
@@ -167,6 +225,64 @@ fun PronunciationSettingsScreen(
         }
         state.errorMessage?.let { message ->
             MessageCard(message = message, isError = true)
+        }
+    }
+}
+
+@Composable
+private fun PronunciationSourceRow(
+    source: PronunciationSourceItemUiState,
+    onSetDefaultWordSource: () -> Unit,
+    onSetDefaultLongTextSource: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(source.title, style = MaterialTheme.typography.titleMedium)
+            Text(
+                source.subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (source.availablePresetLabels.isNotEmpty()) {
+                Text(
+                    "预设：${source.availablePresetLabels.joinToString("、")}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            val currentFlags = buildList {
+                if (source.isDefaultForWord) add("当前单词默认")
+                if (source.isDefaultForLongText) add("当前长文本默认")
+            }.joinToString(" · ")
+            if (currentFlags.isNotBlank()) {
+                Text(
+                    currentFlags,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                OutlinedButton(
+                    onClick = onSetDefaultWordSource,
+                    enabled = source.canSetDefaultForWord,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(if (source.isDefaultForWord) "当前单词默认" else "设为单词默认")
+                }
+                OutlinedButton(
+                    onClick = onSetDefaultLongTextSource,
+                    enabled = source.canSetDefaultForLongText,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(if (source.isDefaultForLongText) "当前长文本默认" else "设为长文本默认")
+                }
+            }
         }
     }
 }

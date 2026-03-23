@@ -2,11 +2,15 @@ package com.yueliangmanle.danci.core.backup
 
 import com.yueliangmanle.danci.core.data.AppSettings
 import com.yueliangmanle.danci.core.database.entity.AiProviderProfileEntity
+import com.yueliangmanle.danci.core.database.entity.AudioGenerationTaskEntity
+import com.yueliangmanle.danci.core.database.entity.AudioGenerationTaskItemEntity
 import com.yueliangmanle.danci.core.database.entity.BookEntity
 import com.yueliangmanle.danci.core.database.entity.BookWordEntity
 import com.yueliangmanle.danci.core.database.entity.ImportBatchEntity
 import com.yueliangmanle.danci.core.database.entity.LearningRecordEntity
 import com.yueliangmanle.danci.core.database.entity.PhoneticEnrichmentJobEntity
+import com.yueliangmanle.danci.core.database.entity.PronunciationSourceEntity
+import com.yueliangmanle.danci.core.database.entity.PronunciationSourcePresetEntity
 import com.yueliangmanle.danci.core.database.entity.StudyEventEntity
 import com.yueliangmanle.danci.core.database.entity.StudySessionEntity
 import com.yueliangmanle.danci.core.database.entity.VoicePackEntity
@@ -33,6 +37,7 @@ import com.yueliangmanle.danci.core.model.PlanHistoryEntry
 import com.yueliangmanle.danci.core.model.PlanSeverity
 import com.yueliangmanle.danci.core.model.PronunciationUsageSnapshot
 import com.yueliangmanle.danci.core.model.WeeklySummary
+import java.io.File
 import java.io.ByteArrayInputStream
 import java.util.zip.ZipInputStream
 import org.json.JSONArray
@@ -84,7 +89,15 @@ internal fun String.toBackupSnapshot(version: Int = BACKUP_VERSION): BackupSnaps
         books = json.getJSONArray("books").mapObjects(JSONObject::toBookEntity),
         bookWords = json.getJSONArray("book_words").mapObjects(JSONObject::toBookWordEntity),
         words = json.getJSONArray("words").mapObjects { toWordEntity(version) },
-        wordAudioAssets = json.optJSONArray("word_audio_assets").mapObjects(JSONObject::toWordAudioAssetEntity),
+        wordAudioAssets = json.optJSONArray("word_audio_assets").mapObjects { toWordAudioAssetEntity(version) },
+        pronunciationSources = json.optJSONArray("pronunciation_sources")
+            .mapObjects(JSONObject::toPronunciationSourceEntity),
+        pronunciationSourcePresets = json.optJSONArray("pronunciation_source_presets")
+            .mapObjects(JSONObject::toPronunciationSourcePresetEntity),
+        audioGenerationTasks = json.optJSONArray("audio_generation_tasks")
+            .mapObjects(JSONObject::toAudioGenerationTaskEntity),
+        audioGenerationTaskItems = json.optJSONArray("audio_generation_task_items")
+            .mapObjects(JSONObject::toAudioGenerationTaskItemEntity),
         voicePacks = json.optJSONArray("voice_packs").mapObjects(JSONObject::toVoicePackEntity),
         importBatches = json.optJSONArray("import_batches").mapObjects(JSONObject::toImportBatchEntity),
         phoneticEnrichmentJobs = json.optJSONArray("phonetic_enrichment_jobs").mapObjects(JSONObject::toPhoneticEnrichmentJobEntity),
@@ -201,21 +214,115 @@ internal fun JSONObject.toWordEntity(version: Int = BACKUP_VERSION): WordEntity 
     )
 }
 
-internal fun JSONObject.toWordAudioAssetEntity(): WordAudioAssetEntity =
-    WordAudioAssetEntity(
+internal fun JSONObject.toWordAudioAssetEntity(version: Int = BACKUP_VERSION): WordAudioAssetEntity {
+    val localPath = optNullableString("local_path")
+    val status = optNullableString("status") ?: "empty"
+    val resolvedAssetState = resolveRestoredAssetState(
+        version = version,
+        status = status,
+        localPath = localPath,
+        declaredAssetState = optNullableString("asset_state"),
+    )
+    return WordAudioAssetEntity(
         id = optLongOrNull("id") ?: 0L,
         wordId = getLong("word_id"),
+        sourceId = optNullableString("source_id"),
+        presetId = optNullableString("preset_id"),
+        actualSourceType = optNullableString("actual_source_type"),
+        namespace = optNullableString("namespace"),
+        assetState = resolvedAssetState,
+        taskId = optNullableString("task_id"),
         accent = optNullableString("accent") ?: "auto",
         sourceType = optNullableString("source_type") ?: "dictionary_cache",
         remoteUrl = optNullableString("remote_url"),
-        localPath = optNullableString("local_path"),
+        localPath = localPath,
         mimeType = optNullableString("mime_type"),
         checksum = optNullableString("checksum"),
-        status = optNullableString("status") ?: "empty",
+        status = status,
         fetchedAt = optInstant("fetched_at"),
         lastPlayedAt = optInstant("last_played_at"),
         lastError = optNullableString("last_error"),
         failureCount = optInt("failure_count", 0),
+    )
+}
+
+private fun resolveRestoredAssetState(
+    version: Int,
+    status: String,
+    localPath: String?,
+    declaredAssetState: String?,
+): String {
+    val normalizedStatus = status.ifBlank { "empty" }
+    val looksReady = normalizedStatus == "ready" || declaredAssetState == "ready"
+    val pathUnavailable = localPath.isNullOrBlank() || !isReadableFile(localPath)
+    if (looksReady && pathUnavailable) {
+        return "stale"
+    }
+    if (!declaredAssetState.isNullOrBlank()) {
+        return declaredAssetState
+    }
+    return normalizedStatus
+}
+
+private fun isReadableFile(path: String): Boolean {
+    val file = File(path)
+    return runCatching {
+        file.exists() && file.isFile && file.canRead()
+    }.getOrDefault(false)
+}
+
+internal fun JSONObject.toPronunciationSourceEntity(): PronunciationSourceEntity =
+    PronunciationSourceEntity(
+        id = getString("id"),
+        name = getString("name"),
+        sourceType = optNullableString("source_type") ?: "dictionary",
+        accent = optNullableString("accent") ?: "auto",
+        enabled = optBoolean("enabled", true),
+        isDefaultForWord = optBoolean("is_default_for_word", false),
+        isDefaultForLongText = optBoolean("is_default_for_long_text", false),
+        providerProfileId = optNullableString("provider_profile_id"),
+        backingVoicePackId = optNullableString("backing_voice_pack_id"),
+        sortOrder = optInt("sort_order", 0),
+        createdAt = optInstant("created_at") ?: java.time.Instant.EPOCH,
+        updatedAt = optInstant("updated_at") ?: java.time.Instant.EPOCH,
+    )
+
+internal fun JSONObject.toPronunciationSourcePresetEntity(): PronunciationSourcePresetEntity =
+    PronunciationSourcePresetEntity(
+        sourceId = getString("source_id"),
+        presetId = getString("preset_id"),
+        displayName = getString("display_name"),
+        voice = getString("voice"),
+        styleTemplate = optNullableString("style_template"),
+        advancedStyleEnabled = optBoolean("advanced_style_enabled", false),
+        isDefaultPreset = optBoolean("is_default_preset", false),
+    )
+
+internal fun JSONObject.toAudioGenerationTaskEntity(): AudioGenerationTaskEntity =
+    AudioGenerationTaskEntity(
+        id = getString("id"),
+        sourceId = getString("source_id"),
+        presetId = optNullableString("preset_id"),
+        scopeType = getString("scope_type"),
+        scopeRef = getString("scope_ref"),
+        status = getString("status"),
+        totalItems = optInt("total_items", 0),
+        completedItems = optInt("completed_items", 0),
+        failedItems = optInt("failed_items", 0),
+        createdAt = optInstant("created_at") ?: java.time.Instant.EPOCH,
+        updatedAt = optInstant("updated_at") ?: java.time.Instant.EPOCH,
+    )
+
+internal fun JSONObject.toAudioGenerationTaskItemEntity(): AudioGenerationTaskItemEntity =
+    AudioGenerationTaskItemEntity(
+        taskId = getString("task_id"),
+        itemKey = getString("item_key"),
+        wordId = optLongOrNull("word_id"),
+        text = getString("text"),
+        status = getString("status"),
+        failureReason = optNullableString("failure_reason"),
+        attemptCount = optInt("attempt_count", 0),
+        generatedAssetId = optLongOrNull("generated_asset_id"),
     )
 
 internal fun JSONObject.toVoicePackEntity(): VoicePackEntity =
@@ -244,6 +351,7 @@ internal fun JSONObject.toImportBatchEntity(): ImportBatchEntity =
         bookId = getString("book_id"),
         fileName = getString("file_name"),
         sheetName = optNullableString("sheet_name"),
+        diagnosisSnapshotJson = optNullableString("diagnosis_snapshot_json"),
         parserMode = optNullableString("parser_mode") ?: "strict",
         totalRows = optInt("total_rows", 0),
         importedRows = optInt("imported_rows", 0),

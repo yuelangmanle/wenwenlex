@@ -47,6 +47,7 @@ class StudyScreenTest {
                     currentWord = "abandon",
                     progressText = "1 / 10",
                     statusMessage = "已联网获取英式词典音频（有道词典）。",
+                    selectedPronunciationSourceLabel = "跟随默认来源",
                     checkpointDecisionLabel = "需要确认",
                     checkpointTitle = "AI 阶段建议",
                     checkpointSuggestion = "建议先暂停新词推进。",
@@ -63,5 +64,6 @@ class StudyScreenTest {
         composeRule.onNodeWithText("已联网获取英式词典音频（有道词典）。").assertIsDisplayed()
         composeRule.onNodeWithText("需要确认").assertIsDisplayed()
         composeRule.onNodeWithText("查看 AI 计划中心").assertIsDisplayed()
+        composeRule.onNodeWithText("切换发音源").assertIsDisplayed()
     }
 }

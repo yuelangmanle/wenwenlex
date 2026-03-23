@@ -8,14 +8,19 @@ import com.yueliangmanle.danci.core.ai.PlanSource
 import com.yueliangmanle.danci.core.ai.resolveRuntimeSettingsForCapability
 import com.yueliangmanle.danci.core.data.NoOpStudyEventRecorder
 import com.yueliangmanle.danci.core.data.PhoneticEnrichmentRepository
+import com.yueliangmanle.danci.core.data.PronunciationSourceRepository
 import com.yueliangmanle.danci.core.data.SettingsRepository
 import com.yueliangmanle.danci.core.data.StudyEventRecorder
 import com.yueliangmanle.danci.core.data.WordRepository
 import com.yueliangmanle.danci.core.data.buildAiMemoryRepository
 import com.yueliangmanle.danci.core.data.buildPhoneticEnrichmentRepository
+import com.yueliangmanle.danci.core.data.buildPronunciationSourceRepository
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
+import com.yueliangmanle.danci.core.data.buildVoicePackRepository
 import com.yueliangmanle.danci.core.data.buildWordRepository
 import com.yueliangmanle.danci.core.data.syncBuiltInCatalogToDatabase
+import com.yueliangmanle.danci.feature.pronunciation.SessionPronunciationSourceUiState
+import com.yueliangmanle.danci.feature.pronunciation.buildSessionPronunciationSourceOptions
 import com.yueliangmanle.danci.core.model.AiCapability
 import com.yueliangmanle.danci.core.model.PHONETIC_SOURCE_AI
 import com.yueliangmanle.danci.core.model.PhoneticEnrichmentJob
@@ -27,6 +32,7 @@ import com.yueliangmanle.danci.core.model.hasCompletePhonetic
 import com.yueliangmanle.danci.core.model.needsPhoneticFill
 import com.yueliangmanle.danci.core.model.studyEventMetadataOf
 import com.yueliangmanle.danci.core.model.withUpdatedPhonetics
+import com.yueliangmanle.danci.core.pronunciation.PronunciationSourceRegistry
 import java.time.Instant
 
 data class WordDetailUiState(
@@ -46,6 +52,9 @@ data class WordDetailUiState(
     val confusingWords: List<String> = emptyList(),
     val wordForms: List<String> = emptyList(),
     val root: String? = null,
+    val selectedPronunciationSourceId: String? = null,
+    val selectedPronunciationSourceLabel: String = "跟随默认来源",
+    val availablePronunciationSources: List<SessionPronunciationSourceUiState> = emptyList(),
     val isAiLoading: Boolean = false,
     val isPhoneticLoading: Boolean = false,
     val aiCards: List<AiInsightCardUiState> = emptyList(),
@@ -67,12 +76,17 @@ class WordDetailViewModel(
     private val wordRepository: WordRepository,
     private val settingsRepository: SettingsRepository,
     private val phoneticEnrichmentRepository: PhoneticEnrichmentRepository,
+    private val pronunciationSourceRepository: PronunciationSourceRepository? = null,
+    private val pronunciationSourceRegistry: PronunciationSourceRegistry? = null,
     private val eventRecorder: StudyEventRecorder = NoOpStudyEventRecorder,
     private val nowProvider: () -> Instant = { Instant.now() },
 ) {
     private var isAiLoading = false
     private var isPhoneticLoading = false
     private val aiCards = mutableListOf<AiInsightCardUiState>()
+    private var selectedPronunciationSourceId: String? = null
+    private var selectedPronunciationSourceLabel: String = "跟随默认来源"
+    private var availablePronunciationSources: List<SessionPronunciationSourceUiState> = emptyList()
 
     init {
         eventRecorder.record(
@@ -119,12 +133,54 @@ class WordDetailViewModel(
             confusingWords = word.confusingWords,
             wordForms = word.wordForms,
             root = word.root,
+            selectedPronunciationSourceId = selectedPronunciationSourceId,
+            selectedPronunciationSourceLabel = selectedPronunciationSourceLabel,
+            availablePronunciationSources = availablePronunciationSources,
             isAiLoading = isAiLoading,
             isPhoneticLoading = isPhoneticLoading,
             aiCards = aiCards.toList(),
             statusMessage = statusMessage,
             errorMessage = errorMessage,
         )
+
+    suspend fun refreshPronunciationSourceState(
+        statusMessage: String? = null,
+        errorMessage: String? = null,
+    ): WordDetailUiState {
+        val sources = pronunciationSourceRegistry?.refreshBuiltinSources()
+            ?: pronunciationSourceRepository?.getAllSources().orEmpty()
+        val sessionPreference = settingsRepository.getPronunciationSessionPreference()
+        selectedPronunciationSourceId = sessionPreference.sessionWordPronunciationSourceId
+        availablePronunciationSources = buildSessionPronunciationSourceOptions(
+            sources = sources,
+            selectedSourceId = selectedPronunciationSourceId,
+        )
+        selectedPronunciationSourceLabel = availablePronunciationSources
+            .firstOrNull(SessionPronunciationSourceUiState::isSelected)
+            ?.title
+            ?: "跟随默认来源"
+        return buildUiState(
+            statusMessage = statusMessage,
+            errorMessage = errorMessage,
+        )
+    }
+
+    suspend fun switchSessionPronunciationSource(
+        sourceId: String?,
+    ): WordDetailUiState {
+        pronunciationSourceRegistry?.updateSessionWordSource(sourceId)
+            ?: settingsRepository.updateSessionWordPronunciationSourceId(sourceId)
+        val refreshed = refreshPronunciationSourceState()
+        val message = if (sourceId == null) {
+            "当前会话已恢复跟随默认来源。"
+        } else {
+            "当前会话发音源已切换为${refreshed.selectedPronunciationSourceLabel}。"
+        }
+        return refreshed.copy(
+            statusMessage = message,
+            errorMessage = null,
+        )
+    }
 
     fun onAiMemoryClick() {
         recordAiAction("memory_helper")
@@ -318,13 +374,21 @@ suspend fun loadWordDetailViewModel(
     syncBuiltInCatalogToDatabase(context)
     val appContext = context.applicationContext
     val wordRepository = buildWordRepository(appContext)
+    val settingsRepository = buildSettingsRepository(appContext)
+    val pronunciationSourceRepository = buildPronunciationSourceRepository(appContext)
     val word = requireNotNull(wordRepository.getWord(wordId)) { "Expected word for id=$wordId" }
     return WordDetailViewModel(
         appContext = appContext,
         word = word,
         wordRepository = wordRepository,
-        settingsRepository = buildSettingsRepository(appContext),
+        settingsRepository = settingsRepository,
         phoneticEnrichmentRepository = buildPhoneticEnrichmentRepository(appContext),
+        pronunciationSourceRepository = pronunciationSourceRepository,
+        pronunciationSourceRegistry = PronunciationSourceRegistry(
+            sourceRepository = pronunciationSourceRepository,
+            voicePackRepository = buildVoicePackRepository(appContext),
+            settingsRepository = settingsRepository,
+        ),
         eventRecorder = buildAiMemoryRepository(appContext),
     )
 }

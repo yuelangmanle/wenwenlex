@@ -14,7 +14,10 @@ import kotlinx.coroutines.launch
 const val PRONUNCIATION_SETTINGS_ROUTE = "pronunciation_settings"
 
 @Composable
-fun PronunciationSettingsRoute() {
+fun PronunciationSettingsRoute(
+    onOpenCacheManagementClick: () -> Unit = {},
+    onOpenTaskCenterClick: () -> Unit = {},
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var viewModel: PronunciationSettingsViewModel? by remember(context) {
@@ -68,6 +71,8 @@ fun PronunciationSettingsRoute() {
         onRefreshCatalog = {
             launchAction { refreshCatalog() }
         },
+        onOpenCacheManagementClick = onOpenCacheManagementClick,
+        onOpenTaskCenterClick = onOpenTaskCenterClick,
         onSelectAccent = { accent ->
             launchAction { updatePreferredAccent(accent) }
         },
@@ -85,6 +90,12 @@ fun PronunciationSettingsRoute() {
         },
         onPreferOfflineLongTextChanged = { enabled ->
             launchAction { updatePreferOfflineForLongText(enabled) }
+        },
+        onSetDefaultWordSource = { sourceId ->
+            launchAction { setDefaultWordSource(sourceId) }
+        },
+        onSetDefaultLongTextSource = { sourceId ->
+            launchAction { setDefaultLongTextSource(sourceId) }
         },
         onClearCacheClick = {
             launchAction { clearDictionaryCache() }

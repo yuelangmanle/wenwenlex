@@ -1,6 +1,7 @@
 package com.yueliangmanle.danci.feature.worddetail
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,10 +10,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
@@ -27,8 +34,11 @@ fun WordDetailScreen(
     onExpandExampleClick: () -> Unit = {},
     onFillMissingPhoneticClick: () -> Unit = {},
     onOverwritePhoneticClick: () -> Unit = {},
+    onSwitchPronunciationSource: (String?) -> Unit = {},
     onStartQuizClick: () -> Unit = {},
 ) {
+    var pronunciationSourceExpanded by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -79,6 +89,41 @@ fun WordDetailScreen(
                         modifier = Modifier.weight(1f),
                     ) {
                         Text("播放美式")
+                    }
+                }
+                Text(
+                    text = "当前发音源：${state.selectedPronunciationSourceLabel}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Box {
+                    OutlinedButton(
+                        onClick = { pronunciationSourceExpanded = true },
+                    ) {
+                        Text("切换发音源")
+                    }
+                    DropdownMenu(
+                        expanded = pronunciationSourceExpanded,
+                        onDismissRequest = { pronunciationSourceExpanded = false },
+                    ) {
+                        state.availablePronunciationSources.forEach { source ->
+                            DropdownMenuItem(
+                                text = {
+                                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Text(source.title)
+                                        Text(
+                                            text = source.subtitle,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    pronunciationSourceExpanded = false
+                                    onSwitchPronunciationSource(source.id)
+                                },
+                            )
+                        }
                     }
                 }
                 if (state.meanings.isNotEmpty()) {

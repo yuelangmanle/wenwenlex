@@ -49,10 +49,12 @@ class WordDetailScreenTest {
                 state = WordDetailUiState(
                     word = "abandon",
                     statusMessage = "已联网获取英式词典音频（有道词典）。",
+                    selectedPronunciationSourceLabel = "跟随默认来源",
                 ),
             )
         }
 
         composeRule.onNodeWithText("已联网获取英式词典音频（有道词典）。").assertIsDisplayed()
+        composeRule.onNodeWithText("切换发音源").assertIsDisplayed()
     }
 }

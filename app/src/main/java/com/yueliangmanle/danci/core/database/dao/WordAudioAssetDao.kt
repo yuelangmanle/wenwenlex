@@ -5,6 +5,8 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.yueliangmanle.danci.core.database.entity.WordAudioAssetEntity
+import com.yueliangmanle.danci.core.model.PlaybackSource
+import com.yueliangmanle.danci.core.model.WordAudioAssetStatus
 
 @Dao
 interface WordAudioAssetDao {
@@ -67,6 +69,21 @@ interface WordAudioAssetDao {
         status: String,
     ): List<WordAudioAssetEntity>
 
+    suspend fun getAllAssets(): List<WordAudioAssetEntity> =
+        buildList {
+            PlaybackSource.entries.forEach { source ->
+                WordAudioAssetStatus.entries.forEach { status ->
+                    addAll(
+                        getAssetsBySource(
+                            sourceType = source.storageValue,
+                            status = status.storageValue,
+                        ),
+                    )
+                }
+            }
+        }.distinctBy(WordAudioAssetEntity::id)
+            .sortedBy(WordAudioAssetEntity::id)
+
     @Query("DELETE FROM word_audio_assets WHERE id = :id")
     suspend fun deleteAssetById(id: Long)
 
@@ -75,4 +92,28 @@ interface WordAudioAssetDao {
 
     @Query("DELETE FROM word_audio_assets")
     suspend fun clearAssets()
+
+    @Query(
+        """
+        SELECT * FROM word_audio_assets
+        WHERE wordId = :wordId
+          AND accent = :accent
+          AND sourceType = :sourceType
+          AND status = :status
+          AND ((sourceId IS NULL AND :sourceId IS NULL) OR sourceId = :sourceId)
+          AND ((presetId IS NULL AND :presetId IS NULL) OR presetId = :presetId)
+          AND ((namespace IS NULL AND :namespace IS NULL) OR namespace = :namespace)
+        ORDER BY COALESCE(lastPlayedAt, fetchedAt) DESC, id DESC
+        LIMIT 1
+        """,
+    )
+    suspend fun findLatestAssetByContext(
+        wordId: Long,
+        accent: String,
+        sourceType: String,
+        status: String,
+        sourceId: String?,
+        presetId: String?,
+        namespace: String?,
+    ): WordAudioAssetEntity?
 }

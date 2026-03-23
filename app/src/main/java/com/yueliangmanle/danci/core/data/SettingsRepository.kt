@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.yueliangmanle.danci.core.model.PronunciationSessionPreference
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -96,6 +97,18 @@ interface SettingsRepository {
     suspend fun updateReminderEnabled(enabled: Boolean)
 
     suspend fun updateReminderTime(hour: Int, minute: Int)
+
+    suspend fun getPronunciationSessionPreference(): PronunciationSessionPreference =
+        PronunciationSessionPreference()
+
+    suspend fun updateSessionWordPronunciationSourceId(sourceId: String?) = Unit
+
+    suspend fun updateSessionLongTextPronunciationSourceId(sourceId: String?) = Unit
+
+    suspend fun clearPronunciationSessionPreference() {
+        updateSessionWordPronunciationSourceId(null)
+        updateSessionLongTextPronunciationSourceId(null)
+    }
 }
 
 private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(
@@ -128,6 +141,8 @@ private object SettingsPreferencesKeys {
     val reminderEnabled = booleanPreferencesKey("reminder_enabled")
     val reminderHour = intPreferencesKey("reminder_hour")
     val reminderMinute = intPreferencesKey("reminder_minute")
+    val sessionWordPronunciationSourceId = stringPreferencesKey("session_word_pronunciation_source_id")
+    val sessionLongTextPronunciationSourceId = stringPreferencesKey("session_long_text_pronunciation_source_id")
 }
 
 class DataStoreSettingsRepository(
@@ -303,6 +318,22 @@ class DataStoreSettingsRepository(
             preferences[SettingsPreferencesKeys.reminderHour] = hour.coerceIn(0, 23)
             preferences[SettingsPreferencesKeys.reminderMinute] = minute.coerceIn(0, 59)
         }
+    }
+
+    override suspend fun getPronunciationSessionPreference(): PronunciationSessionPreference =
+        dataStore.data.map { preferences ->
+            PronunciationSessionPreference(
+                sessionWordPronunciationSourceId = preferences[SettingsPreferencesKeys.sessionWordPronunciationSourceId],
+                sessionLongTextPronunciationSourceId = preferences[SettingsPreferencesKeys.sessionLongTextPronunciationSourceId],
+            )
+        }.first()
+
+    override suspend fun updateSessionWordPronunciationSourceId(sourceId: String?) {
+        updateNullableString(SettingsPreferencesKeys.sessionWordPronunciationSourceId, sourceId)
+    }
+
+    override suspend fun updateSessionLongTextPronunciationSourceId(sourceId: String?) {
+        updateNullableString(SettingsPreferencesKeys.sessionLongTextPronunciationSourceId, sourceId)
     }
 
     private suspend fun updateNullableString(

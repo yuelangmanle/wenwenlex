@@ -4,6 +4,7 @@ import com.yueliangmanle.danci.core.data.VoicePackRepository
 import com.yueliangmanle.danci.core.model.PlaybackResult
 import com.yueliangmanle.danci.core.model.PlaybackSource
 import com.yueliangmanle.danci.core.model.PronunciationAccent
+import com.yueliangmanle.danci.core.model.PronunciationSourceType
 import com.yueliangmanle.danci.core.model.VoicePackEngineType
 import com.yueliangmanle.danci.core.model.VoicePackStatus
 import com.yueliangmanle.danci.core.model.Word
@@ -45,6 +46,8 @@ class OfflineTtsEngine(
             cacheHit = result.cacheHit,
             voicePackId = result.voicePack.id,
             voicePackVersion = result.voicePack.version,
+            actualSourceId = result.voicePack.id,
+            actualSourceType = PronunciationSourceType.LOCAL_NATIVE.storageValue,
         )
     }
 
@@ -75,6 +78,8 @@ class OfflineTtsEngine(
                         statusMessage = "已通过已下载语音包播放。",
                         voicePackId = activePack.id,
                         voicePackVersion = activePack.version,
+                        actualSourceId = activePack.id,
+                        actualSourceType = PronunciationSourceType.LOCAL_BRIDGE.storageValue,
                     )
                 } else {
                     null

@@ -16,6 +16,7 @@ import com.yueliangmanle.danci.core.data.buildImportBatchRepository
 import com.yueliangmanle.danci.core.data.buildPhoneticEnrichmentRepository
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
 import com.yueliangmanle.danci.core.data.buildWordRepository
+import com.yueliangmanle.danci.core.enrichment.WordQualityEnrichmentCoordinator
 import com.yueliangmanle.danci.core.model.AiCapability
 import com.yueliangmanle.danci.core.model.Book
 import com.yueliangmanle.danci.core.model.PHONETIC_SOURCE_AI
@@ -41,6 +42,8 @@ data class BookDetailUiState(
     val isActiveBook: Boolean = false,
     val phoneticCoverage: String = "",
     val latestImportSummary: String? = null,
+    val canStartQualityEnrichment: Boolean = false,
+    val qualityEnrichmentSummary: String? = null,
     val words: List<BookWordItemUiState> = emptyList(),
     val statusMessage: String? = null,
     val errorMessage: String? = null,
@@ -62,6 +65,7 @@ class BookDetailViewModel(
     private val importBatchRepository: ImportBatchRepository,
     private val phoneticEnrichmentRepository: PhoneticEnrichmentRepository,
     private val coordinator: AiStrategyCoordinator,
+    private val qualityEnrichmentCoordinator: WordQualityEnrichmentCoordinator,
 ) {
     private var book: Book? = null
     private var words: List<Word> = emptyList()
@@ -157,6 +161,19 @@ class BookDetailViewModel(
         )
     }
 
+    suspend fun enqueueQualityEnrichment(): BookDetailUiState {
+        val currentBook = requireNotNull(book) { "Book must be loaded before starting quality enrichment" }
+        val dimensions = qualityEnrichmentCoordinator.defaultDimensions()
+        qualityEnrichmentCoordinator.enqueueBookEnrichment(
+            bookId = currentBook.id,
+            dimensions = dimensions,
+        )
+        return loadUiState(
+            bookId = currentBook.id,
+            statusMessage = "已创建质量补强任务：${dimensions.joinToString("、") { it.label }}。",
+        )
+    }
+
     private suspend fun buildUiState(
         statusMessage: String? = null,
         errorMessage: String? = null,
@@ -164,6 +181,10 @@ class BookDetailViewModel(
         val currentBook = requireNotNull(book) { "Book must be loaded before building ui state" }
         val settings = settingsRepository.getSettings()
         val latestImport = importBatchRepository.getAll().firstOrNull { it.bookId == currentBook.id }
+        val latestQualityJob = phoneticEnrichmentRepository.getLatestJob(
+            scopeType = "book",
+            scopeRef = currentBook.id,
+        )
         val completeCount = words.count(Word::hasCompletePhonetic)
         val partialCount = words.count { !it.hasCompletePhonetic() && it.hasAnyPhonetic() }
         val emptyCount = words.count { !it.hasAnyPhonetic() }
@@ -176,13 +197,17 @@ class BookDetailViewModel(
             sourceMeta = if (currentBook.sourceType == "builtin") {
                 "已内置进本地数据库，可离线使用。"
             } else {
-                "来自用户导入，可继续批量补音标或设为当前词书。"
+                "来自用户导入，可继续批量补音标，或发起近义词、反义词、例句和词形变化补强。"
             },
             isActiveBook = settings.activeBookId == currentBook.id,
             phoneticCoverage = "双音标完整 $completeCount · 部分 $partialCount · 空白 $emptyCount",
             latestImportSummary = latestImport?.let {
                 "最近导入：${it.fileName} · ${it.parserMode} · ${formatInstant(it.createdAt)}"
             },
+            canStartQualityEnrichment = true,
+            qualityEnrichmentSummary = latestQualityJob?.let { job ->
+                "最近补强：${qualityEnrichmentCoordinator.describeDimensions(job.fillMode)} · ${job.status} · ${formatInstant(job.updatedAt)}"
+            } ?: "可发起一轮质量补强：${qualityEnrichmentCoordinator.describeDimensions("")}。",
             words = words.map(Word::asUiModel),
             statusMessage = statusMessage,
             errorMessage = errorMessage,
@@ -227,6 +252,10 @@ fun buildBookDetailViewModel(context: Context): BookDetailViewModel =
         importBatchRepository = buildImportBatchRepository(context),
         phoneticEnrichmentRepository = buildPhoneticEnrichmentRepository(context),
         coordinator = buildAiStrategyCoordinator(context),
+        qualityEnrichmentCoordinator = WordQualityEnrichmentCoordinator(
+            repository = buildPhoneticEnrichmentRepository(context),
+            bookRepository = buildBookRepository(context),
+        ),
     )
 
 private fun Word.asUiModel(): BookWordItemUiState =

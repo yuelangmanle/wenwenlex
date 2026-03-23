@@ -3,6 +3,7 @@ package com.yueliangmanle.danci.core.backup
 import com.yueliangmanle.danci.core.data.AppSettings
 import com.yueliangmanle.danci.core.database.entity.LearningRecordEntity
 import com.yueliangmanle.danci.core.database.entity.WordEntity
+import com.yueliangmanle.danci.core.database.entity.WordAudioAssetEntity
 import com.yueliangmanle.danci.core.model.AiMemorySummary
 import com.yueliangmanle.danci.core.model.AnalyticsOverview
 import com.yueliangmanle.danci.core.model.BookProgressSnapshot
@@ -22,12 +23,29 @@ import java.io.ByteArrayOutputStream
 import java.time.Instant
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import kotlinx.coroutines.test.runTest
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BackupRoundTripTest {
+    @Test
+    fun exporter_usesBackupVersionSevenAndIncludesPronunciationSections() = runTest {
+        val archive = BackupExporter(
+            snapshotProvider = {
+                BackupSnapshot(settings = AppSettings())
+            },
+            nowProvider = { Instant.parse("2026-03-19T12:00:00Z") },
+        ).export()
+
+        assertEquals(7, archive.manifest.version)
+        assertTrue("pronunciation_sources" in archive.manifest.sections)
+        assertTrue("pronunciation_source_presets" in archive.manifest.sections)
+        assertTrue("audio_generation_tasks" in archive.manifest.sections)
+        assertTrue("audio_generation_task_items" in archive.manifest.sections)
+    }
+
     @Test
     fun settingsJsonIncludesMultiProfileRoutingFields() {
         val settings = AppSettings(
@@ -311,6 +329,31 @@ class BackupRoundTripTest {
         assertEquals(3750L, restored.averageResponseLatencyMs)
         assertEquals(3, restored.consecutiveMistakeCount)
         assertEquals(Instant.parse("2026-03-19T10:00:00Z"), restored.lastMistakeAt)
+    }
+
+    @Test
+    fun wordAudioAsset_roundTripsV7SourceFields() {
+        val entity = WordAudioAssetEntity(
+            id = 9,
+            wordId = 1,
+            accent = "us",
+            sourceType = "offline_native_generated",
+            sourceId = "local-native-en",
+            presetId = "default_en",
+            actualSourceType = "local_native",
+            namespace = "us/mimo/v1",
+            assetState = "ready",
+            status = "ready",
+            localPath = "/tmp/audio.wav",
+        )
+
+        val restored = entity.toJson().toWordAudioAssetEntity()
+
+        assertEquals("local-native-en", restored.sourceId)
+        assertEquals("default_en", restored.presetId)
+        assertEquals("local_native", restored.actualSourceType)
+        assertEquals("us/mimo/v1", restored.namespace)
+        assertEquals("ready", restored.assetState)
     }
 }
 

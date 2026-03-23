@@ -1,17 +1,22 @@
 package com.yueliangmanle.danci.feature.pronunciation
 
 import android.content.Context
+import com.yueliangmanle.danci.core.data.PronunciationSourceRepository
 import com.yueliangmanle.danci.core.data.SettingsRepository
 import com.yueliangmanle.danci.core.data.VoicePackRepository
 import com.yueliangmanle.danci.core.data.WordAudioRepository
+import com.yueliangmanle.danci.core.data.buildPronunciationSourceRepository
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
 import com.yueliangmanle.danci.core.data.buildVoicePackRepository
 import com.yueliangmanle.danci.core.data.buildWordAudioRepository
 import com.yueliangmanle.danci.core.model.PronunciationAccent
 import com.yueliangmanle.danci.core.model.PronunciationMode
+import com.yueliangmanle.danci.core.model.PronunciationSource
+import com.yueliangmanle.danci.core.model.PronunciationSourceType
 import com.yueliangmanle.danci.core.model.VoicePack
 import com.yueliangmanle.danci.core.model.VoicePackEngineType
 import com.yueliangmanle.danci.core.model.VoicePackStatus
+import com.yueliangmanle.danci.core.pronunciation.PronunciationSourceRegistry
 import com.yueliangmanle.danci.core.worker.VoicePackDownloadController
 import com.yueliangmanle.danci.core.worker.buildVoicePackDownloadController
 import kotlinx.coroutines.Dispatchers
@@ -27,9 +32,24 @@ data class PronunciationSettingsUiState(
     val preferOfflineForLongText: Boolean = true,
     val audioCacheLimitMb: Int = 300,
     val audioCacheSummary: String = "缓存为空",
+    val defaultWordSourceLabel: String = "未设置",
+    val defaultLongTextSourceLabel: String = "未设置",
+    val sourceItems: List<PronunciationSourceItemUiState> = emptyList(),
     val voicePacks: List<VoicePackItemUiState> = emptyList(),
     val statusMessage: String? = null,
     val errorMessage: String? = null,
+)
+
+data class PronunciationSourceItemUiState(
+    val id: String,
+    val title: String,
+    val subtitle: String,
+    val typeLabel: String,
+    val availablePresetLabels: List<String>,
+    val isDefaultForWord: Boolean,
+    val isDefaultForLongText: Boolean,
+    val canSetDefaultForWord: Boolean,
+    val canSetDefaultForLongText: Boolean,
 )
 
 data class VoicePackItemUiState(
@@ -54,6 +74,8 @@ class PronunciationSettingsViewModel(
     private val wordAudioRepository: WordAudioRepository,
     private val voicePackRepository: VoicePackRepository,
     private val voicePackDownloadController: VoicePackDownloadController,
+    private val pronunciationSourceRepository: PronunciationSourceRepository,
+    private val pronunciationSourceRegistry: PronunciationSourceRegistry? = null,
 ) {
     suspend fun loadUiState(
         statusMessage: String? = null,
@@ -61,7 +83,24 @@ class PronunciationSettingsViewModel(
     ): PronunciationSettingsUiState = withContext(Dispatchers.IO) {
         val settings = settingsRepository.getSettings()
         val cacheBytes = wordAudioRepository.cacheSizeBytes()
-        val voicePacks = voicePackRepository.getAllVoicePacks().map { pack ->
+        val allVoicePacks = voicePackRepository.getAllVoicePacks()
+        val voicePacksById = allVoicePacks.associateBy(VoicePack::id)
+        val sources = pronunciationSourceRegistry?.refreshBuiltinSources()
+            ?: pronunciationSourceRepository.getAllSources()
+        val sourceItems = sources
+            .sortedWith(
+                compareByDescending<PronunciationSource> { it.isDefaultForWord }
+                    .thenByDescending { it.isDefaultForLongText }
+                    .thenBy { it.sortOrder }
+                    .thenBy { it.id },
+            )
+            .map { source ->
+                buildPronunciationSourceItemUiState(
+                    source = source,
+                    voicePacksById = voicePacksById,
+                )
+            }
+        val voicePacks = allVoicePacks.map { pack ->
             buildVoicePackItemUiState(
                 pack = pack,
                 failureReason = if (pack.status == VoicePackStatus.BROKEN.storageValue) {
@@ -84,6 +123,9 @@ class PronunciationSettingsViewModel(
             } else {
                 "当前缓存 %.2f MB".format(cacheBytes / 1024f / 1024f)
             },
+            defaultWordSourceLabel = sourceItems.firstOrNull { it.isDefaultForWord }?.title ?: "未设置",
+            defaultLongTextSourceLabel = sourceItems.firstOrNull { it.isDefaultForLongText }?.title ?: "未设置",
+            sourceItems = sourceItems,
             voicePacks = voicePacks,
             statusMessage = statusMessage,
             errorMessage = errorMessage,
@@ -125,6 +167,28 @@ class PronunciationSettingsViewModel(
         return loadUiState(statusMessage = if (enabled) "长文本会优先尝试离线朗读。" else "长文本不再优先离线朗读。")
     }
 
+    suspend fun setDefaultWordSource(sourceId: String): PronunciationSettingsUiState {
+        pronunciationSourceRegistry?.refreshBuiltinSources()
+        val target = pronunciationSourceRepository.getSource(sourceId)
+            ?: return loadUiState(errorMessage = "没有找到对应发音源。")
+        if (!target.enabled) {
+            return loadUiState(errorMessage = "该发音源当前不可用。")
+        }
+        pronunciationSourceRepository.setDefaultWordSource(sourceId)
+        return loadUiState(statusMessage = "已将 ${target.name} 设为单词默认来源。")
+    }
+
+    suspend fun setDefaultLongTextSource(sourceId: String): PronunciationSettingsUiState {
+        pronunciationSourceRegistry?.refreshBuiltinSources()
+        val target = pronunciationSourceRepository.getSource(sourceId)
+            ?: return loadUiState(errorMessage = "没有找到对应发音源。")
+        if (!target.enabled) {
+            return loadUiState(errorMessage = "该发音源当前不可用。")
+        }
+        pronunciationSourceRepository.setDefaultLongTextSource(sourceId)
+        return loadUiState(statusMessage = "已将 ${target.name} 设为长文本默认来源。")
+    }
+
     suspend fun clearDictionaryCache(): PronunciationSettingsUiState {
         val cleared = wordAudioRepository.clearDictionaryCache()
         return loadUiState(statusMessage = "已清理 $cleared 条词典音频缓存。")
@@ -162,13 +226,74 @@ class PronunciationSettingsViewModel(
 
 suspend fun loadPronunciationSettingsViewModel(context: Context): PronunciationSettingsViewModel =
     withContext(Dispatchers.IO) {
+        val appContext = context.applicationContext
+        val settingsRepository = buildSettingsRepository(appContext)
+        val wordAudioRepository = buildWordAudioRepository(appContext)
+        val voicePackRepository = buildVoicePackRepository(appContext)
+        val pronunciationSourceRepository = buildPronunciationSourceRepository(appContext)
         PronunciationSettingsViewModel(
-            settingsRepository = buildSettingsRepository(context.applicationContext),
-            wordAudioRepository = buildWordAudioRepository(context.applicationContext),
-            voicePackRepository = buildVoicePackRepository(context.applicationContext),
-            voicePackDownloadController = buildVoicePackDownloadController(context.applicationContext),
+            settingsRepository = settingsRepository,
+            wordAudioRepository = wordAudioRepository,
+            voicePackRepository = voicePackRepository,
+            voicePackDownloadController = buildVoicePackDownloadController(appContext),
+            pronunciationSourceRepository = pronunciationSourceRepository,
+            pronunciationSourceRegistry = PronunciationSourceRegistry(
+                sourceRepository = pronunciationSourceRepository,
+                voicePackRepository = voicePackRepository,
+                settingsRepository = settingsRepository,
+            ),
         )
     }
+
+internal fun buildPronunciationSourceItemUiState(
+    source: PronunciationSource,
+    voicePacksById: Map<String, VoicePack>,
+): PronunciationSourceItemUiState {
+    val type = PronunciationSourceType.fromStorageValue(source.sourceType)
+    val accentLabel = PronunciationAccent.fromStorageValue(source.accent).label
+    val typeLabel = when (type) {
+        PronunciationSourceType.DICTIONARY -> "词典音频"
+        PronunciationSourceType.LOCAL_NATIVE -> "本地原生"
+        PronunciationSourceType.LOCAL_BRIDGE -> "本地桥接"
+        PronunciationSourceType.CLOUD_TTS -> "云端 TTS"
+        null -> "未知来源"
+    }
+    val voicePack = source.backingVoicePackId?.let(voicePacksById::get)
+    val detail = buildList {
+        add(typeLabel)
+        add(accentLabel)
+        if (voicePack != null) {
+            add(
+                when (voicePack.status) {
+                    VoicePackStatus.READY.storageValue -> "语音包已安装"
+                    VoicePackStatus.BROKEN.storageValue -> "语音包异常"
+                    VoicePackStatus.DOWNLOADING.storageValue,
+                    VoicePackStatus.VERIFYING.storageValue,
+                    VoicePackStatus.INSTALLING.storageValue -> "语音包处理中"
+                    else -> "语音包未安装"
+                },
+            )
+            if (voicePack.supportsImportedWords) {
+                add("支持导入词书")
+            }
+        } else if (type == PronunciationSourceType.DICTIONARY) {
+            add("内建来源")
+        }
+    }.joinToString(" · ")
+    return PronunciationSourceItemUiState(
+        id = source.id,
+        title = source.name,
+        subtitle = detail,
+        typeLabel = typeLabel,
+        availablePresetLabels = source.presets.map { preset ->
+            if (preset.isDefaultPreset) "${preset.displayName}（默认）" else preset.displayName
+        },
+        isDefaultForWord = source.isDefaultForWord,
+        isDefaultForLongText = source.isDefaultForLongText,
+        canSetDefaultForWord = source.enabled && !source.isDefaultForWord,
+        canSetDefaultForLongText = source.enabled && !source.isDefaultForLongText,
+    )
+}
 
 internal fun buildVoicePackItemUiState(
     pack: VoicePack,

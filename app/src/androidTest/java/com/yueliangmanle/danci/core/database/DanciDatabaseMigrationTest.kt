@@ -1,6 +1,7 @@
 package com.yueliangmanle.danci.core.database
 
 import androidx.room.testing.MigrationTestHelper
+import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -294,4 +295,52 @@ class DanciDatabaseMigrationTest {
             assertEquals("{}", cursor.getString(1))
         }
     }
+
+    @Test
+    fun migration7To8_createsPronunciationSourcesAndAudioGenerationTables() {
+        val databaseName = "danci-migration-test-v8"
+        InstrumentationRegistry.getInstrumentation().targetContext.deleteDatabase(databaseName)
+        helper.createDatabase(databaseName, 7).apply {
+            close()
+        }
+
+        val migratedDb = helper.runMigrationsAndValidate(
+            databaseName,
+            8,
+            true,
+            MIGRATION_7_8,
+        )
+
+        assertTrue(tableExists(migratedDb, "pronunciation_sources"))
+        assertTrue(tableExists(migratedDb, "pronunciation_source_presets"))
+        assertTrue(tableExists(migratedDb, "audio_generation_tasks"))
+        assertTrue(tableExists(migratedDb, "audio_generation_task_items"))
+
+        val columns = mutableSetOf<String>()
+        migratedDb.query("PRAGMA table_info(`word_audio_assets`)").use { cursor ->
+            val nameIndex = cursor.getColumnIndex("name")
+            while (cursor.moveToNext()) {
+                columns += cursor.getString(nameIndex)
+            }
+        }
+        assertTrue("sourceId" in columns)
+        assertTrue("presetId" in columns)
+        assertTrue("assetState" in columns)
+        assertTrue("actualSourceType" in columns)
+    }
+
+    private fun tableExists(
+        db: SupportSQLiteDatabase,
+        tableName: String,
+    ): Boolean =
+        db.query(
+            """
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'table' AND name = ?
+            """.trimIndent(),
+            arrayOf(tableName),
+        ).use { cursor ->
+            cursor.moveToFirst()
+        }
 }

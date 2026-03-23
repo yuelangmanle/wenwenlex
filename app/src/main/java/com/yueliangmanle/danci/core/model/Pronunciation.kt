@@ -26,6 +26,25 @@ enum class PronunciationMode(
     }
 }
 
+enum class PronunciationSourceType(
+    val storageValue: String,
+) {
+    DICTIONARY("dictionary"),
+    LOCAL_NATIVE("local_native"),
+    LOCAL_BRIDGE("local_bridge"),
+    CLOUD_TTS("cloud_tts");
+
+    companion object {
+        fun fromStorageValue(value: String?): PronunciationSourceType? =
+            entries.firstOrNull { it.storageValue == value }
+    }
+}
+
+data class PronunciationSessionPreference(
+    val sessionWordPronunciationSourceId: String? = null,
+    val sessionLongTextPronunciationSourceId: String? = null,
+)
+
 enum class PlaybackSource(
     val storageValue: String,
     val label: String,
@@ -104,6 +123,9 @@ data class PlaybackResult(
     val voicePackVersion: String? = null,
     val failureStage: String? = null,
     val fallbackUsed: Boolean = false,
+    val preferredSourceId: String? = null,
+    val actualSourceId: String? = null,
+    val actualSourceType: String? = null,
 )
 
 const val DEFAULT_PRONUNCIATION_ACCENT = "uk"

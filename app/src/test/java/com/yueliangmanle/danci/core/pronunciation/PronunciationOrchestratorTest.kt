@@ -2,6 +2,7 @@ package com.yueliangmanle.danci.core.pronunciation
 
 import androidx.test.core.app.ApplicationProvider
 import com.yueliangmanle.danci.core.data.AppSettings
+import com.yueliangmanle.danci.core.data.PronunciationSourceRepository
 import com.yueliangmanle.danci.core.data.SettingsRepository
 import com.yueliangmanle.danci.core.data.TestVoicePackFactory
 import com.yueliangmanle.danci.core.data.VoicePackRepository
@@ -10,6 +11,9 @@ import com.yueliangmanle.danci.core.data.WordRepository
 import com.yueliangmanle.danci.core.model.DictionaryAudioCandidate
 import com.yueliangmanle.danci.core.model.PlaybackSource
 import com.yueliangmanle.danci.core.model.PronunciationAccent
+import com.yueliangmanle.danci.core.model.PronunciationSessionPreference
+import com.yueliangmanle.danci.core.model.PronunciationSource
+import com.yueliangmanle.danci.core.model.PronunciationSourceType
 import com.yueliangmanle.danci.core.model.StudyEvent
 import com.yueliangmanle.danci.core.model.Word
 import com.yueliangmanle.danci.core.model.WordAudioAsset
@@ -257,7 +261,129 @@ class PronunciationOrchestratorTest {
         assertEquals("colour", metadata["normalized_word"])
         assertTrue(metadata["latency_ms"] != null)
     }
+
+    @Test
+    fun playWord_prefersDictionarySourceBeforeNativeWhenDefaultSourceIsDictionary() = runTest {
+        val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val word = Word(id = 77L, lemma = "abandon")
+        val remoteAsset = WordAudioAsset(
+            id = 7L,
+            wordId = word.id,
+            accent = PronunciationAccent.UK.storageValue,
+            sourceType = PlaybackSource.DICTIONARY_CACHE.storageValue,
+            localPath = "/tmp/abandon-dict.wav",
+            status = WordAudioAssetStatus.READY.storageValue,
+        )
+        val wordAudioRepository = FakeOrchestratorWordAudioRepository(
+            nativeGeneratedAsset = null,
+            dictionaryAssetsByUrl = mapOf(
+                "https://source-b.example/abandon-uk.mp3" to remoteAsset,
+            ),
+        )
+        val dictionaryAudioService = CountingDictionaryAudioService(
+            candidates = listOf(
+                DictionaryAudioCandidate(
+                    url = "https://source-b.example/abandon-uk.mp3",
+                    accent = PronunciationAccent.UK,
+                    sourceLabel = "有道词典",
+                ),
+            ),
+        )
+        val voicePackRepository = FakeOrchestratorVoicePackRepository(
+            packs = mutableListOf(
+                TestVoicePackFactory.voicePack(
+                    id = "native-uk",
+                    accent = PronunciationAccent.UK.storageValue,
+                    engineType = "sherpa_onnx",
+                    status = com.yueliangmanle.danci.core.model.VoicePackStatus.READY.storageValue,
+                    installDir = File(appContext.cacheDir, "native-pack-preferred-dict").apply { mkdirs() }.absolutePath,
+                    isActive = true,
+                ),
+            ),
+        )
+        val sourceRepository = FakeOrchestratorSourceRepository(
+            listOf(
+                orchestratorSource(
+                    id = "dictionary-uk",
+                    type = PronunciationSourceType.DICTIONARY,
+                    accent = PronunciationAccent.UK,
+                    isDefaultForWord = true,
+                ),
+                orchestratorSource(
+                    id = "native-uk",
+                    type = PronunciationSourceType.LOCAL_NATIVE,
+                    accent = PronunciationAccent.UK,
+                    isDefaultForLongText = true,
+                    backingVoicePackId = "native-uk",
+                ),
+            ),
+        )
+        val recorder = RecordingStudyEventRecorder()
+        val orchestrator = PronunciationOrchestrator(
+            settingsRepository = FakeOrchestratorSettingsRepository(),
+            wordRepository = FakeOrchestratorWordRepository(word),
+            wordAudioRepository = wordAudioRepository,
+            voicePackRepository = voicePackRepository,
+            dictionaryAudioService = dictionaryAudioService,
+            offlineTtsEngine = OfflineTtsEngine(
+                voicePackRepository = voicePackRepository,
+                bridgeSpeaker = SystemTtsEngine(appContext),
+                nativeWordTtsEngine = NativeOfflineWordTtsEngine(
+                    context = appContext,
+                    voicePackRepository = voicePackRepository,
+                    wordAudioRepository = wordAudioRepository,
+                    runtimeLoader = {
+                        error("native should not be attempted before dictionary")
+                    },
+                ),
+                audioPlayer = { true },
+            ),
+            systemTtsEngine = SystemTtsEngine(appContext),
+            telemetryRecorder = PlaybackTelemetryRecorder(recorder),
+            pronunciationSourceRegistry = PronunciationSourceRegistry(
+                sourceRepository = sourceRepository,
+                voicePackRepository = voicePackRepository,
+                settingsRepository = FakeOrchestratorSettingsRepository(),
+            ),
+            audioPlayer = { true },
+            nowProvider = { Instant.parse("2026-03-23T10:00:00Z") },
+        )
+
+        val result = orchestrator.playWord(
+            word = word,
+            accentOverride = PronunciationAccent.UK,
+        )
+
+        val metadata = recorder.events.single().metadataEntries()
+        assertEquals(PlaybackSource.DICTIONARY_REMOTE, result.source)
+        assertEquals("dictionary-uk", result.preferredSourceId)
+        assertEquals("dictionary-uk", result.actualSourceId)
+        assertEquals("dictionary-uk", metadata["preferred_source_id"])
+        assertEquals("dictionary-uk", metadata["actual_source_id"])
+        assertTrue(metadata["failure_stage"].isNullOrBlank())
+    }
 }
+
+private fun orchestratorSource(
+    id: String,
+    type: PronunciationSourceType,
+    accent: PronunciationAccent,
+    isDefaultForWord: Boolean = false,
+    isDefaultForLongText: Boolean = false,
+    backingVoicePackId: String? = null,
+): PronunciationSource =
+    PronunciationSource(
+        id = id,
+        name = id,
+        sourceType = type.storageValue,
+        accent = accent.storageValue,
+        enabled = true,
+        isDefaultForWord = isDefaultForWord,
+        isDefaultForLongText = isDefaultForLongText,
+        backingVoicePackId = backingVoicePackId,
+        createdAt = Instant.EPOCH,
+        updatedAt = Instant.EPOCH,
+    )
 
 private class RecordingStudyEventRecorder : com.yueliangmanle.danci.core.data.StudyEventRecorder {
     val events = mutableListOf<StudyEvent>()
@@ -269,10 +395,21 @@ private class RecordingStudyEventRecorder : com.yueliangmanle.danci.core.data.St
 
 private class FakeOrchestratorSettingsRepository : SettingsRepository {
     private val state = MutableStateFlow(AppSettings())
+    private var sessionPreference = PronunciationSessionPreference()
 
     override val settings: Flow<AppSettings> = state
 
     override suspend fun getSettings(): AppSettings = state.value
+
+    override suspend fun getPronunciationSessionPreference(): PronunciationSessionPreference = sessionPreference
+
+    override suspend fun updateSessionWordPronunciationSourceId(sourceId: String?) {
+        sessionPreference = sessionPreference.copy(sessionWordPronunciationSourceId = sourceId)
+    }
+
+    override suspend fun updateSessionLongTextPronunciationSourceId(sourceId: String?) {
+        sessionPreference = sessionPreference.copy(sessionLongTextPronunciationSourceId = sourceId)
+    }
 
     override suspend fun updateDailyGoal(dailyGoal: Int) = Unit
     override suspend fun updateWeeklyGoal(weeklyGoal: Int) = Unit
@@ -298,6 +435,25 @@ private class FakeOrchestratorSettingsRepository : SettingsRepository {
     override suspend fun updatePreferOfflineForLongText(enabled: Boolean) = Unit
     override suspend fun updateReminderEnabled(enabled: Boolean) = Unit
     override suspend fun updateReminderTime(hour: Int, minute: Int) = Unit
+}
+
+private class FakeOrchestratorSourceRepository(
+    private val sources: MutableList<PronunciationSource>,
+) : PronunciationSourceRepository {
+    constructor(sources: List<PronunciationSource>) : this(sources.toMutableList())
+
+    override suspend fun getAllSources(): List<PronunciationSource> = sources.toList()
+
+    override suspend fun getSource(sourceId: String): PronunciationSource? =
+        sources.firstOrNull { it.id == sourceId }
+
+    override suspend fun upsertSources(sources: List<PronunciationSource>) = Unit
+
+    override suspend fun setDefaultWordSource(sourceId: String) = Unit
+
+    override suspend fun setDefaultLongTextSource(sourceId: String) = Unit
+
+    override suspend fun clearAll() = Unit
 }
 
 private class FakeOrchestratorWordRepository(

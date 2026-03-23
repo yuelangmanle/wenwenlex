@@ -9,14 +9,18 @@ import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.yueliangmanle.danci.core.database.dao.AiProviderProfileDao
+import com.yueliangmanle.danci.core.database.dao.AudioGenerationTaskDao
 import com.yueliangmanle.danci.core.database.dao.BookDao
 import com.yueliangmanle.danci.core.database.dao.ImportBatchDao
 import com.yueliangmanle.danci.core.database.dao.PhoneticEnrichmentJobDao
+import com.yueliangmanle.danci.core.database.dao.PronunciationSourceDao
 import com.yueliangmanle.danci.core.database.dao.StudyDao
 import com.yueliangmanle.danci.core.database.dao.VoicePackDao
 import com.yueliangmanle.danci.core.database.dao.WordDao
 import com.yueliangmanle.danci.core.database.dao.WordAudioAssetDao
 import com.yueliangmanle.danci.core.database.entity.AiProviderProfileEntity
+import com.yueliangmanle.danci.core.database.entity.AudioGenerationTaskEntity
+import com.yueliangmanle.danci.core.database.entity.AudioGenerationTaskItemEntity
 import com.yueliangmanle.danci.core.database.entity.BookEntity
 import com.yueliangmanle.danci.core.database.entity.BookWordEntity
 import com.yueliangmanle.danci.core.database.entity.ConfusionEdgeEntity
@@ -26,6 +30,8 @@ import com.yueliangmanle.danci.core.database.entity.LearnerProfileEntity
 import com.yueliangmanle.danci.core.database.entity.LearningRecordEntity
 import com.yueliangmanle.danci.core.database.entity.PlanHistoryEntity
 import com.yueliangmanle.danci.core.database.entity.PhoneticEnrichmentJobEntity
+import com.yueliangmanle.danci.core.database.entity.PronunciationSourceEntity
+import com.yueliangmanle.danci.core.database.entity.PronunciationSourcePresetEntity
 import com.yueliangmanle.danci.core.database.entity.StudyEventEntity
 import com.yueliangmanle.danci.core.database.entity.StudySessionEntity
 import com.yueliangmanle.danci.core.database.entity.VoicePackEntity
@@ -54,8 +60,12 @@ import java.time.Instant
         PhoneticEnrichmentJobEntity::class,
         WordAudioAssetEntity::class,
         VoicePackEntity::class,
+        PronunciationSourceEntity::class,
+        PronunciationSourcePresetEntity::class,
+        AudioGenerationTaskEntity::class,
+        AudioGenerationTaskItemEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 @TypeConverters(DanciTypeConverters::class)
@@ -68,6 +78,8 @@ abstract class DanciDatabase : RoomDatabase() {
     abstract fun importBatchDao(): ImportBatchDao
     abstract fun phoneticEnrichmentJobDao(): PhoneticEnrichmentJobDao
     abstract fun voicePackDao(): VoicePackDao
+    abstract fun pronunciationSourceDao(): PronunciationSourceDao
+    abstract fun audioGenerationTaskDao(): AudioGenerationTaskDao
 }
 
 private const val DANCI_DB_NAME = "danci.db"
@@ -91,6 +103,7 @@ fun buildDanciDatabase(context: Context): DanciDatabase {
             .addMigrations(MIGRATION_4_5)
             .addMigrations(MIGRATION_5_6)
             .addMigrations(MIGRATION_6_7)
+            .addMigrations(MIGRATION_7_8)
             .build().also { database ->
             DanciDatabaseHolder.instance = database
         }
@@ -263,6 +276,82 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
         db.execSQL("ALTER TABLE learning_records ADD COLUMN lastMistakeAt INTEGER")
         db.execSQL("ALTER TABLE learner_profiles ADD COLUMN goalProgressJson TEXT NOT NULL DEFAULT '{}'")
         db.execSQL("ALTER TABLE learner_profiles ADD COLUMN upgradeHealthJson TEXT NOT NULL DEFAULT '{}'")
+    }
+}
+
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS pronunciation_sources (
+                id TEXT NOT NULL PRIMARY KEY,
+                name TEXT NOT NULL,
+                sourceType TEXT NOT NULL,
+                accent TEXT NOT NULL,
+                enabled INTEGER NOT NULL,
+                isDefaultForWord INTEGER NOT NULL,
+                isDefaultForLongText INTEGER NOT NULL,
+                providerProfileId TEXT,
+                backingVoicePackId TEXT,
+                sortOrder INTEGER NOT NULL,
+                createdAt INTEGER NOT NULL,
+                updatedAt INTEGER NOT NULL
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS pronunciation_source_presets (
+                sourceId TEXT NOT NULL,
+                presetId TEXT NOT NULL,
+                displayName TEXT NOT NULL,
+                voice TEXT NOT NULL,
+                styleTemplate TEXT,
+                advancedStyleEnabled INTEGER NOT NULL,
+                isDefaultPreset INTEGER NOT NULL,
+                PRIMARY KEY(sourceId, presetId)
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS audio_generation_tasks (
+                id TEXT NOT NULL PRIMARY KEY,
+                sourceId TEXT NOT NULL,
+                presetId TEXT,
+                scopeType TEXT NOT NULL,
+                scopeRef TEXT NOT NULL,
+                status TEXT NOT NULL,
+                totalItems INTEGER NOT NULL,
+                completedItems INTEGER NOT NULL,
+                failedItems INTEGER NOT NULL,
+                createdAt INTEGER NOT NULL,
+                updatedAt INTEGER NOT NULL
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS audio_generation_task_items (
+                taskId TEXT NOT NULL,
+                itemKey TEXT NOT NULL,
+                wordId INTEGER,
+                text TEXT NOT NULL,
+                status TEXT NOT NULL,
+                failureReason TEXT,
+                attemptCount INTEGER NOT NULL,
+                generatedAssetId INTEGER,
+                PRIMARY KEY(taskId, itemKey)
+            )
+            """.trimIndent(),
+        )
+        db.execSQL("ALTER TABLE word_audio_assets ADD COLUMN sourceId TEXT")
+        db.execSQL("ALTER TABLE word_audio_assets ADD COLUMN presetId TEXT")
+        db.execSQL("ALTER TABLE word_audio_assets ADD COLUMN actualSourceType TEXT")
+        db.execSQL("ALTER TABLE word_audio_assets ADD COLUMN namespace TEXT")
+        db.execSQL("ALTER TABLE word_audio_assets ADD COLUMN assetState TEXT NOT NULL DEFAULT 'ready'")
+        db.execSQL("ALTER TABLE word_audio_assets ADD COLUMN taskId TEXT")
+        db.execSQL("ALTER TABLE import_batches ADD COLUMN diagnosisSnapshotJson TEXT")
     }
 }
 

@@ -238,6 +238,153 @@ class BackupImporterTest {
         assertTrue(imported.aiMemorySummary.upgradeHealth.isEmpty())
     }
 
+    @Test
+    fun importV6Backup_marksMissingAudioAssetsAsStale() {
+        val restored = BackupImporter().import(loadBackup(version = 6))
+
+        assertTrue(
+            restored.snapshot.wordAudioAssets.all { asset ->
+                asset.assetState == "stale" || asset.assetState == "ready"
+            },
+        )
+        assertEquals("stale", restored.snapshot.wordAudioAssets.single().assetState)
+    }
+
+    @Test
+    fun importV6Backup_keepsReadableAudioAssetsReady() {
+        val readableFile = java.io.File.createTempFile("wenwenlex-v6-", ".wav").apply {
+            writeBytes(byteArrayOf(0x01, 0x02, 0x03))
+            deleteOnExit()
+        }
+        val restored = BackupImporter().import(
+            loadBackup(
+                version = 6,
+                localPath = readableFile.absolutePath,
+            ),
+        )
+
+        assertEquals("ready", restored.snapshot.wordAudioAssets.single().assetState)
+    }
+
+    @Test
+    fun importV7Backup_marksMissingAudioAssetsAsStale() {
+        val restored = BackupImporter().import(
+            loadBackup(
+                version = 7,
+                includeAssetState = true,
+                localPath = "/path/not-exists/v7.wav",
+            ),
+        )
+
+        assertEquals("stale", restored.snapshot.wordAudioAssets.single().assetState)
+    }
+
+    @Test
+    fun importV7Backup_marksInaccessibleAudioAssetsAsStale() {
+        val restored = BackupImporter().import(
+            loadBackup(
+                version = 7,
+                includeAssetState = true,
+                localPath = null,
+            ),
+        )
+
+        assertEquals("stale", restored.snapshot.wordAudioAssets.single().assetState)
+    }
+
+    @Test
+    fun importV7Backup_keepsReadableAudioAssetsReady() {
+        val readableFile = java.io.File.createTempFile("wenwenlex-v7-", ".wav").apply {
+            writeBytes(byteArrayOf(0x01, 0x02, 0x03))
+            deleteOnExit()
+        }
+        val restored = BackupImporter().import(
+            loadBackup(
+                version = 7,
+                includeAssetState = true,
+                localPath = readableFile.absolutePath,
+            ),
+        )
+
+        assertEquals("ready", restored.snapshot.wordAudioAssets.single().assetState)
+    }
+
+    @Test
+    fun importV7Backup_preservesFailedStatusWhenAssetStateMissing() {
+        val restored = BackupImporter().import(
+            loadBackup(
+                version = 7,
+                includeAssetState = false,
+                localPath = null,
+                status = "failed",
+            ),
+        )
+
+        assertEquals("failed", restored.snapshot.wordAudioAssets.single().assetState)
+    }
+
+    private fun loadBackup(
+        version: Int,
+        includeAssetState: Boolean = false,
+        localPath: String? = "/path/not-exists/on-restore.wav",
+        status: String = "ready",
+    ): ByteArray {
+        require(version == 6 || version == 7) { "Only v6/v7 fixtures are defined in this test." }
+        val manifest = BackupManifest(
+            version = version,
+            createdAt = "2026-03-18T12:30:00Z",
+            sections = REQUIRED_BACKUP_SECTIONS,
+        )
+        val payload = JSONObject()
+            .put("settings", BackupSnapshot(settings = AppSettings()).toJson().getJSONObject("settings"))
+            .put("books", JSONArray())
+            .put("book_words", JSONArray())
+            .put(
+                "words",
+                JSONArray().put(
+                    JSONObject()
+                        .put("id", 1)
+                        .put("lemma", "abandon")
+                        .put("part_of_speech", JSONArray())
+                        .put("meanings", JSONArray().put("放弃"))
+                        .put("synonyms", JSONArray())
+                        .put("antonyms", JSONArray())
+                        .put("similar_words", JSONArray())
+                        .put("confusing_words", JSONArray())
+                        .put("word_forms", JSONArray())
+                        .put("tags", JSONArray()),
+                ),
+            )
+            .put(
+                "word_audio_assets",
+                JSONArray().put(
+                    JSONObject().apply {
+                        put("id", 7)
+                        put("word_id", 1)
+                        put("accent", "us")
+                        put("source_type", "offline_native_generated")
+                        if (localPath != null) {
+                            put("local_path", localPath)
+                        } else {
+                            put("local_path", JSONObject.NULL)
+                        }
+                        put("status", status)
+                        if (includeAssetState) {
+                            put("asset_state", "ready")
+                        }
+                    }
+                ),
+            )
+            .put("learning_records", JSONArray())
+            .put("study_sessions", JSONArray())
+            .put("study_events", JSONArray())
+            .put("ai_memory_summary", JSONObject())
+        return zipEntries(
+            manifest = manifest.toJson().toString(),
+            payload = payload.toString(),
+        )
+    }
+
     private fun zipEntries(
         manifest: String,
         payload: String,

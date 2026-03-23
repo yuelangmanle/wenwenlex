@@ -43,7 +43,7 @@ fun BookImportScreen(
                     style = MaterialTheme.typography.headlineSmall,
                 )
                 Text(
-                    text = "格式默认按 A 列单词、B 列中文义解析；中英文逗号都能拆分。原表不规整时，可以直接点“AI 适配表格”。",
+                    text = "格式默认按 A 列单词、B 列中文义解析；本地会先诊断并自动修复轻微问题。原表结构明显错位时，再点“AI 修复严重问题”。",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Row(
@@ -59,9 +59,9 @@ fun BookImportScreen(
                     OutlinedButton(
                         onClick = onAiNormalizeClick,
                         modifier = Modifier.weight(1f),
-                        enabled = state.preview != null && !state.isAiNormalizing,
+                        enabled = state.canRunAiRepair && !state.isAiNormalizing,
                     ) {
-                        Text(if (state.isAiNormalizing) "AI 适配中…" else "AI 适配表格")
+                        Text(if (state.isAiNormalizing) "AI 修复中…" else "AI 修复严重问题")
                     }
                 }
             }
@@ -85,6 +85,38 @@ fun BookImportScreen(
                         supportingText = { Text("导入后会作为新词书显示在“导入词书”分组里。") },
                         singleLine = true,
                     )
+                }
+            }
+        }
+
+        if (state.diagnosisSummary != null || state.autoRepairSummary != null) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text(
+                        text = "导入诊断",
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    state.diagnosisSummary?.let { summary ->
+                        Text(
+                            text = summary,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                    Text(
+                        text = "轻微问题 ${state.minorIssueCount} · 高风险问题 ${state.severeIssueCount}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    state.autoRepairSummary?.let { summary ->
+                        Text(
+                            text = summary,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                 }
             }
         }

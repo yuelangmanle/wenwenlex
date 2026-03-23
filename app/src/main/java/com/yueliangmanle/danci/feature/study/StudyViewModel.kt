@@ -6,14 +6,19 @@ import com.yueliangmanle.danci.core.ai.PlanSource
 import com.yueliangmanle.danci.core.data.LearningRecordRecorder
 import com.yueliangmanle.danci.core.data.NoOpStudyEventRecorder
 import com.yueliangmanle.danci.core.data.NoOpLearningRecordRecorder
+import com.yueliangmanle.danci.core.data.SettingsRepository
 import com.yueliangmanle.danci.core.data.RoomStudyRepository
 import com.yueliangmanle.danci.core.data.StudyEventRecorder
 import com.yueliangmanle.danci.core.data.buildAiMemoryRepository
 import com.yueliangmanle.danci.core.data.buildBookRepository
+import com.yueliangmanle.danci.core.data.buildPronunciationSourceRepository
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
+import com.yueliangmanle.danci.core.data.buildVoicePackRepository
 import com.yueliangmanle.danci.core.data.defaultLearningRecord
 import com.yueliangmanle.danci.core.data.syncBuiltInCatalogToDatabase
 import com.yueliangmanle.danci.core.database.buildDanciDatabase
+import com.yueliangmanle.danci.feature.pronunciation.SessionPronunciationSourceUiState
+import com.yueliangmanle.danci.feature.pronunciation.buildSessionPronunciationSourceOptions
 import com.yueliangmanle.danci.core.model.LearningRecord
 import com.yueliangmanle.danci.core.model.PlanApplyStatus
 import com.yueliangmanle.danci.core.model.PlanHistoryEntry
@@ -21,6 +26,7 @@ import com.yueliangmanle.danci.core.model.StudyEvent
 import com.yueliangmanle.danci.core.model.StudyEventMetadataKey
 import com.yueliangmanle.danci.core.model.StudyEventType
 import com.yueliangmanle.danci.core.model.studyEventMetadataOf
+import com.yueliangmanle.danci.core.pronunciation.PronunciationSourceRegistry
 import com.yueliangmanle.danci.core.study.CardFeedback
 import com.yueliangmanle.danci.core.study.FeedbackMapper
 import com.yueliangmanle.danci.core.study.ReviewPriorityEngine
@@ -45,6 +51,9 @@ data class StudyUiState(
     val checkpointDecisionLabel: String? = null,
     val checkpointPlanVersionId: Long? = null,
     val canOpenPlanCenter: Boolean = false,
+    val selectedPronunciationSourceId: String? = null,
+    val selectedPronunciationSourceLabel: String = "跟随默认来源",
+    val availablePronunciationSources: List<SessionPronunciationSourceUiState> = emptyList(),
     val statusMessage: String? = null,
     val errorMessage: String? = null,
 )
@@ -61,6 +70,8 @@ class StudyViewModel(
     private val feedbackMapper: FeedbackMapper = FeedbackMapper(),
     private val eventRecorder: StudyEventRecorder = NoOpStudyEventRecorder,
     private val learningRecordRecorder: LearningRecordRecorder = NoOpLearningRecordRecorder,
+    private val settingsRepository: SettingsRepository? = null,
+    private val pronunciationSourceRegistry: PronunciationSourceRegistry? = null,
     private val nowProvider: () -> Instant = { Instant.now() },
 ) {
     private val queue = initialQueue.toMutableList()
@@ -81,6 +92,9 @@ class StudyViewModel(
     private var canOpenPlanCenter: Boolean = false
     private var deferredSessionReason: String? = null
     private var deferredCompletedCount: Int? = null
+    private var selectedPronunciationSourceId: String? = null
+    private var selectedPronunciationSourceLabel: String = "跟随默认来源"
+    private var availablePronunciationSources: List<SessionPronunciationSourceUiState> = emptyList()
 
     init {
         recordCurrentCardPresentedIfNeeded()
@@ -103,6 +117,9 @@ class StudyViewModel(
                 checkpointDecisionLabel = checkpointDecisionLabel,
                 checkpointPlanVersionId = checkpointPlanVersionId,
                 canOpenPlanCenter = canOpenPlanCenter,
+                selectedPronunciationSourceId = selectedPronunciationSourceId,
+                selectedPronunciationSourceLabel = selectedPronunciationSourceLabel,
+                availablePronunciationSources = availablePronunciationSources,
             )
         }
 
@@ -120,6 +137,52 @@ class StudyViewModel(
             checkpointDecisionLabel = checkpointDecisionLabel,
             checkpointPlanVersionId = checkpointPlanVersionId,
             canOpenPlanCenter = canOpenPlanCenter,
+            selectedPronunciationSourceId = selectedPronunciationSourceId,
+            selectedPronunciationSourceLabel = selectedPronunciationSourceLabel,
+            availablePronunciationSources = availablePronunciationSources,
+        )
+    }
+
+    suspend fun refreshPronunciationSourceState(
+        statusMessage: String? = null,
+        errorMessage: String? = null,
+    ): StudyUiState {
+        val settingsRepository = settingsRepository ?: return buildUiState().copy(
+            statusMessage = statusMessage,
+            errorMessage = errorMessage,
+        )
+        val sources = pronunciationSourceRegistry?.refreshBuiltinSources().orEmpty()
+        val sessionPreference = settingsRepository.getPronunciationSessionPreference()
+        selectedPronunciationSourceId = sessionPreference.sessionWordPronunciationSourceId
+        availablePronunciationSources = buildSessionPronunciationSourceOptions(
+            sources = sources,
+            selectedSourceId = selectedPronunciationSourceId,
+        )
+        selectedPronunciationSourceLabel = availablePronunciationSources
+            .firstOrNull(SessionPronunciationSourceUiState::isSelected)
+            ?.title
+            ?: "跟随默认来源"
+        return buildUiState().copy(
+            statusMessage = statusMessage,
+            errorMessage = errorMessage,
+        )
+    }
+
+    suspend fun switchSessionPronunciationSource(
+        sourceId: String?,
+    ): StudyUiState {
+        val settingsRepository = settingsRepository ?: return buildUiState()
+        pronunciationSourceRegistry?.updateSessionWordSource(sourceId)
+            ?: settingsRepository.updateSessionWordPronunciationSourceId(sourceId)
+        val refreshed = refreshPronunciationSourceState()
+        val message = if (sourceId == null) {
+            "当前学习会话已恢复跟随默认来源。"
+        } else {
+            "当前学习会话已切换到${refreshed.selectedPronunciationSourceLabel}。"
+        }
+        return refreshed.copy(
+            statusMessage = message,
+            errorMessage = null,
         )
     }
 
@@ -320,9 +383,11 @@ class StudyViewModel(
 
 suspend fun loadStudyViewModel(context: Context): StudyViewModel {
     syncBuiltInCatalogToDatabase(context)
-    val settings = buildSettingsRepository(context).getSettings()
-    val studyRepository = RoomStudyRepository(buildDanciDatabase(context).studyDao())
-    val bookRepository = buildBookRepository(context)
+    val appContext = context.applicationContext
+    val settingsRepository = buildSettingsRepository(appContext)
+    val settings = settingsRepository.getSettings()
+    val studyRepository = RoomStudyRepository(buildDanciDatabase(appContext).studyDao())
+    val bookRepository = buildBookRepository(appContext)
     val activeBook = settings.activeBookId?.let { bookRepository.getBook(it) } ?: bookRepository.getAllBooks().first()
     val initialRecords = studyRepository.getAllLearningRecords().associateBy(LearningRecord::wordId)
     val now = Instant.now()
@@ -333,7 +398,8 @@ suspend fun loadStudyViewModel(context: Context): StudyViewModel {
         words = bookRepository.getWords(activeBook.id),
         queueBuckets = queueBuckets,
     )
-    val aiMemoryRepository = buildAiMemoryRepository(context)
+    val aiMemoryRepository = buildAiMemoryRepository(appContext)
+    val pronunciationSourceRepository = buildPronunciationSourceRepository(appContext)
     return StudyViewModel(
         initialQueue = queue,
         initialRecords = queue.associate { card ->
@@ -341,6 +407,12 @@ suspend fun loadStudyViewModel(context: Context): StudyViewModel {
         },
         eventRecorder = aiMemoryRepository,
         learningRecordRecorder = aiMemoryRepository,
+        settingsRepository = settingsRepository,
+        pronunciationSourceRegistry = PronunciationSourceRegistry(
+            sourceRepository = pronunciationSourceRepository,
+            voicePackRepository = buildVoicePackRepository(appContext),
+            settingsRepository = settingsRepository,
+        ),
     )
 }
 

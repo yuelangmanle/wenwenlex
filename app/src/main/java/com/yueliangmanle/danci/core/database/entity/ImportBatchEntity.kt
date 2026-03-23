@@ -10,6 +10,7 @@ data class ImportBatchEntity(
     val bookId: String,
     val fileName: String,
     val sheetName: String? = null,
+    val diagnosisSnapshotJson: String? = null,
     val parserMode: String = "strict",
     val totalRows: Int = 0,
     val importedRows: Int = 0,

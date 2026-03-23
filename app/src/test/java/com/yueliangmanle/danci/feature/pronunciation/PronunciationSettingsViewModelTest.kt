@@ -1,15 +1,21 @@
 package com.yueliangmanle.danci.feature.pronunciation
 
 import com.yueliangmanle.danci.core.data.AppSettings
+import com.yueliangmanle.danci.core.data.PronunciationSourceRepository
 import com.yueliangmanle.danci.core.data.SettingsRepository
 import com.yueliangmanle.danci.core.data.TestVoicePackFactory
 import com.yueliangmanle.danci.core.data.VoicePackRepository
 import com.yueliangmanle.danci.core.data.WordAudioRepository
 import com.yueliangmanle.danci.core.model.DictionaryAudioCandidate
 import com.yueliangmanle.danci.core.model.PronunciationAccent
+import com.yueliangmanle.danci.core.model.PronunciationSessionPreference
+import com.yueliangmanle.danci.core.model.PronunciationSource
+import com.yueliangmanle.danci.core.model.PronunciationSourceType
 import com.yueliangmanle.danci.core.model.VoicePackStatus
 import com.yueliangmanle.danci.core.model.WordAudioAsset
+import com.yueliangmanle.danci.core.pronunciation.PronunciationSourceRegistry
 import com.yueliangmanle.danci.core.worker.VoicePackDownloadController
+import java.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
@@ -19,6 +25,120 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PronunciationSettingsViewModelTest {
+    @Test
+    fun loadUiState_mapsSourcesAndHighlightsDefaults() = runTest {
+        val settingsRepository = FakeSettingsRepository(initial = AppSettings())
+        val sourceRepository = FakePronunciationSourceRepository(
+            mutableListOf(
+                testSource(
+                    id = "dictionary-uk",
+                    type = PronunciationSourceType.DICTIONARY,
+                    accent = PronunciationAccent.UK,
+                    isDefaultForWord = true,
+                ),
+                testSource(
+                    id = "dictionary-us",
+                    type = PronunciationSourceType.DICTIONARY,
+                    accent = PronunciationAccent.US,
+                ),
+                testSource(
+                    id = "native-us",
+                    type = PronunciationSourceType.LOCAL_NATIVE,
+                    accent = PronunciationAccent.US,
+                    isDefaultForLongText = true,
+                    backingVoicePackId = "native-us",
+                ),
+            ),
+        )
+        val voicePackRepository = FakeVoicePackRepository(
+            mutableListOf(
+                TestVoicePackFactory.voicePack(
+                    id = "native-us",
+                    name = "美式原生离线包",
+                    locale = "en-US",
+                    accent = "us",
+                    engineType = "sherpa_onnx",
+                    status = VoicePackStatus.READY.storageValue,
+                    isActive = true,
+                    supportsImportedWords = true,
+                ),
+            ),
+        )
+        val viewModel = PronunciationSettingsViewModel(
+            settingsRepository = settingsRepository,
+            wordAudioRepository = FakeWordAudioRepository(),
+            voicePackRepository = voicePackRepository,
+            voicePackDownloadController = FakeVoicePackDownloadController(),
+            pronunciationSourceRepository = sourceRepository,
+            pronunciationSourceRegistry = PronunciationSourceRegistry(
+                sourceRepository = sourceRepository,
+                voicePackRepository = voicePackRepository,
+                settingsRepository = settingsRepository,
+            ),
+        )
+
+        val state = viewModel.loadUiState()
+
+        assertEquals(3, state.sourceItems.size)
+        assertEquals("词典发音（英式）", state.defaultWordSourceLabel)
+        assertEquals("美式原生离线包", state.defaultLongTextSourceLabel)
+        assertTrue(state.sourceItems.single { it.id == "dictionary-uk" }.isDefaultForWord)
+        assertTrue(state.sourceItems.single { it.id == "native-us" }.isDefaultForLongText)
+        assertTrue(state.sourceItems.single { it.id == "native-us" }.subtitle.contains("本地原生"))
+    }
+
+    @Test
+    fun setDefaultWordSource_updatesSourceFlags() = runTest {
+        val settingsRepository = FakeSettingsRepository(initial = AppSettings())
+        val sourceRepository = FakePronunciationSourceRepository(
+            mutableListOf(
+                testSource(
+                    id = "dictionary-uk",
+                    type = PronunciationSourceType.DICTIONARY,
+                    accent = PronunciationAccent.UK,
+                    isDefaultForWord = true,
+                ),
+                testSource(
+                    id = "native-us",
+                    type = PronunciationSourceType.LOCAL_NATIVE,
+                    accent = PronunciationAccent.US,
+                    backingVoicePackId = "native-us",
+                ),
+            ),
+        )
+        val voicePackRepository = FakeVoicePackRepository(
+            mutableListOf(
+                TestVoicePackFactory.voicePack(
+                    id = "native-us",
+                    name = "美式原生离线包",
+                    locale = "en-US",
+                    accent = "us",
+                    engineType = "sherpa_onnx",
+                    status = VoicePackStatus.READY.storageValue,
+                    isActive = true,
+                ),
+            ),
+        )
+        val viewModel = PronunciationSettingsViewModel(
+            settingsRepository = settingsRepository,
+            wordAudioRepository = FakeWordAudioRepository(),
+            voicePackRepository = voicePackRepository,
+            voicePackDownloadController = FakeVoicePackDownloadController(),
+            pronunciationSourceRepository = sourceRepository,
+            pronunciationSourceRegistry = PronunciationSourceRegistry(
+                sourceRepository = sourceRepository,
+                voicePackRepository = voicePackRepository,
+                settingsRepository = settingsRepository,
+            ),
+        )
+
+        val state = viewModel.setDefaultWordSource("native-us")
+
+        assertEquals("美式原生离线包", state.defaultWordSourceLabel)
+        assertTrue(state.sourceItems.single { it.id == "native-us" }.isDefaultForWord)
+        assertFalse(state.sourceItems.single { it.id == "dictionary-uk" }.isDefaultForWord)
+    }
+
     @Test
     fun loadUiStateMapsReadyVoicePackAndCacheSummary() = runTest {
         val settingsRepository = FakeSettingsRepository(
@@ -44,6 +164,7 @@ class PronunciationSettingsViewModelTest {
             wordAudioRepository = FakeWordAudioRepository(cacheSizeBytes = 5L * 1024L * 1024L),
             voicePackRepository = voicePackRepository,
             voicePackDownloadController = FakeVoicePackDownloadController(),
+            pronunciationSourceRepository = FakePronunciationSourceRepository(),
         )
 
         val state = viewModel.loadUiState()
@@ -74,6 +195,7 @@ class PronunciationSettingsViewModelTest {
                 ),
             ),
             voicePackDownloadController = controller,
+            pronunciationSourceRepository = FakePronunciationSourceRepository(),
         )
 
         viewModel.downloadVoicePack("en-gb-bridge-basic")
@@ -106,6 +228,7 @@ class PronunciationSettingsViewModelTest {
                 ),
             ),
             voicePackDownloadController = FakeVoicePackDownloadController(),
+            pronunciationSourceRepository = FakePronunciationSourceRepository(),
         )
 
         val state = viewModel.loadUiState()
@@ -137,6 +260,7 @@ class PronunciationSettingsViewModelTest {
                 ),
             ),
             voicePackDownloadController = FakeVoicePackDownloadController(),
+            pronunciationSourceRepository = FakePronunciationSourceRepository(),
         )
 
         val state = viewModel.loadUiState()
@@ -167,6 +291,7 @@ class PronunciationSettingsViewModelTest {
                 ),
             ),
             voicePackDownloadController = controller,
+            pronunciationSourceRepository = FakePronunciationSourceRepository(),
         )
 
         val state = viewModel.loadUiState()
@@ -195,6 +320,7 @@ class PronunciationSettingsViewModelTest {
                 voicePackDownloadController = FakeVoicePackDownloadController(
                     failureMessages = mapOf("en-us-offline-word-v1" to reason),
                 ),
+                pronunciationSourceRepository = FakePronunciationSourceRepository(),
             )
             return viewModel.loadUiState().voicePacks.single()
         }
@@ -230,6 +356,7 @@ class PronunciationSettingsViewModelTest {
                 ),
             ),
             voicePackDownloadController = FakeVoicePackDownloadController(),
+            pronunciationSourceRepository = FakePronunciationSourceRepository(),
         )
 
         val state = viewModel.activateVoicePack("en-us-offline-word-v1")
@@ -256,10 +383,21 @@ private class FakeSettingsRepository(
     initial: AppSettings,
 ) : SettingsRepository {
     private val state = MutableStateFlow(initial)
+    private var sessionPreference = PronunciationSessionPreference()
 
     override val settings: Flow<AppSettings> = state
 
     override suspend fun getSettings(): AppSettings = state.value
+
+    override suspend fun getPronunciationSessionPreference(): PronunciationSessionPreference = sessionPreference
+
+    override suspend fun updateSessionWordPronunciationSourceId(sourceId: String?) {
+        sessionPreference = sessionPreference.copy(sessionWordPronunciationSourceId = sourceId)
+    }
+
+    override suspend fun updateSessionLongTextPronunciationSourceId(sourceId: String?) {
+        sessionPreference = sessionPreference.copy(sessionLongTextPronunciationSourceId = sourceId)
+    }
 
     override suspend fun updateDailyGoal(dailyGoal: Int) = Unit
 
@@ -312,6 +450,46 @@ private class FakeSettingsRepository(
     override suspend fun updateReminderEnabled(enabled: Boolean) = Unit
 
     override suspend fun updateReminderTime(hour: Int, minute: Int) = Unit
+}
+
+private class FakePronunciationSourceRepository(
+    private val sources: MutableList<PronunciationSource> = mutableListOf(),
+) : PronunciationSourceRepository {
+    override suspend fun getAllSources(): List<PronunciationSource> = sources.toList()
+
+    override suspend fun getSource(sourceId: String): PronunciationSource? =
+        sources.firstOrNull { it.id == sourceId }
+
+    override suspend fun upsertSources(sources: List<PronunciationSource>) {
+        sources.forEach { source ->
+            val index = this.sources.indexOfFirst { it.id == source.id }
+            if (index >= 0) {
+                this.sources[index] = source
+            } else {
+                this.sources += source
+            }
+        }
+    }
+
+    override suspend fun setDefaultWordSource(sourceId: String) {
+        if (sources.none { it.id == sourceId }) return
+        sources.indices.forEach { index ->
+            val source = sources[index]
+            sources[index] = source.copy(isDefaultForWord = source.id == sourceId)
+        }
+    }
+
+    override suspend fun setDefaultLongTextSource(sourceId: String) {
+        if (sources.none { it.id == sourceId }) return
+        sources.indices.forEach { index ->
+            val source = sources[index]
+            sources[index] = source.copy(isDefaultForLongText = source.id == sourceId)
+        }
+    }
+
+    override suspend fun clearAll() {
+        sources.clear()
+    }
 }
 
 private class FakeWordAudioRepository(
@@ -414,3 +592,29 @@ private class FakeVoicePackRepository(
 
     override fun voicePackRootDir(): java.io.File = java.io.File("/tmp")
 }
+
+private fun testSource(
+    id: String,
+    type: PronunciationSourceType,
+    accent: PronunciationAccent,
+    isDefaultForWord: Boolean = false,
+    isDefaultForLongText: Boolean = false,
+    backingVoicePackId: String? = null,
+): PronunciationSource =
+    PronunciationSource(
+        id = id,
+        name = when (type) {
+            PronunciationSourceType.DICTIONARY -> "词典发音（${accent.label}）"
+            PronunciationSourceType.LOCAL_NATIVE -> "美式原生离线包"
+            PronunciationSourceType.LOCAL_BRIDGE -> "桥接语音包"
+            PronunciationSourceType.CLOUD_TTS -> "云端 TTS"
+        },
+        sourceType = type.storageValue,
+        accent = accent.storageValue,
+        enabled = true,
+        isDefaultForWord = isDefaultForWord,
+        isDefaultForLongText = isDefaultForLongText,
+        backingVoicePackId = backingVoicePackId,
+        createdAt = Instant.EPOCH,
+        updatedAt = Instant.EPOCH,
+    )

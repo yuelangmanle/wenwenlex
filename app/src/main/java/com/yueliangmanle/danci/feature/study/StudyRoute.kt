@@ -43,7 +43,7 @@ fun StudyRoute(
     androidx.compose.runtime.LaunchedEffect(context) {
         val loaded = loadStudyViewModel(context)
         viewModel = loaded
-        state = loaded.buildUiState()
+        state = loaded.refreshPronunciationSourceState()
     }
 
     StudyScreen(
@@ -89,6 +89,12 @@ fun StudyRoute(
                     statusMessage = result.statusMessage,
                     errorMessage = result.errorMessage,
                 )
+            }
+        },
+        onSwitchPronunciationSource = { sourceId ->
+            val currentViewModel = viewModel ?: return@StudyScreen
+            scope.launch {
+                state = currentViewModel.switchSessionPronunciationSource(sourceId)
             }
         },
         onOpenPlanCenterClick = onOpenPlanCenterClick,

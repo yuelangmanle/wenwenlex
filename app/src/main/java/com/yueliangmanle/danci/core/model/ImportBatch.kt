@@ -7,6 +7,7 @@ data class ImportBatch(
     val bookId: String,
     val fileName: String,
     val sheetName: String? = null,
+    val diagnosisSnapshot: ImportDiagnosisSnapshot? = null,
     val parserMode: String = "strict",
     val totalRows: Int = 0,
     val importedRows: Int = 0,

@@ -3,6 +3,7 @@ package com.yueliangmanle.danci.core.pronunciation
 import android.content.Context
 import com.yueliangmanle.danci.core.data.VoicePackRepository
 import com.yueliangmanle.danci.core.data.WordAudioRepository
+import com.yueliangmanle.danci.core.data.buildGeneratedContentHash
 import com.yueliangmanle.danci.core.data.buildGeneratedNamespace
 import com.yueliangmanle.danci.core.model.PronunciationAccent
 import com.yueliangmanle.danci.core.model.VoicePack
@@ -45,14 +46,22 @@ class NativeOfflineWordTtsEngine(
 
         val stagingFile = buildStagingOutputFile(normalizedWord, resolvedAccent)
         runtimeLoader(installDir).synthesizeWord(normalizedWord, stagingFile)
+        val namespace = buildWordNamespace(
+            normalizedWord = normalizedWord,
+            accent = resolvedAccent,
+            voicePack = voicePack,
+        )
 
-        val asset = wordAudioRepository.cacheNativeGeneratedAudio(
+        val asset = wordAudioRepository.cacheNativeGeneratedAudioWithContext(
             wordId = word.id,
             accent = resolvedAccent,
             normalizedWord = normalizedWord,
             modelFamily = voicePack.modelFamily.orCacheModelFamily(),
             packVersion = voicePack.version.orCachePackVersion(),
+            sourceId = voicePack.id,
+            presetId = null,
             sourceFile = stagingFile,
+            namespace = namespace,
         ) ?: return null
 
         val outputFile = asset.localPath?.let(::File) ?: return null
@@ -76,6 +85,7 @@ class NativeOfflineWordTtsEngine(
                 accent = resolvedAccent,
                 modelFamily = voicePack.modelFamily.orCacheModelFamily(),
                 packVersion = voicePack.version.orCachePackVersion(),
+                sourceId = voicePack.id,
             ),
         )
     }
@@ -91,7 +101,8 @@ class NativeOfflineWordTtsEngine(
             .asSequence()
             .filter(::isInstalledNativePack)
             .firstOrNull { pack ->
-                accent == PronunciationAccent.AUTO || resolveAccent(accent, pack) == accent
+                accent == PronunciationAccent.AUTO ||
+                    PronunciationAccent.fromStorageValue(pack.accent) == accent
             }
     }
 
@@ -127,15 +138,18 @@ class NativeOfflineWordTtsEngine(
         voicePack: VoicePack,
         resolvedAccent: PronunciationAccent,
     ): NativeWordSynthesisResult? {
-        val namespace = buildGeneratedNamespace(
+        val normalizedWord = normalizeWordForPronunciation(word.lemma) ?: word.lemma
+        val namespace = buildWordNamespace(
+            normalizedWord = normalizedWord,
             accent = resolvedAccent,
-            modelFamily = voicePack.modelFamily.orCacheModelFamily(),
-            packVersion = voicePack.version.orCachePackVersion(),
+            voicePack = voicePack,
         )
-        val asset = wordAudioRepository.findNativeGeneratedAsset(
+        val asset = wordAudioRepository.findNativeGeneratedAssetWithContext(
             wordId = word.id,
             accent = resolvedAccent,
             expectedNamespace = namespace,
+            sourceId = voicePack.id,
+            presetId = null,
         ) ?: return null
         val outputFile = asset.localPath?.let(::File)
             ?.takeIf { it.exists() }
@@ -143,11 +157,25 @@ class NativeOfflineWordTtsEngine(
         return NativeWordSynthesisResult(
             asset = asset,
             outputFile = outputFile,
-            normalizedWord = normalizeWordForPronunciation(word.lemma) ?: word.lemma,
+            normalizedWord = normalizedWord,
             voicePack = voicePack,
             cacheHit = true,
         )
     }
+
+    private fun buildWordNamespace(
+        normalizedWord: String,
+        accent: PronunciationAccent,
+        voicePack: VoicePack,
+    ): String =
+        buildGeneratedNamespace(
+            accent = accent,
+            modelFamily = voicePack.modelFamily.orCacheModelFamily(),
+            packVersion = voicePack.version.orCachePackVersion(),
+            sourceId = voicePack.id,
+            sceneType = "word",
+            contentHash = buildGeneratedContentHash(normalizedWord),
+        )
 
     suspend fun markPlayed(asset: WordAudioAsset) {
         wordAudioRepository.markPlayed(asset)

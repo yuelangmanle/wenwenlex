@@ -30,6 +30,10 @@ import com.yueliangmanle.danci.feature.me.AI_SETTINGS_ROUTE
 import com.yueliangmanle.danci.feature.me.MeRoute
 import com.yueliangmanle.danci.feature.pronunciation.PRONUNCIATION_SETTINGS_ROUTE
 import com.yueliangmanle.danci.feature.pronunciation.PronunciationSettingsRoute
+import com.yueliangmanle.danci.feature.pronunciation.AUDIO_CACHE_MANAGEMENT_ROUTE
+import com.yueliangmanle.danci.feature.pronunciation.AUDIO_GENERATION_TASKS_ROUTE
+import com.yueliangmanle.danci.feature.pronunciation.AudioCacheManagementRoute
+import com.yueliangmanle.danci.feature.pronunciation.AudioGenerationTasksRoute
 import com.yueliangmanle.danci.feature.quiz.QuizRoute
 import com.yueliangmanle.danci.feature.quiz.quizRoute
 import com.yueliangmanle.danci.feature.study.StudyRoute
@@ -138,7 +142,20 @@ fun DanciNavHost(
             AiSettingsRoute()
         }
         composable(route = PRONUNCIATION_SETTINGS_ROUTE) {
-            PronunciationSettingsRoute()
+            PronunciationSettingsRoute(
+                onOpenCacheManagementClick = {
+                    navController.navigate(AUDIO_CACHE_MANAGEMENT_ROUTE)
+                },
+                onOpenTaskCenterClick = {
+                    navController.navigate(AUDIO_GENERATION_TASKS_ROUTE)
+                },
+            )
+        }
+        composable(route = AUDIO_CACHE_MANAGEMENT_ROUTE) {
+            AudioCacheManagementRoute()
+        }
+        composable(route = AUDIO_GENERATION_TASKS_ROUTE) {
+            AudioGenerationTasksRoute()
         }
         composable(route = LEARNING_ANALYTICS_ROUTE) {
             LearningAnalyticsRoute()

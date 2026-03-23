@@ -40,4 +40,19 @@ class XlsxBookImporterTest {
         assertTrue(preview.rows.isEmpty())
         assertTrue(preview.warningMessage.orEmpty().contains("AI 适配"))
     }
+
+    @Test
+    fun previewSkipsShiftedMeaningRowBeforeRepair() {
+        val preview = importer.preview(
+            XlsxSheetData(
+                name = "Sheet1",
+                rows = listOf(
+                    listOf("abandon", "", "放弃"),
+                ),
+            ),
+        )
+
+        assertTrue(preview.rows.isEmpty())
+        assertEquals(1, preview.skippedRows)
+    }
 }

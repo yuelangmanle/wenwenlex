@@ -20,6 +20,13 @@ import kotlinx.coroutines.withContext
 
 private val REMOTE_LOOKUP_COOLDOWN: Duration = Duration.ofDays(7)
 
+data class AudioCacheBucketSummary(
+    val sourceType: String,
+    val title: String,
+    val itemCount: Int,
+    val sizeBytes: Long,
+)
+
 interface WordAudioRepository {
     suspend fun findCachedAsset(wordId: Long, accent: PronunciationAccent): WordAudioAsset?
     suspend fun findNativeGeneratedAsset(
@@ -27,6 +34,19 @@ interface WordAudioRepository {
         accent: PronunciationAccent,
         expectedNamespace: String? = null,
     ): WordAudioAsset? = null
+    suspend fun findNativeGeneratedAssetWithContext(
+        wordId: Long,
+        accent: PronunciationAccent,
+        expectedNamespace: String? = null,
+        sourceId: String? = null,
+        presetId: String? = null,
+    ): WordAudioAsset? =
+        findNativeGeneratedAsset(
+            wordId = wordId,
+            accent = accent,
+            expectedNamespace = expectedNamespace,
+        )
+
     suspend fun cacheNativeGeneratedAudio(
         wordId: Long,
         accent: PronunciationAccent,
@@ -36,6 +56,27 @@ interface WordAudioRepository {
         sourceFile: File,
         mimeType: String = "audio/wav",
     ): WordAudioAsset? = null
+    suspend fun cacheNativeGeneratedAudioWithContext(
+        wordId: Long,
+        accent: PronunciationAccent,
+        normalizedWord: String,
+        modelFamily: String,
+        packVersion: String,
+        sourceId: String?,
+        presetId: String?,
+        sourceFile: File,
+        namespace: String? = null,
+        mimeType: String = "audio/wav",
+    ): WordAudioAsset? =
+        cacheNativeGeneratedAudio(
+            wordId = wordId,
+            accent = accent,
+            normalizedWord = normalizedWord,
+            modelFamily = modelFamily,
+            packVersion = packVersion,
+            sourceFile = sourceFile,
+            mimeType = mimeType,
+        )
     suspend fun isRemoteLookupCoolingDown(wordId: Long, accent: PronunciationAccent): Boolean
     suspend fun cacheDictionaryAudio(
         wordId: Long,
@@ -48,6 +89,8 @@ interface WordAudioRepository {
     )
     suspend fun markPlayed(asset: WordAudioAsset)
     suspend fun clearDictionaryCache(): Int
+    suspend fun clearCacheBucket(sourceType: String): Int = 0
+    suspend fun summarizeCacheBuckets(): List<AudioCacheBucketSummary> = emptyList()
     suspend fun cacheSizeBytes(): Long
 }
 
@@ -61,30 +104,44 @@ class RoomWordAudioRepository(
         accent: PronunciationAccent,
     ): WordAudioAsset? {
         val candidates = mutableListOf<WordAudioAssetEntity>()
-        dao.findLatestAsset(
+        candidates += dao.findAssetsForWordAccentAndSource(
             wordId,
             accent.storageValue,
             PlaybackSource.DICTIONARY_CACHE.storageValue,
-        )?.let(candidates::add)
+            WordAudioAssetStatus.READY.storageValue,
+        )
         if (accent != PronunciationAccent.AUTO) {
-            dao.findLatestAsset(
+            candidates += dao.findAssetsForWordAccentAndSource(
                 wordId,
                 PronunciationAccent.AUTO.storageValue,
                 PlaybackSource.DICTIONARY_CACHE.storageValue,
-            )?.let(candidates::add)
+                WordAudioAssetStatus.READY.storageValue,
+            )
         }
         return candidates
             .map(WordAudioAssetEntity::asExternalModel)
-            .firstOrNull { asset ->
-                asset.status == WordAudioAssetStatus.READY.storageValue &&
-                    asset.localPath?.let(::File)?.exists() == true
-            }
+            .firstOrNull(::isReadyLocalAsset)
     }
 
     override suspend fun findNativeGeneratedAsset(
         wordId: Long,
         accent: PronunciationAccent,
         expectedNamespace: String?,
+    ): WordAudioAsset? =
+        findNativeGeneratedAssetWithContext(
+            wordId = wordId,
+            accent = accent,
+            expectedNamespace = expectedNamespace,
+            sourceId = null,
+            presetId = null,
+        )
+
+    override suspend fun findNativeGeneratedAssetWithContext(
+        wordId: Long,
+        accent: PronunciationAccent,
+        expectedNamespace: String?,
+        sourceId: String?,
+        presetId: String?,
     ): WordAudioAsset? {
         val candidates = mutableListOf<WordAudioAssetEntity>()
         candidates += dao.findAssetsForWordAccentAndSource(
@@ -105,8 +162,10 @@ class RoomWordAudioRepository(
             .map(WordAudioAssetEntity::asExternalModel)
             .firstOrNull { asset ->
                 asset.status == WordAudioAssetStatus.READY.storageValue &&
+                    asset.assetState == WordAudioAssetStatus.READY.storageValue &&
                     asset.localPath?.let(::File)?.exists() == true &&
-                    asset.matchesGeneratedNamespace(expectedNamespace)
+                    asset.matchesGeneratedNamespace(expectedNamespace) &&
+                    asset.matchesSourceContext(sourceId = sourceId, presetId = presetId)
             }
     }
 
@@ -118,28 +177,69 @@ class RoomWordAudioRepository(
         packVersion: String,
         sourceFile: File,
         mimeType: String,
+    ): WordAudioAsset? =
+        cacheNativeGeneratedAudioWithContext(
+            wordId = wordId,
+            accent = accent,
+            normalizedWord = normalizedWord,
+            modelFamily = modelFamily,
+            packVersion = packVersion,
+            sourceId = null,
+            presetId = null,
+            sourceFile = sourceFile,
+            namespace = null,
+            mimeType = mimeType,
+        )
+
+    override suspend fun cacheNativeGeneratedAudioWithContext(
+        wordId: Long,
+        accent: PronunciationAccent,
+        normalizedWord: String,
+        modelFamily: String,
+        packVersion: String,
+        sourceId: String?,
+        presetId: String?,
+        sourceFile: File,
+        namespace: String?,
+        mimeType: String,
     ): WordAudioAsset? {
         if (normalizedWord.isBlank() || !sourceFile.exists()) {
             return null
         }
-        val targetFile = buildGeneratedCacheFile(
-            normalizedWord = normalizedWord,
+        val resolvedNamespace = namespace?.takeIf(String::isNotBlank) ?: buildGeneratedNamespace(
             accent = accent,
             modelFamily = modelFamily,
             packVersion = packVersion,
+            sourceId = sourceId,
+            presetId = presetId,
+            sceneType = GENERATED_AUDIO_SCENE_WORD,
+            contentHash = buildGeneratedContentHash(normalizedWord),
+        )
+        val targetFile = buildGeneratedCacheFile(
+            normalizedWord = normalizedWord,
+            namespace = resolvedNamespace,
         )
         if (sourceFile.absolutePath != targetFile.absolutePath) {
             sourceFile.copyTo(targetFile, overwrite = true)
         }
         val checksum = sha256(targetFile.readBytes())
-        val existing = dao.findLatestAsset(
+        val existing = dao.findLatestAssetByContext(
             wordId = wordId,
             accent = accent.storageValue,
             sourceType = PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue,
+            status = WordAudioAssetStatus.READY.storageValue,
+            sourceId = sourceId,
+            presetId = presetId,
+            namespace = resolvedNamespace,
         )
         val entity = WordAudioAssetEntity(
             id = existing?.id ?: 0L,
             wordId = wordId,
+            sourceId = sourceId,
+            presetId = presetId,
+            actualSourceType = sourceId?.let { ACTUAL_SOURCE_TYPE_LOCAL_NATIVE },
+            namespace = resolvedNamespace,
+            assetState = WordAudioAssetStatus.READY.storageValue,
             accent = accent.storageValue,
             sourceType = PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue,
             remoteUrl = null,
@@ -239,24 +339,48 @@ class RoomWordAudioRepository(
     }
 
     override suspend fun clearDictionaryCache(): Int {
+        return clearCacheBucket(PlaybackSource.DICTIONARY_CACHE.storageValue)
+    }
+
+    override suspend fun clearCacheBucket(sourceType: String): Int {
+        if (!isManagedLocalCacheSource(sourceType)) {
+            return 0
+        }
         val assets = dao.getAssetsBySource(
-            sourceType = PlaybackSource.DICTIONARY_CACHE.storageValue,
+            sourceType = sourceType,
             status = WordAudioAssetStatus.READY.storageValue,
         )
         assets.forEach { asset ->
             asset.localPath?.let(::File)?.takeIf { it.exists() }?.delete()
         }
-        dao.deleteAssetsBySource(PlaybackSource.DICTIONARY_CACHE.storageValue)
+        dao.deleteAssetsBySource(sourceType)
         return assets.size
     }
 
-    override suspend fun cacheSizeBytes(): Long =
-        dao.getAssetsBySource(
-            sourceType = PlaybackSource.DICTIONARY_CACHE.storageValue,
-            status = WordAudioAssetStatus.READY.storageValue,
-        ).sumOf { asset ->
-            asset.localPath?.let(::File)?.takeIf { it.exists() }?.length() ?: 0L
+    override suspend fun summarizeCacheBuckets(): List<AudioCacheBucketSummary> =
+        MANAGED_LOCAL_CACHE_SOURCES.mapNotNull { source ->
+            val assets = dao.getAssetsBySource(
+                sourceType = source.storageValue,
+                status = WordAudioAssetStatus.READY.storageValue,
+            )
+            val readyLocalAssets = assets.filter { asset ->
+                asset.localPath?.let(::File)?.exists() == true
+            }
+            if (readyLocalAssets.isEmpty()) {
+                return@mapNotNull null
+            }
+            AudioCacheBucketSummary(
+                sourceType = source.storageValue,
+                title = source.label,
+                itemCount = readyLocalAssets.size,
+                sizeBytes = readyLocalAssets.sumOf { asset ->
+                    asset.localPath?.let(::File)?.length() ?: 0L
+                },
+            )
         }
+
+    override suspend fun cacheSizeBytes(): Long =
+        summarizeCacheBuckets().sumOf(AudioCacheBucketSummary::sizeBytes)
 
     private suspend fun downloadToFile(
         remoteUrl: String,
@@ -291,15 +415,8 @@ class RoomWordAudioRepository(
 
     private fun buildGeneratedCacheFile(
         normalizedWord: String,
-        accent: PronunciationAccent,
-        modelFamily: String,
-        packVersion: String,
+        namespace: String,
     ): File {
-        val namespace = buildGeneratedNamespace(
-            accent = accent,
-            modelFamily = modelFamily,
-            packVersion = packVersion,
-        )
         val target = File(
             appContext.filesDir,
             "audio-cache/generated/$namespace/$normalizedWord.wav",
@@ -313,12 +430,23 @@ internal fun buildGeneratedNamespace(
     accent: PronunciationAccent,
     modelFamily: String,
     packVersion: String,
+    sourceId: String? = null,
+    presetId: String? = null,
+    sceneType: String = GENERATED_AUDIO_SCENE_WORD,
+    contentHash: String? = null,
 ): String =
     listOf(
         accent.storageValue,
         sanitizeCacheSegment(modelFamily, fallback = "unknown-model"),
         sanitizeCacheSegment(packVersion, fallback = "unknown-version"),
-    ).joinToString("/")
+        buildContextNamespaceSegment(sourceId, fallback = "default-source"),
+        buildContextNamespaceSegment(presetId, fallback = "default-preset"),
+        sanitizeCacheSegment(sceneType, fallback = GENERATED_AUDIO_SCENE_WORD),
+        sanitizeCacheSegment(contentHash.orEmpty(), fallback = "shared-content"),
+    ).filterNotNull().joinToString("/")
+
+internal fun buildGeneratedContentHash(content: String): String =
+    sha256(content.toByteArray()).take(GENERATED_AUDIO_HASH_LENGTH)
 
 private fun sanitizeCacheSegment(
     value: String,
@@ -330,12 +458,42 @@ private fun sanitizeCacheSegment(
         ?.lowercase()
         ?: fallback
 
+private fun buildContextNamespaceSegment(
+    rawValue: String?,
+    fallback: String,
+): String {
+    val trimmedValue = rawValue?.trim().orEmpty()
+    if (trimmedValue.isBlank()) {
+        return fallback
+    }
+    val readableSegment = sanitizeCacheSegment(trimmedValue, fallback = fallback)
+    val fingerprint = sha256(trimmedValue.toByteArray()).take(GENERATED_CONTEXT_HASH_LENGTH)
+    return "$readableSegment--$fingerprint"
+}
+
+private fun isReadyLocalAsset(asset: WordAudioAsset): Boolean =
+    asset.status == WordAudioAssetStatus.READY.storageValue &&
+        asset.assetState == WordAudioAssetStatus.READY.storageValue &&
+        asset.localPath?.let(::File)?.exists() == true
+
 private fun WordAudioAsset.matchesGeneratedNamespace(expectedNamespace: String?): Boolean {
     if (expectedNamespace.isNullOrBlank()) {
         return true
     }
+    if (namespace == expectedNamespace) {
+        return true
+    }
     val normalizedPath = localPath.orEmpty().replace('\\', '/')
     return normalizedPath.contains("/audio-cache/generated/$expectedNamespace/")
+}
+
+private fun WordAudioAsset.matchesSourceContext(
+    sourceId: String?,
+    presetId: String?,
+): Boolean {
+    val sourceMatched = sourceId == null || this.sourceId == sourceId
+    val presetMatched = presetId == null || this.presetId == presetId
+    return sourceMatched && presetMatched
 }
 
 private fun sha256(bytes: ByteArray): String =
@@ -343,10 +501,19 @@ private fun sha256(bytes: ByteArray): String =
         .digest(bytes)
         .joinToString("") { "%02x".format(it) }
 
+private fun isManagedLocalCacheSource(sourceType: String): Boolean =
+    MANAGED_LOCAL_CACHE_SOURCES.any { it.storageValue == sourceType }
+
 internal fun WordAudioAssetEntity.asExternalModel(): WordAudioAsset =
     WordAudioAsset(
         id = id,
         wordId = wordId,
+        sourceId = sourceId,
+        presetId = presetId,
+        actualSourceType = actualSourceType,
+        namespace = namespace,
+        assetState = assetState,
+        taskId = taskId,
         accent = accent,
         sourceType = sourceType,
         remoteUrl = remoteUrl,
@@ -364,6 +531,12 @@ internal fun WordAudioAsset.asEntity(): WordAudioAssetEntity =
     WordAudioAssetEntity(
         id = id,
         wordId = wordId,
+        sourceId = sourceId,
+        presetId = presetId,
+        actualSourceType = actualSourceType,
+        namespace = namespace,
+        assetState = assetState,
+        taskId = taskId,
         accent = accent,
         sourceType = sourceType,
         remoteUrl = remoteUrl,
@@ -382,3 +555,16 @@ fun buildWordAudioRepository(context: Context): WordAudioRepository =
         appContext = context.applicationContext,
         dao = buildDanciDatabase(context.applicationContext).wordAudioAssetDao(),
     )
+
+private const val GENERATED_AUDIO_SCENE_WORD = "word"
+private const val GENERATED_AUDIO_HASH_LENGTH = 16
+private const val GENERATED_CONTEXT_HASH_LENGTH = 10
+private const val ACTUAL_SOURCE_TYPE_LOCAL_NATIVE = "local_native"
+
+private val MANAGED_LOCAL_CACHE_SOURCES = listOf(
+    PlaybackSource.DICTIONARY_CACHE,
+    PlaybackSource.OFFLINE_NATIVE_CACHE,
+    PlaybackSource.OFFLINE_NATIVE_GENERATED,
+    PlaybackSource.ONLINE_PREBUILT_CACHE,
+    PlaybackSource.OFFLINE_TTS,
+)

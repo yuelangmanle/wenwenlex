@@ -10,6 +10,7 @@ interface PhoneticEnrichmentRepository {
     suspend fun insert(job: PhoneticEnrichmentJob): Long
     suspend fun update(job: PhoneticEnrichmentJob)
     suspend fun getJob(jobId: Long): PhoneticEnrichmentJob?
+    suspend fun getLatestJob(scopeType: String, scopeRef: String): PhoneticEnrichmentJob?
 }
 
 class RoomPhoneticEnrichmentRepository(
@@ -23,6 +24,11 @@ class RoomPhoneticEnrichmentRepository(
 
     override suspend fun getJob(jobId: Long): PhoneticEnrichmentJob? =
         dao.getJobById(jobId)?.asExternalModel()
+
+    override suspend fun getLatestJob(
+        scopeType: String,
+        scopeRef: String,
+    ): PhoneticEnrichmentJob? = dao.getLatestJob(scopeType, scopeRef)?.asExternalModel()
 }
 
 internal fun PhoneticEnrichmentJob.asEntity(): PhoneticEnrichmentJobEntity =

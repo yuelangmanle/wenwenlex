@@ -48,6 +48,12 @@ fun BookDetailRoute(
                 state = viewModel.fillBookPhonetics(overwrite = true)
             }
         },
+        onStartQualityEnrichmentClick = {
+            scope.launch {
+                state = state.copy(errorMessage = null, statusMessage = null)
+                state = viewModel.enqueueQualityEnrichment()
+            }
+        },
         onWordClick = onWordClick,
     )
 }

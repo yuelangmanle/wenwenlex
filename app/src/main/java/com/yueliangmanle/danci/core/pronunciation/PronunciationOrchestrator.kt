@@ -2,6 +2,7 @@ package com.yueliangmanle.danci.core.pronunciation
 
 import android.content.Context
 import com.yueliangmanle.danci.core.data.SettingsRepository
+import com.yueliangmanle.danci.core.data.buildPronunciationSourceRepository
 import com.yueliangmanle.danci.core.data.VoicePackRepository
 import com.yueliangmanle.danci.core.data.WordAudioRepository
 import com.yueliangmanle.danci.core.data.WordRepository
@@ -16,6 +17,8 @@ import com.yueliangmanle.danci.core.model.PlaybackResult
 import com.yueliangmanle.danci.core.model.PlaybackSource
 import com.yueliangmanle.danci.core.model.PronunciationAccent
 import com.yueliangmanle.danci.core.model.PronunciationMode
+import com.yueliangmanle.danci.core.model.PronunciationSource
+import com.yueliangmanle.danci.core.model.PronunciationSourceType
 import com.yueliangmanle.danci.core.model.VoicePack
 import com.yueliangmanle.danci.core.model.VoicePackEngineType
 import com.yueliangmanle.danci.core.model.VoicePackStatus
@@ -32,6 +35,7 @@ class PronunciationOrchestrator(
     private val offlineTtsEngine: OfflineTtsEngine,
     private val systemTtsEngine: SystemTtsEngine,
     private val telemetryRecorder: PlaybackTelemetryRecorder,
+    private val pronunciationSourceRegistry: PronunciationSourceRegistry? = null,
     private val audioPlayer: suspend (String?) -> Boolean = ::playAudioFile,
     private val nowProvider: () -> Instant = { Instant.now() },
 ) {
@@ -62,39 +66,78 @@ class PronunciationOrchestrator(
         contextLabel: String = "detail",
     ): PlaybackResult {
         val settings = settingsRepository.getSettings()
-        val accent = accentOverride ?: PronunciationAccent.fromStorageValue(settings.preferredPronunciationAccent)
+        val requestedAccent = accentOverride ?: PronunciationAccent.fromStorageValue(settings.preferredPronunciationAccent)
+        val preferredSource = pronunciationSourceRegistry?.resolveCurrentWordSource(requestedAccent)
+        val accent = preferredSource
+            ?.let { resolvePreferredSourceAccent(it, requestedAccent) }
+            ?: requestedAccent
         val pronunciationMode = PronunciationMode.fromStorageValue(settings.pronunciationMode)
         val startedAt = nowProvider()
         val normalizedWord = normalizeWordForPronunciation(word.lemma)
         var nativeFailure: NativeFailureContext? = null
 
+        fun contextualizePlaybackResult(
+            result: PlaybackResult,
+        ): PlaybackResult {
+            val preferredSourceId = preferredSource?.id
+            val actualSourceId = result.actualSourceId ?: inferActualSourceId(result)
+            val actualSourceType = result.actualSourceType ?: inferActualSourceType(result)
+            val fallbackUsed = result.fallbackUsed ||
+                nativeFailure != null ||
+                (preferredSourceId != null && preferredSourceId != actualSourceId)
+            return result.copy(
+                preferredSourceId = preferredSourceId,
+                actualSourceId = actualSourceId,
+                actualSourceType = actualSourceType,
+                fallbackUsed = fallbackUsed,
+            )
+        }
+
         suspend fun recordPlayback(
             result: PlaybackResult,
             errorMessage: String? = result.errorMessage ?: nativeFailure?.errorMessage,
             failureStageOverride: String? = result.failureStage ?: nativeFailure?.stage,
-            fallbackUsedOverride: Boolean = result.fallbackUsed || nativeFailure != null,
-        ) {
+        ): PlaybackResult {
+            val contextualized = contextualizePlaybackResult(result)
             telemetryRecorder.recordWordPlayback(
                 wordId = word.id,
                 lemma = word.lemma,
                 normalizedWord = normalizedWord,
-                source = result.source,
-                accent = result.accent,
+                source = contextualized.source,
+                accent = contextualized.accent,
                 contextLabel = contextLabel,
-                success = result.success,
-                cacheHit = result.cacheHit,
+                success = contextualized.success,
+                cacheHit = contextualized.cacheHit,
                 latencyMs = Duration.between(startedAt, nowProvider()).toMillis().coerceAtLeast(0L),
-                voicePackId = result.voicePackId ?: nativeFailure?.voicePack?.id,
-                voicePackVersion = result.voicePackVersion ?: nativeFailure?.voicePack?.version,
+                voicePackId = contextualized.voicePackId ?: nativeFailure?.voicePack?.id,
+                voicePackVersion = contextualized.voicePackVersion ?: nativeFailure?.voicePack?.version,
                 failureStage = failureStageOverride,
-                fallbackUsed = fallbackUsedOverride,
+                fallbackUsed = contextualized.fallbackUsed,
+                preferredSourceId = contextualized.preferredSourceId,
+                actualSourceId = contextualized.actualSourceId,
+                actualSourceType = contextualized.actualSourceType,
                 errorMessage = errorMessage,
             )
+            return contextualized
         }
 
         suspend fun recordHardFailure(
             errorMessage: String,
-        ) {
+        ): PlaybackResult {
+            val failureResult = contextualizePlaybackResult(
+                PlaybackResult(
+                    success = false,
+                    source = PlaybackSource.SYSTEM_TTS,
+                    accent = accent,
+                    errorMessage = errorMessage,
+                    fallbackUsed = nativeFailure != null,
+                    failureStage = nativeFailure?.stage,
+                    voicePackId = nativeFailure?.voicePack?.id,
+                    voicePackVersion = nativeFailure?.voicePack?.version,
+                    actualSourceId = SYSTEM_TTS_SOURCE_ID,
+                    actualSourceType = PlaybackSource.SYSTEM_TTS.storageValue,
+                ),
+            )
             telemetryRecorder.recordWordPlayback(
                 wordId = word.id,
                 lemma = word.lemma,
@@ -108,9 +151,13 @@ class PronunciationOrchestrator(
                 voicePackId = nativeFailure?.voicePack?.id,
                 voicePackVersion = nativeFailure?.voicePack?.version,
                 failureStage = nativeFailure?.stage,
-                fallbackUsed = nativeFailure != null,
+                fallbackUsed = failureResult.fallbackUsed,
+                preferredSourceId = failureResult.preferredSourceId,
+                actualSourceId = failureResult.actualSourceId,
+                actualSourceType = failureResult.actualSourceType,
                 errorMessage = errorMessage,
             )
+            return failureResult
         }
 
         suspend fun playBridgeOfflineIfAvailable(): PlaybackResult? {
@@ -118,11 +165,7 @@ class PronunciationOrchestrator(
             if (VoicePackEngineType.fromStorageValue(activePack.engineType) != VoicePackEngineType.SYSTEM_TTS_BRIDGE) {
                 return null
             }
-            val offlineResult = offlineTtsEngine.speakWord(word, accent)
-            if (offlineResult != null) {
-                recordPlayback(offlineResult)
-            }
-            return offlineResult
+            return offlineTtsEngine.speakWord(word, accent)
         }
 
         suspend fun playNativeIfAvailable(): PlaybackResult? {
@@ -147,32 +190,30 @@ class PronunciationOrchestrator(
             }
         }
 
-        wordAudioRepository.findCachedAsset(word.id, accent)?.let { asset ->
-            val resolvedAccent = PronunciationAccent.fromStorageValue(asset.accent)
-            if (audioPlayer(asset.localPath)) {
-                wordAudioRepository.markPlayed(asset)
-                val result = PlaybackResult(
-                    success = true,
-                    source = PlaybackSource.DICTIONARY_CACHE,
-                    accent = resolvedAccent,
-                    statusMessage = buildCachedDictionaryStatusMessage(resolvedAccent),
-                    cacheHit = true,
-                )
-                recordPlayback(result, fallbackUsedOverride = false)
-                return result
+        suspend fun playCachedDictionaryIfAvailable(): PlaybackResult? {
+            wordAudioRepository.findCachedAsset(word.id, accent)?.let { asset ->
+                val resolvedAccent = PronunciationAccent.fromStorageValue(asset.accent)
+                if (audioPlayer(asset.localPath)) {
+                    wordAudioRepository.markPlayed(asset)
+                    return PlaybackResult(
+                        success = true,
+                        source = PlaybackSource.DICTIONARY_CACHE,
+                        accent = resolvedAccent,
+                        statusMessage = buildCachedDictionaryStatusMessage(resolvedAccent),
+                        cacheHit = true,
+                        actualSourceId = PronunciationSourceRegistry.dictionarySourceId(resolvedAccent),
+                        actualSourceType = PronunciationSourceType.DICTIONARY.storageValue,
+                    )
+                }
             }
+            return null
         }
 
-        playNativeIfAvailable()?.let { nativeResult ->
-            recordPlayback(nativeResult, fallbackUsedOverride = false)
-            return nativeResult
-        }
+        suspend fun playRemoteDictionaryIfAvailable(): PlaybackResult? {
+            if (wordAudioRepository.isRemoteLookupCoolingDown(word.id, accent)) {
+                return null
+            }
 
-        if (pronunciationMode == PronunciationMode.OFFLINE_FIRST) {
-            playBridgeOfflineIfAvailable()?.let { return it }
-        }
-
-        if (!wordAudioRepository.isRemoteLookupCoolingDown(word.id, accent)) {
             val candidates = dictionaryAudioService.resolveCandidates(word.lemma, accent)
             if (candidates.isNotEmpty()) {
                 for (candidate in candidates) {
@@ -183,7 +224,7 @@ class PronunciationOrchestrator(
                     if (cachedAsset != null && audioPlayer(cachedAsset.localPath)) {
                         val resolvedAccent = PronunciationAccent.fromStorageValue(cachedAsset.accent)
                         wordAudioRepository.markPlayed(cachedAsset)
-                        val result = PlaybackResult(
+                        return PlaybackResult(
                             success = true,
                             source = PlaybackSource.DICTIONARY_REMOTE,
                             accent = resolvedAccent,
@@ -191,13 +232,12 @@ class PronunciationOrchestrator(
                                 accent = resolvedAccent,
                                 sourceLabel = candidate.sourceLabel,
                             ),
-                            fallbackUsed = nativeFailure != null,
                             failureStage = nativeFailure?.stage,
                             voicePackId = nativeFailure?.voicePack?.id,
                             voicePackVersion = nativeFailure?.voicePack?.version,
+                            actualSourceId = PronunciationSourceRegistry.dictionarySourceId(resolvedAccent),
+                            actualSourceType = PronunciationSourceType.DICTIONARY.storageValue,
                         )
-                        recordPlayback(result)
-                        return result
                     }
                 }
                 wordAudioRepository.markRemoteLookupFailure(
@@ -212,10 +252,61 @@ class PronunciationOrchestrator(
                     errorMessage = "没有查到可用词典音频",
                 )
             }
+            return null
         }
 
-        if (pronunciationMode == PronunciationMode.DICTIONARY_FIRST) {
-            playBridgeOfflineIfAvailable()?.let { return it }
+        suspend fun finishSuccessfulPlayback(result: PlaybackResult): PlaybackResult =
+            recordPlayback(result)
+
+        suspend fun attempt(
+            action: suspend () -> PlaybackResult?,
+        ): PlaybackResult? {
+            val result = action() ?: return null
+            return finishSuccessfulPlayback(result)
+        }
+
+        if (preferredSource == null) {
+            attempt(::playCachedDictionaryIfAvailable)?.let { return it }
+
+            attempt(::playNativeIfAvailable)?.let { return it }
+
+            if (pronunciationMode == PronunciationMode.OFFLINE_FIRST) {
+                attempt(::playBridgeOfflineIfAvailable)?.let { return it }
+            }
+
+            attempt(::playRemoteDictionaryIfAvailable)?.let { return it }
+
+            if (pronunciationMode == PronunciationMode.DICTIONARY_FIRST) {
+                attempt(::playBridgeOfflineIfAvailable)?.let { return it }
+            }
+        } else {
+            when (PronunciationSourceType.fromStorageValue(preferredSource.sourceType)) {
+                PronunciationSourceType.DICTIONARY -> {
+                    attempt(::playCachedDictionaryIfAvailable)?.let { return it }
+                    attempt(::playRemoteDictionaryIfAvailable)?.let { return it }
+                    attempt(::playNativeIfAvailable)?.let { return it }
+                    attempt(::playBridgeOfflineIfAvailable)?.let { return it }
+                }
+                PronunciationSourceType.LOCAL_NATIVE -> {
+                    attempt(::playNativeIfAvailable)?.let { return it }
+                    attempt(::playCachedDictionaryIfAvailable)?.let { return it }
+                    attempt(::playRemoteDictionaryIfAvailable)?.let { return it }
+                    attempt(::playBridgeOfflineIfAvailable)?.let { return it }
+                }
+                PronunciationSourceType.LOCAL_BRIDGE -> {
+                    attempt(::playBridgeOfflineIfAvailable)?.let { return it }
+                    attempt(::playNativeIfAvailable)?.let { return it }
+                    attempt(::playCachedDictionaryIfAvailable)?.let { return it }
+                    attempt(::playRemoteDictionaryIfAvailable)?.let { return it }
+                }
+                PronunciationSourceType.CLOUD_TTS,
+                null -> {
+                    attempt(::playCachedDictionaryIfAvailable)?.let { return it }
+                    attempt(::playRemoteDictionaryIfAvailable)?.let { return it }
+                    attempt(::playNativeIfAvailable)?.let { return it }
+                    attempt(::playBridgeOfflineIfAvailable)?.let { return it }
+                }
+            }
         }
 
         if (settings.fallbackToSystemTts && systemTtsEngine.speak(word.lemma, accent)) {
@@ -224,27 +315,16 @@ class PronunciationOrchestrator(
                 source = PlaybackSource.SYSTEM_TTS,
                 accent = accent,
                 statusMessage = "当前使用系统朗读。",
-                fallbackUsed = nativeFailure != null,
                 failureStage = nativeFailure?.stage,
                 voicePackId = nativeFailure?.voicePack?.id,
                 voicePackVersion = nativeFailure?.voicePack?.version,
+                actualSourceId = SYSTEM_TTS_SOURCE_ID,
+                actualSourceType = PlaybackSource.SYSTEM_TTS.storageValue,
             )
-            recordPlayback(result)
-            return result
+            return recordPlayback(result)
         }
 
-        val failure = PlaybackResult(
-            success = false,
-            source = PlaybackSource.SYSTEM_TTS,
-            accent = accent,
-            errorMessage = "没有找到可用发音资源。",
-            fallbackUsed = nativeFailure != null,
-            failureStage = nativeFailure?.stage,
-            voicePackId = nativeFailure?.voicePack?.id,
-            voicePackVersion = nativeFailure?.voicePack?.version,
-        )
-        recordHardFailure(failure.errorMessage ?: "没有找到可用发音资源")
-        return failure
+        return recordHardFailure("没有找到可用发音资源。")
     }
 
     suspend fun clearDictionaryCache(): String {
@@ -279,10 +359,11 @@ class PronunciationOrchestrator(
 fun buildPronunciationOrchestrator(context: Context): PronunciationOrchestrator {
     val appContext = context.applicationContext
     val systemTtsEngine = SystemTtsEngine(appContext)
+    val settingsRepository = buildSettingsRepository(appContext)
     val voicePackRepository = buildVoicePackRepository(appContext)
     val wordAudioRepository = buildWordAudioRepository(appContext)
     return PronunciationOrchestrator(
-        settingsRepository = buildSettingsRepository(appContext),
+        settingsRepository = settingsRepository,
         wordRepository = buildWordRepository(appContext),
         wordAudioRepository = wordAudioRepository,
         voicePackRepository = voicePackRepository,
@@ -298,6 +379,11 @@ fun buildPronunciationOrchestrator(context: Context): PronunciationOrchestrator 
         ),
         systemTtsEngine = systemTtsEngine,
         telemetryRecorder = PlaybackTelemetryRecorder(buildAiMemoryRepository(appContext)),
+        pronunciationSourceRegistry = PronunciationSourceRegistry(
+            sourceRepository = buildPronunciationSourceRepository(appContext),
+            voicePackRepository = voicePackRepository,
+            settingsRepository = settingsRepository,
+        ),
     )
 }
 
@@ -314,6 +400,8 @@ private data class NativeFailureCooldown(
     val failure: NativeFailureContext,
 )
 
+private const val SYSTEM_TTS_SOURCE_ID = "system-tts"
+
 private fun classifyNativeFailureStage(error: Throwable): String {
     val message = error.message.orEmpty()
     return when {
@@ -324,3 +412,37 @@ private fun classifyNativeFailureStage(error: Throwable): String {
         else -> "native_synthesis"
     }
 }
+
+private fun resolvePreferredSourceAccent(
+    source: PronunciationSource,
+    requestedAccent: PronunciationAccent,
+): PronunciationAccent {
+    val sourceAccent = PronunciationAccent.fromStorageValue(source.accent)
+    return when {
+        sourceAccent == PronunciationAccent.AUTO && requestedAccent == PronunciationAccent.AUTO -> PronunciationAccent.UK
+        sourceAccent == PronunciationAccent.AUTO -> requestedAccent
+        else -> sourceAccent
+    }
+}
+
+private fun inferActualSourceId(result: PlaybackResult): String? =
+    when (result.source) {
+        PlaybackSource.DICTIONARY_CACHE,
+        PlaybackSource.DICTIONARY_REMOTE -> PronunciationSourceRegistry.dictionarySourceId(result.accent)
+        PlaybackSource.OFFLINE_NATIVE_CACHE,
+        PlaybackSource.OFFLINE_NATIVE_GENERATED,
+        PlaybackSource.OFFLINE_TTS,
+        PlaybackSource.ONLINE_PREBUILT_CACHE -> result.voicePackId
+        PlaybackSource.SYSTEM_TTS -> SYSTEM_TTS_SOURCE_ID
+    }
+
+private fun inferActualSourceType(result: PlaybackResult): String? =
+    when (result.source) {
+        PlaybackSource.DICTIONARY_CACHE,
+        PlaybackSource.DICTIONARY_REMOTE -> PronunciationSourceType.DICTIONARY.storageValue
+        PlaybackSource.OFFLINE_NATIVE_CACHE,
+        PlaybackSource.OFFLINE_NATIVE_GENERATED -> PronunciationSourceType.LOCAL_NATIVE.storageValue
+        PlaybackSource.OFFLINE_TTS -> PronunciationSourceType.LOCAL_BRIDGE.storageValue
+        PlaybackSource.ONLINE_PREBUILT_CACHE -> result.actualSourceType
+        PlaybackSource.SYSTEM_TTS -> PlaybackSource.SYSTEM_TTS.storageValue
+    }

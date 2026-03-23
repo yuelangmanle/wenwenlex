@@ -21,6 +21,16 @@ interface PhoneticEnrichmentJobDao {
     @Query("SELECT * FROM phonetic_enrichment_jobs WHERE id = :jobId LIMIT 1")
     suspend fun getJobById(jobId: Long): PhoneticEnrichmentJobEntity?
 
+    @Query(
+        """
+        SELECT * FROM phonetic_enrichment_jobs
+        WHERE scopeType = :scopeType AND scopeRef = :scopeRef
+        ORDER BY updatedAt DESC, id DESC
+        LIMIT 1
+        """,
+    )
+    suspend fun getLatestJob(scopeType: String, scopeRef: String): PhoneticEnrichmentJobEntity?
+
     @Query("SELECT * FROM phonetic_enrichment_jobs ORDER BY updatedAt DESC")
     suspend fun getAllJobs(): List<PhoneticEnrichmentJobEntity>
 

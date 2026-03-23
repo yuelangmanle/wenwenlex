@@ -6,6 +6,10 @@ import androidx.test.core.app.ApplicationProvider
 import com.yueliangmanle.danci.core.backup.BackupExporter
 import com.yueliangmanle.danci.core.backup.BackupSnapshot
 import com.yueliangmanle.danci.core.database.DanciDatabase
+import com.yueliangmanle.danci.core.database.entity.AudioGenerationTaskEntity
+import com.yueliangmanle.danci.core.database.entity.AudioGenerationTaskItemEntity
+import com.yueliangmanle.danci.core.database.entity.PronunciationSourceEntity
+import com.yueliangmanle.danci.core.database.entity.PronunciationSourcePresetEntity
 import com.yueliangmanle.danci.core.model.AiMemorySummary
 import com.yueliangmanle.danci.core.model.LearningRecord
 import com.yueliangmanle.danci.core.model.StudyEvent
@@ -92,6 +96,113 @@ class BackupRepositoryTest {
         assertEquals(88, settingsRepository.current.weeklyGoal)
         assertEquals("冲刺阶段", settingsRepository.current.phaseName)
         assertEquals(1600, settingsRepository.current.phaseTargetWords)
+    }
+
+    @Test
+    fun restoreLatestBackup_restoresPronunciationSourcesAndGenerationTasks() = runTest {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val db = Room.inMemoryDatabaseBuilder(
+            context,
+            DanciDatabase::class.java,
+        )
+            .allowMainThreadQueries()
+            .build()
+        database = db
+
+        val repository = BackupRepository(
+            context = context,
+            database = db,
+            settingsRepository = RecordingSettingsRepository(),
+            aiMemoryRepository = AiMemoryRepository(
+                studyRepository = FakeStudyRepository(),
+                wordRepository = FakeWordRepository(),
+                builtInWordsProvider = { emptyList() },
+                nowProvider = { FIXED_NOW },
+            ),
+            nowProvider = { FIXED_NOW },
+        )
+
+        val backup = BackupExporter(
+            snapshotProvider = {
+                BackupSnapshot(
+                    settings = AppSettings(),
+                    pronunciationSources = listOf(
+                        PronunciationSourceEntity(
+                            id = "source-mimo-en",
+                            name = "MiMo English",
+                            sourceType = "cloud_tts",
+                            accent = "us",
+                            enabled = true,
+                            isDefaultForWord = true,
+                            isDefaultForLongText = false,
+                            providerProfileId = "profile-mimo",
+                            createdAt = FIXED_NOW,
+                            updatedAt = FIXED_NOW,
+                        ),
+                    ),
+                    pronunciationSourcePresets = listOf(
+                        PronunciationSourcePresetEntity(
+                            sourceId = "source-mimo-en",
+                            presetId = "default_en",
+                            displayName = "Default EN",
+                            voice = "default_en",
+                            isDefaultPreset = true,
+                        ),
+                    ),
+                    audioGenerationTasks = listOf(
+                        AudioGenerationTaskEntity(
+                            id = "task-1",
+                            sourceId = "source-mimo-en",
+                            presetId = "default_en",
+                            scopeType = "book",
+                            scopeRef = "cet4",
+                            status = "queued",
+                            totalItems = 10,
+                            completedItems = 2,
+                            failedItems = 1,
+                            createdAt = FIXED_NOW,
+                            updatedAt = FIXED_NOW,
+                        ),
+                    ),
+                    audioGenerationTaskItems = listOf(
+                        AudioGenerationTaskItemEntity(
+                            taskId = "task-1",
+                            itemKey = "word-1",
+                            wordId = 1L,
+                            text = "abandon",
+                            status = "failed",
+                            failureReason = "timeout",
+                            attemptCount = 1,
+                        ),
+                    ),
+                    aiMemorySummary = AiMemorySummary(),
+                )
+            },
+            nowProvider = { FIXED_NOW },
+        ).export()
+
+        val backupDir = repository.backupDirectory().also {
+            it.mkdirs()
+            it.listFiles()?.forEach { file -> if (file.extension == "zip") file.delete() }
+        }
+        backupDirectory = backupDir
+        backupDir.resolve("restore-pronunciation-test.zip").writeBytes(backup.zippedBytes)
+
+        repository.restoreLatestBackup()
+
+        val restoredSources = db.pronunciationSourceDao().getAllSources()
+        val restoredPresets = db.pronunciationSourceDao().getPresetsBySource("source-mimo-en")
+        val restoredTasks = db.audioGenerationTaskDao().getAllTasks()
+        val restoredItems = db.audioGenerationTaskDao().getItemsByTask("task-1")
+
+        assertEquals(1, restoredSources.size)
+        assertEquals("source-mimo-en", restoredSources.single().id)
+        assertEquals(1, restoredPresets.size)
+        assertEquals("default_en", restoredPresets.single().presetId)
+        assertEquals(1, restoredTasks.size)
+        assertEquals("task-1", restoredTasks.single().id)
+        assertEquals(1, restoredItems.size)
+        assertEquals("timeout", restoredItems.single().failureReason)
     }
 
     private class RecordingSettingsRepository : SettingsRepository {

@@ -6,6 +6,7 @@ import com.yueliangmanle.danci.core.data.TestVoicePackFactory
 import com.yueliangmanle.danci.core.data.VoicePackRepository
 import com.yueliangmanle.danci.core.database.dao.WordAudioAssetDao
 import com.yueliangmanle.danci.core.database.entity.WordAudioAssetEntity
+import com.yueliangmanle.danci.core.data.buildGeneratedContentHash
 import com.yueliangmanle.danci.core.model.PlaybackSource
 import com.yueliangmanle.danci.core.model.PronunciationAccent
 import com.yueliangmanle.danci.core.model.VoicePackStatus
@@ -59,6 +60,10 @@ class NativeOfflineWordTtsEngineTest {
         assertTrue(result?.outputFile?.exists() == true)
         assertEquals(PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue, result?.asset?.sourceType)
         assertTrue(result?.asset?.localPath.orEmpty().contains("/us/kokoro/1.4/"))
+        assertEquals("en-us-offline-word-v1", result?.asset?.sourceId)
+        assertTrue(result?.asset?.namespace.orEmpty().contains("/en-us-offline-word-v1--"))
+        assertTrue(result?.asset?.namespace.orEmpty().contains("/word/"))
+        assertTrue(result?.asset?.namespace.orEmpty().endsWith(buildGeneratedContentHash("don't")))
     }
 
     @Test
@@ -121,6 +126,54 @@ class NativeOfflineWordTtsEngineTest {
     }
 
     @Test
+    fun nativeEngine_fallsBackToInstalledPackOfRequestedAccent() = runTest {
+        val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val activeUkDir = File(appContext.cacheDir, "native-pack-uk-active-fallback").apply { mkdirs() }
+        val inactiveUsDir = File(appContext.cacheDir, "native-pack-us-fallback").apply { mkdirs() }
+        val now = Instant.parse("2026-03-19T12:00:00Z")
+        val engine = NativeOfflineWordTtsEngine(
+            context = appContext,
+            voicePackRepository = FakeNativeVoicePackRepository(
+                packs = mutableListOf(
+                    TestVoicePackFactory.voicePack(
+                        id = "en-gb-offline-word-v1",
+                        accent = PronunciationAccent.UK.storageValue,
+                        engineType = "sherpa_onnx",
+                        modelFamily = "kokoro",
+                        version = "1.4",
+                        status = VoicePackStatus.READY.storageValue,
+                        installDir = activeUkDir.absolutePath,
+                        isActive = true,
+                    ),
+                    TestVoicePackFactory.voicePack(
+                        id = "en-us-offline-word-v0",
+                        accent = PronunciationAccent.US.storageValue,
+                        engineType = "sherpa_onnx",
+                        modelFamily = "kokoro",
+                        version = "1.3",
+                        status = VoicePackStatus.READY.storageValue,
+                        installDir = inactiveUsDir.absolutePath,
+                        isActive = false,
+                    ),
+                ),
+            ),
+            wordAudioRepository = RoomWordAudioRepository(
+                appContext = appContext,
+                dao = FakeNativeWordAudioAssetDao(),
+                nowProvider = { now },
+            ),
+            runtimeLoader = { FakeSherpaOnnxRuntime() },
+        )
+
+        val result = engine.synthesizeWord(
+            word = Word(id = 10L, lemma = "color"),
+            accent = PronunciationAccent.US,
+        )
+
+        assertEquals("en-us-offline-word-v0", result?.voicePack?.id)
+    }
+
+    @Test
     fun importedBookWord_canBeSynthesizedAndCachedThroughSameNativePath() = runTest {
         val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
         val installDir = File(appContext.cacheDir, "native-pack-uk").apply { mkdirs() }
@@ -156,6 +209,9 @@ class NativeOfflineWordTtsEngineTest {
 
         assertEquals("endeavour", result?.normalizedWord)
         assertTrue(result?.asset?.localPath.orEmpty().contains("/uk/kokoro/1.4/"))
+        assertEquals("en-gb-offline-word-v1", result?.asset?.sourceId)
+        assertTrue(result?.asset?.namespace.orEmpty().contains("/word/"))
+        assertTrue(result?.asset?.namespace.orEmpty().endsWith(buildGeneratedContentHash("endeavour")))
     }
 }
 
@@ -244,6 +300,31 @@ private class FakeNativeWordAudioAssetDao : WordAudioAssetDao {
             )
             .firstOrNull()
 
+    override suspend fun findLatestAssetByContext(
+        wordId: Long,
+        accent: String,
+        sourceType: String,
+        status: String,
+        sourceId: String?,
+        presetId: String?,
+        namespace: String?,
+    ): WordAudioAssetEntity? =
+        assets
+            .filter {
+                it.wordId == wordId &&
+                    it.accent == accent &&
+                    it.sourceType == sourceType &&
+                    it.status == status &&
+                    it.sourceId == sourceId &&
+                    it.presetId == presetId &&
+                    it.namespace == namespace
+            }
+            .sortedWith(
+                compareByDescending<WordAudioAssetEntity> { it.lastPlayedAt ?: it.fetchedAt ?: Instant.EPOCH }
+                    .thenByDescending(WordAudioAssetEntity::id),
+            )
+            .firstOrNull()
+
     override suspend fun findAssetsForWord(
         wordId: Long,
         sourceType: String,
@@ -276,6 +357,9 @@ private class FakeNativeWordAudioAssetDao : WordAudioAssetDao {
     ): List<WordAudioAssetEntity> =
         assets
             .filter { it.sourceType == sourceType && it.status == status }
+
+    override suspend fun getAllAssets(): List<WordAudioAssetEntity> =
+        assets.sortedBy(WordAudioAssetEntity::id)
 
     override suspend fun deleteAssetById(id: Long) {
         assets.removeAll { it.id == id }

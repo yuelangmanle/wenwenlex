@@ -2,11 +2,15 @@ package com.yueliangmanle.danci.core.backup
 
 import com.yueliangmanle.danci.core.data.AppSettings
 import com.yueliangmanle.danci.core.database.entity.AiProviderProfileEntity
+import com.yueliangmanle.danci.core.database.entity.AudioGenerationTaskEntity
+import com.yueliangmanle.danci.core.database.entity.AudioGenerationTaskItemEntity
 import com.yueliangmanle.danci.core.database.entity.BookEntity
 import com.yueliangmanle.danci.core.database.entity.BookWordEntity
 import com.yueliangmanle.danci.core.database.entity.ImportBatchEntity
 import com.yueliangmanle.danci.core.database.entity.LearningRecordEntity
 import com.yueliangmanle.danci.core.database.entity.PhoneticEnrichmentJobEntity
+import com.yueliangmanle.danci.core.database.entity.PronunciationSourceEntity
+import com.yueliangmanle.danci.core.database.entity.PronunciationSourcePresetEntity
 import com.yueliangmanle.danci.core.database.entity.StudyEventEntity
 import com.yueliangmanle.danci.core.database.entity.StudySessionEntity
 import com.yueliangmanle.danci.core.database.entity.VoicePackEntity
@@ -58,6 +62,10 @@ class BackupExporter(
         "books",
         "words",
         "word_audio_assets",
+        "pronunciation_sources",
+        "pronunciation_source_presets",
+        "audio_generation_tasks",
+        "audio_generation_task_items",
         "voice_packs",
         "import_batches",
         "phonetic_enrichment_jobs",
@@ -96,6 +104,10 @@ internal fun BackupSnapshot.toJson(): JSONObject =
         .put("book_words", JSONArray(bookWords.map(BookWordEntity::toJson)))
         .put("words", JSONArray(words.map(WordEntity::toJson)))
         .put("word_audio_assets", JSONArray(wordAudioAssets.map(WordAudioAssetEntity::toJson)))
+        .put("pronunciation_sources", JSONArray(pronunciationSources.map(PronunciationSourceEntity::toJson)))
+        .put("pronunciation_source_presets", JSONArray(pronunciationSourcePresets.map(PronunciationSourcePresetEntity::toJson)))
+        .put("audio_generation_tasks", JSONArray(audioGenerationTasks.map(AudioGenerationTaskEntity::toJson)))
+        .put("audio_generation_task_items", JSONArray(audioGenerationTaskItems.map(AudioGenerationTaskItemEntity::toJson)))
         .put("voice_packs", JSONArray(voicePacks.map(VoicePackEntity::toJson)))
         .put("import_batches", JSONArray(importBatches.map(ImportBatchEntity::toJson)))
         .put("phonetic_enrichment_jobs", JSONArray(phoneticEnrichmentJobs.map(PhoneticEnrichmentJobEntity::toJson)))
@@ -193,6 +205,12 @@ internal fun WordAudioAssetEntity.toJson(): JSONObject =
     JSONObject()
         .put("id", id)
         .put("word_id", wordId)
+        .put("source_id", sourceId)
+        .put("preset_id", presetId)
+        .put("actual_source_type", actualSourceType)
+        .put("namespace", namespace)
+        .put("asset_state", assetState)
+        .put("task_id", taskId)
         .put("accent", accent)
         .put("source_type", sourceType)
         .put("remote_url", remoteUrl)
@@ -204,6 +222,56 @@ internal fun WordAudioAssetEntity.toJson(): JSONObject =
         .put("last_played_at", lastPlayedAt.toBackupString())
         .put("last_error", lastError)
         .put("failure_count", failureCount)
+
+internal fun PronunciationSourceEntity.toJson(): JSONObject =
+    JSONObject()
+        .put("id", id)
+        .put("name", name)
+        .put("source_type", sourceType)
+        .put("accent", accent)
+        .put("enabled", enabled)
+        .put("is_default_for_word", isDefaultForWord)
+        .put("is_default_for_long_text", isDefaultForLongText)
+        .put("provider_profile_id", providerProfileId)
+        .put("backing_voice_pack_id", backingVoicePackId)
+        .put("sort_order", sortOrder)
+        .put("created_at", createdAt.toBackupString())
+        .put("updated_at", updatedAt.toBackupString())
+
+internal fun PronunciationSourcePresetEntity.toJson(): JSONObject =
+    JSONObject()
+        .put("source_id", sourceId)
+        .put("preset_id", presetId)
+        .put("display_name", displayName)
+        .put("voice", voice)
+        .put("style_template", styleTemplate)
+        .put("advanced_style_enabled", advancedStyleEnabled)
+        .put("is_default_preset", isDefaultPreset)
+
+internal fun AudioGenerationTaskEntity.toJson(): JSONObject =
+    JSONObject()
+        .put("id", id)
+        .put("source_id", sourceId)
+        .put("preset_id", presetId)
+        .put("scope_type", scopeType)
+        .put("scope_ref", scopeRef)
+        .put("status", status)
+        .put("total_items", totalItems)
+        .put("completed_items", completedItems)
+        .put("failed_items", failedItems)
+        .put("created_at", createdAt.toBackupString())
+        .put("updated_at", updatedAt.toBackupString())
+
+internal fun AudioGenerationTaskItemEntity.toJson(): JSONObject =
+    JSONObject()
+        .put("task_id", taskId)
+        .put("item_key", itemKey)
+        .put("word_id", wordId)
+        .put("text", text)
+        .put("status", status)
+        .put("failure_reason", failureReason)
+        .put("attempt_count", attemptCount)
+        .put("generated_asset_id", generatedAssetId)
 
 internal fun VoicePackEntity.toJson(): JSONObject =
     JSONObject()
@@ -230,6 +298,7 @@ internal fun ImportBatchEntity.toJson(): JSONObject =
         .put("book_id", bookId)
         .put("file_name", fileName)
         .put("sheet_name", sheetName)
+        .put("diagnosis_snapshot_json", diagnosisSnapshotJson)
         .put("parser_mode", parserMode)
         .put("total_rows", totalRows)
         .put("imported_rows", importedRows)

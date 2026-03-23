@@ -28,6 +28,11 @@ private data class BundledCatalogMetadata(
 interface VoicePackRepository {
     suspend fun getAllVoicePacks(): List<VoicePack>
     suspend fun getVoicePack(id: String): VoicePack?
+    suspend fun getSourceReadyVoicePacks(): List<VoicePack> =
+        getAllVoicePacks().filter { pack ->
+            pack.isActive && pack.status == VoicePackStatus.READY.storageValue
+        }
+
     suspend fun getActiveVoicePack(): VoicePack? =
         getAllVoicePacks()
             .asSequence()

@@ -31,19 +31,23 @@ class BackupRepository(
     suspend fun exportToLocalFile(): BackupFileResult {
         val archive = BackupExporter(
             snapshotProvider = {
+                val pronunciationSources = database.pronunciationSourceDao().getAllSources()
+                val audioGenerationTasks = database.audioGenerationTaskDao().getAllTasks()
                 BackupSnapshot(
                     settings = settingsRepository.getSettings(),
                     aiProfiles = database.aiProviderProfileDao().getAllProfiles(),
                     books = database.bookDao().getAllBooks(),
                     bookWords = database.bookDao().getAllBookWordCrossRefs(),
                     words = database.wordDao().getAllWords(),
-                    wordAudioAssets = database.wordAudioAssetDao().getAssetsBySource(
-                        sourceType = "dictionary_cache",
-                        status = "ready",
-                    ) + database.wordAudioAssetDao().getAssetsBySource(
-                        sourceType = "dictionary_remote",
-                        status = "failed",
-                    ),
+                    wordAudioAssets = database.wordAudioAssetDao().getAllAssets(),
+                    pronunciationSources = pronunciationSources,
+                    pronunciationSourcePresets = pronunciationSources.flatMap { source ->
+                        database.pronunciationSourceDao().getPresetsBySource(source.id)
+                    },
+                    audioGenerationTasks = audioGenerationTasks,
+                    audioGenerationTaskItems = audioGenerationTasks.flatMap { task ->
+                        database.audioGenerationTaskDao().getItemsByTask(task.id)
+                    },
                     voicePacks = database.voicePackDao().getAllVoicePacks(),
                     importBatches = database.importBatchDao().getAllBatches(),
                     phoneticEnrichmentJobs = database.phoneticEnrichmentJobDao().getAllJobs(),
@@ -83,6 +87,10 @@ class BackupRepository(
             database.bookDao().clearBookWordCrossRefs()
             database.bookDao().clearBooks()
             database.voicePackDao().clearVoicePacks()
+            database.audioGenerationTaskDao().clearTaskItems()
+            database.audioGenerationTaskDao().clearTasks()
+            database.pronunciationSourceDao().clearPresets()
+            database.pronunciationSourceDao().clearSources()
             database.wordAudioAssetDao().clearAssets()
             database.wordDao().clearWords()
 
@@ -91,6 +99,18 @@ class BackupRepository(
             }
             if (imported.snapshot.wordAudioAssets.isNotEmpty()) {
                 database.wordAudioAssetDao().upsertAssets(imported.snapshot.wordAudioAssets)
+            }
+            if (imported.snapshot.pronunciationSources.isNotEmpty()) {
+                database.pronunciationSourceDao().upsertSources(imported.snapshot.pronunciationSources)
+            }
+            if (imported.snapshot.pronunciationSourcePresets.isNotEmpty()) {
+                database.pronunciationSourceDao().upsertPresets(imported.snapshot.pronunciationSourcePresets)
+            }
+            if (imported.snapshot.audioGenerationTasks.isNotEmpty()) {
+                database.audioGenerationTaskDao().upsertTasks(imported.snapshot.audioGenerationTasks)
+            }
+            if (imported.snapshot.audioGenerationTaskItems.isNotEmpty()) {
+                database.audioGenerationTaskDao().upsertTaskItems(imported.snapshot.audioGenerationTaskItems)
             }
             if (imported.snapshot.voicePacks.isNotEmpty()) {
                 database.voicePackDao().upsertVoicePacks(imported.snapshot.voicePacks)

@@ -27,6 +27,7 @@ fun BookDetailScreen(
     onSetActiveBookClick: () -> Unit,
     onFillMissingPhoneticsClick: () -> Unit,
     onOverwritePhoneticsClick: () -> Unit,
+    onStartQualityEnrichmentClick: () -> Unit,
     onWordClick: (Long) -> Unit,
 ) {
     if (state.isLoading) {
@@ -111,6 +112,32 @@ fun BookDetailScreen(
                         enabled = !state.isFilling,
                     ) {
                         Text("覆盖全部音标")
+                    }
+                    if (state.canStartQualityEnrichment) {
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Text(
+                                    text = "质量补强",
+                                    style = MaterialTheme.typography.titleSmall,
+                                )
+                                state.qualityEnrichmentSummary?.let { summary ->
+                                    Text(
+                                        text = summary,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                OutlinedButton(
+                                    onClick = onStartQualityEnrichmentClick,
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text("开始质量补强")
+                                }
+                            }
+                        }
                     }
                 }
             }

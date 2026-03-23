@@ -26,6 +26,9 @@ class PlaybackTelemetryRecorder(
         voicePackVersion: String? = null,
         failureStage: String? = null,
         fallbackUsed: Boolean = false,
+        preferredSourceId: String? = null,
+        actualSourceId: String? = null,
+        actualSourceType: String? = null,
         errorMessage: String? = null,
     ) {
         val timestamp = nowProvider()
@@ -49,6 +52,9 @@ class PlaybackTelemetryRecorder(
                     "voice_pack_version" to voicePackVersion,
                     "failure_stage" to failureStage,
                     "fallback_used" to fallbackUsed,
+                    "preferred_source_id" to preferredSourceId,
+                    "actual_source_id" to actualSourceId,
+                    "actual_source_type" to actualSourceType,
                     "play_error" to errorMessage,
                     "timestamp" to timestamp.toString(),
                 ),

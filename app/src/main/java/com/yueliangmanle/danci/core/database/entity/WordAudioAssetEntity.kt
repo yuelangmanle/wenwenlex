@@ -24,6 +24,12 @@ import java.time.Instant
 data class WordAudioAssetEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val wordId: Long,
+    val sourceId: String? = null,
+    val presetId: String? = null,
+    val actualSourceType: String? = null,
+    val namespace: String? = null,
+    val assetState: String = "ready",
+    val taskId: String? = null,
     val accent: String,
     val sourceType: String,
     val remoteUrl: String? = null,
@@ -36,4 +42,3 @@ data class WordAudioAssetEntity(
     val lastError: String? = null,
     val failureCount: Int = 0,
 )
-

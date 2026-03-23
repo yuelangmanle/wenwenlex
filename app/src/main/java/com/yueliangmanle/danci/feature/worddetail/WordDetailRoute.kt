@@ -43,7 +43,7 @@ fun WordDetailRoute(
     androidx.compose.runtime.LaunchedEffect(context, wordId) {
         val loaded = loadWordDetailViewModel(context, wordId)
         viewModel = loaded
-        state = loaded.buildUiState()
+        state = loaded.refreshPronunciationSourceState()
     }
 
     if (showOverwriteDialog) {
@@ -176,6 +176,12 @@ fun WordDetailRoute(
         },
         onOverwritePhoneticClick = {
             showOverwriteDialog = true
+        },
+        onSwitchPronunciationSource = { sourceId ->
+            val currentViewModel = viewModel ?: return@WordDetailScreen
+            scope.launch {
+                state = currentViewModel.switchSessionPronunciationSource(sourceId)
+            }
         },
         onStartQuizClick = {
             viewModel?.onStartQuizClick()
