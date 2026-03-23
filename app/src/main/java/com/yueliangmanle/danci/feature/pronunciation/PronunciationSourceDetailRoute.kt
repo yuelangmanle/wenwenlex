@@ -18,6 +18,7 @@ fun pronunciationSourceDetailRoute(sourceId: String): String =
 @Composable
 fun PronunciationSourceDetailRoute(
     sourceId: String,
+    onOpenTaskCenterClick: () -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -70,8 +71,24 @@ fun PronunciationSourceDetailRoute(
         onTestTextChange = { text ->
             state = viewModel?.updateTestText(state, text) ?: state
         },
+        onGenerationWordTextChange = { text ->
+            state = viewModel?.updateGenerationWordText(state, text) ?: state
+        },
+        onGenerationBatchSizeTextChange = { text ->
+            state = viewModel?.updateGenerationBatchSizeText(state, text) ?: state
+        },
         onCheckApiClick = {
             launchAction { checkApi(sourceId, state) }
         },
+        onGenerateSingleWordClick = {
+            launchAction { enqueueSingleWordGeneration(sourceId, state) }
+        },
+        onGenerateBookClick = { bookId ->
+            launchAction { enqueueBookGeneration(sourceId, bookId, state) }
+        },
+        onGenerateBatchClick = { bookId ->
+            launchAction { enqueueBookBatchGeneration(sourceId, bookId, state) }
+        },
+        onOpenTaskCenterClick = onOpenTaskCenterClick,
     )
 }

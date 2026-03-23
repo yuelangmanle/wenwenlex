@@ -178,7 +178,12 @@ fun DanciNavHost(
             ),
         ) { backStackEntry ->
             val sourceId = backStackEntry.arguments?.getString("sourceId").orEmpty()
-            PronunciationSourceDetailRoute(sourceId = sourceId)
+            PronunciationSourceDetailRoute(
+                sourceId = sourceId,
+                onOpenTaskCenterClick = {
+                    navController.navigate(AUDIO_GENERATION_TASKS_ROUTE)
+                },
+            )
         }
         composable(route = LEARNING_ANALYTICS_ROUTE) {
             LearningAnalyticsRoute()

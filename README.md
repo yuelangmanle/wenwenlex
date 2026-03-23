@@ -5,10 +5,12 @@
 ## 当前状态
 
 - 当前正式版本：`1.7`
-- 当前开发主线：下一轮版本待规划，当前稳定基线为已发布的 `1.7`，已完成动态复习、目标系统、升级安全、诊断中心和发版护栏
+- 当前发版目标：`1.8`
+- 当前开发主线：`v1.8` 收口中，已完成导入诊断与修复闭环、统一发音源中心、MiMo TTS 详情、后台语音生成与 App 内更新日志，待完成云端正式发版归档
 - 版本规则：每次迭代递增 `0.1`，按 `1.0 -> 1.1 -> ... -> 1.9 -> 2.0` 进位
 - 正式发包界面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
 - 当前正式版本页面：[v1.7](https://github.com/yuelangmanle/wenwenlex/releases/tag/v1.7)
+- 当前 `v1.8` 发版 Smoke 记录：[v1.8 导入闭环与统一发音源中心发版 Smoke](docs/release-v1.8-import-pronunciation-smoke.md)
 - 开发验证界面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 
 ## 协作文档入口
@@ -33,6 +35,9 @@
 - [v1.7 学习效果与交付护栏规格](docs/superpowers/specs/2026-03-22-v1.7-learning-effect-delivery-guardrails-design.md)
 - [v1.7 学习效果与交付护栏计划](docs/superpowers/plans/2026-03-22-v1.7-learning-effect-delivery-guardrails.md)
 - [v1.7 学习效果与交付护栏 smoke 基线](docs/release-v1.7-learning-effect-smoke.md)
+- [v1.8 导入闭环与统一发音源中心规格](docs/superpowers/specs/2026-03-22-v1.8-import-pronunciation-source-design.md)
+- [v1.8 导入闭环与统一发音源中心计划](docs/superpowers/plans/2026-03-22-v1.8-import-pronunciation-source.md)
+- [v1.8 导入闭环与统一发音源中心 smoke 基线](docs/release-v1.8-import-pronunciation-smoke.md)
 
 ## 1.1 已实现能力
 
@@ -176,6 +181,17 @@
 - 发版和资产核对细节见 [v1.7 学习效果与交付护栏 smoke 基线](docs/release-v1.7-learning-effect-smoke.md)
 - 规格文档见 [v1.7 学习效果与交付护栏规格](docs/superpowers/specs/2026-03-22-v1.7-learning-effect-delivery-guardrails-design.md)
 
+## 1.8 已落地能力
+
+以下内容已经在 `v1.8` 分支完成实现并进入发版收口：
+
+- Excel 导入已升级为“诊断 -> 自动修复 -> AI 修复严重问题 -> 再预览 -> 导入”的闭环
+- 词书详情页与学习页已支持会话级发音源快速切换，不改全局默认也能临时切源
+- 发音设置中心已升级为统一发音源中心，覆盖 MiMo 云端 TTS、本地原生 source、词典音频来源和默认 source 详情
+- 发音任务页已支持展示失败原因摘要、单词级生成、整本词书后台生成、分批生成和失败项真实重试
+- 离线缓存管理页已支持按缓存桶展示多来源本地音频占用，并支持按桶清理与一键清理全部缓存
+- App 内更新日志已接入 `CHANGELOG.md -> release-notes.json` 生成链路，后续版本会自动继续累积
+
 ## 内置词库来源
 
 - 当前内置词库底座：ECDICT 标签词库
@@ -202,7 +218,7 @@
 
 ### 日常升级
 
-1. 从 Releases 页面下载更高版本，例如 `1.6`、`1.7`。
+1. 从 Releases 页面下载更高版本，例如 `1.7`、`1.8`。
 2. 直接安装新 APK，Android 会覆盖旧版本，学习数据会保留。
 3. 升级前仍建议先在 App 里做一次本地备份。
 

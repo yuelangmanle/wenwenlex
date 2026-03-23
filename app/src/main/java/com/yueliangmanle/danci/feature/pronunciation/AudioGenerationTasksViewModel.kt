@@ -7,6 +7,8 @@ import com.yueliangmanle.danci.core.data.buildAudioGenerationRepository
 import com.yueliangmanle.danci.core.data.buildPronunciationSourceRepository
 import com.yueliangmanle.danci.core.model.AudioGenerationTask
 import com.yueliangmanle.danci.core.model.AudioGenerationTaskItem
+import com.yueliangmanle.danci.core.pronunciation.AudioGenerationCoordinator
+import com.yueliangmanle.danci.core.pronunciation.buildAudioGenerationCoordinator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -29,6 +31,7 @@ data class AudioGenerationTaskItemUiState(
 class AudioGenerationTasksViewModel(
     private val audioGenerationRepository: AudioGenerationRepository,
     private val pronunciationSourceRepository: PronunciationSourceRepository,
+    private val audioGenerationCoordinator: AudioGenerationCoordinator,
 ) {
     suspend fun loadUiState(
         statusMessage: String? = null,
@@ -51,27 +54,12 @@ class AudioGenerationTasksViewModel(
     suspend fun retryFailedItems(
         taskId: String,
     ): AudioGenerationTasksUiState = withContext(Dispatchers.IO) {
-        val task = audioGenerationRepository.getAllTasks().firstOrNull { it.id == taskId }
+        val task = audioGenerationRepository.getTask(taskId)
             ?: return@withContext loadUiState(errorMessage = "没有找到要重试的任务。")
-        val retriedCount = task.items.count { it.status == TASK_ITEM_STATUS_FAILED }
+        val retriedCount = audioGenerationCoordinator.retryFailedItems(taskId)
         if (retriedCount <= 0) {
             return@withContext loadUiState(statusMessage = "这个任务当前没有失败项可重试。")
         }
-        val updatedTask = task.copy(
-            status = TASK_STATUS_QUEUED,
-            failedItems = 0,
-            items = task.items.map { item ->
-                if (item.status == TASK_ITEM_STATUS_FAILED) {
-                    item.copy(
-                        status = TASK_ITEM_STATUS_QUEUED,
-                        failureReason = null,
-                    )
-                } else {
-                    item
-                }
-            },
-        )
-        audioGenerationRepository.upsertTasks(listOf(updatedTask))
         loadUiState(statusMessage = "已重新排队 $retriedCount 个失败任务。")
     }
 }
@@ -109,9 +97,8 @@ suspend fun loadAudioGenerationTasksViewModel(context: Context): AudioGeneration
         AudioGenerationTasksViewModel(
             audioGenerationRepository = buildAudioGenerationRepository(context.applicationContext),
             pronunciationSourceRepository = buildPronunciationSourceRepository(context.applicationContext),
+            audioGenerationCoordinator = buildAudioGenerationCoordinator(context.applicationContext),
         )
     }
 
-private const val TASK_STATUS_QUEUED = "queued"
 private const val TASK_ITEM_STATUS_FAILED = "failed"
-private const val TASK_ITEM_STATUS_QUEUED = "queued"

@@ -27,7 +27,13 @@ fun PronunciationSourceDetailScreen(
     onSelectPresetClick: (String) -> Unit,
     onAdvancedStyleChange: (String) -> Unit,
     onTestTextChange: (String) -> Unit,
+    onGenerationWordTextChange: (String) -> Unit,
+    onGenerationBatchSizeTextChange: (String) -> Unit,
     onCheckApiClick: () -> Unit,
+    onGenerateSingleWordClick: () -> Unit,
+    onGenerateBookClick: (String) -> Unit,
+    onGenerateBatchClick: (String) -> Unit,
+    onOpenTaskCenterClick: () -> Unit,
 ) {
     if (state.isLoading) {
         Column(
@@ -210,6 +216,92 @@ fun PronunciationSourceDetailScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+            }
+        }
+
+        if (state.isCloudSource || state.isLocalSource) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        text = "缓存生成",
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = state.generationSupportMessage.orEmpty(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (state.generationSupported) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        },
+                    )
+                    OutlinedTextField(
+                        value = state.generationWordText,
+                        onValueChange = onGenerationWordTextChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("单词（必须已经在词库里）") },
+                    )
+                    OutlinedTextField(
+                        value = state.generationBatchSizeText,
+                        onValueChange = onGenerationBatchSizeTextChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("分批大小") },
+                        supportingText = { Text("例如 50，表示每次先生成 50 个词。") },
+                    )
+                    Button(
+                        onClick = onGenerateSingleWordClick,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = state.generationSupported,
+                    ) {
+                        Text("生成当前单词缓存")
+                    }
+                    if (state.bookOptions.isEmpty()) {
+                        Text(
+                            text = "当前还没有可生成的词书。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        state.bookOptions.forEach { book ->
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                Column(
+                                    modifier = Modifier.padding(14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Text(book.title, style = MaterialTheme.typography.titleSmall)
+                                    Text(
+                                        book.summary,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Button(
+                                        onClick = { onGenerateBookClick(book.id) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        enabled = state.generationSupported,
+                                    ) {
+                                        Text("整本后台生成")
+                                    }
+                                    OutlinedButton(
+                                        onClick = { onGenerateBatchClick(book.id) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        enabled = state.generationSupported,
+                                    ) {
+                                        Text("分批生成")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    OutlinedButton(
+                        onClick = onOpenTaskCenterClick,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("打开任务中心")
+                    }
                 }
             }
         }

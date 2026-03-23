@@ -17,7 +17,7 @@ data class VoicePackArchiveDownloadResult(
     val downloadedBytes: Long,
 )
 
-class VoicePackArchiveDownloader(
+internal class VoicePackArchiveDownloader(
     private val remoteFetcher: VoicePackRemoteFetcher,
     private val streamingSha256: StreamingSha256 = StreamingSha256(),
 ) {

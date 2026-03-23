@@ -2,16 +2,25 @@ package com.yueliangmanle.danci.feature.pronunciation
 
 import android.content.Context
 import com.yueliangmanle.danci.core.data.AiProfileRepository
+import com.yueliangmanle.danci.core.data.BookRepository
 import com.yueliangmanle.danci.core.data.PronunciationSourceRepository
+import com.yueliangmanle.danci.core.data.WordRepository
 import com.yueliangmanle.danci.core.data.buildAiProfileRepository
+import com.yueliangmanle.danci.core.data.buildBookRepository
 import com.yueliangmanle.danci.core.data.buildPronunciationSourceRepository
+import com.yueliangmanle.danci.core.data.buildWordRepository
 import com.yueliangmanle.danci.core.model.AiProviderProfile
+import com.yueliangmanle.danci.core.model.Book
 import com.yueliangmanle.danci.core.model.PronunciationSource
 import com.yueliangmanle.danci.core.model.PronunciationSourcePreset
 import com.yueliangmanle.danci.core.model.PronunciationSourceType
 import com.yueliangmanle.danci.core.model.isMiMoTtsCompatible
+import com.yueliangmanle.danci.core.pronunciation.AudioGenerationCoordinator
 import com.yueliangmanle.danci.core.pronunciation.ApiHealthChecker
 import com.yueliangmanle.danci.core.pronunciation.CloudTtsHealthCheckResult
+import com.yueliangmanle.danci.core.pronunciation.DEFAULT_AUDIO_GENERATION_BATCH_SIZE
+import com.yueliangmanle.danci.core.pronunciation.SourcePlaybackResolver
+import com.yueliangmanle.danci.core.pronunciation.buildAudioGenerationCoordinator
 import com.yueliangmanle.danci.core.security.AiCredentialStore
 import com.yueliangmanle.danci.core.security.buildAiCredentialStore
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +41,12 @@ data class PronunciationSourcePresetOptionUiState(
     val supportsAdvancedStyle: Boolean,
 )
 
+data class PronunciationSourceBookOptionUiState(
+    val id: String,
+    val title: String,
+    val summary: String,
+)
+
 data class PronunciationSourceDetailUiState(
     val isLoading: Boolean = false,
     val sourceId: String = "",
@@ -47,6 +62,11 @@ data class PronunciationSourceDetailUiState(
     val presetOptions: List<PronunciationSourcePresetOptionUiState> = emptyList(),
     val advancedStyleText: String = "",
     val testText: String = "abandon",
+    val generationWordText: String = "abandon",
+    val generationBatchSizeText: String = DEFAULT_AUDIO_GENERATION_BATCH_SIZE.toString(),
+    val generationSupported: Boolean = false,
+    val generationSupportMessage: String? = null,
+    val bookOptions: List<PronunciationSourceBookOptionUiState> = emptyList(),
     val canCheckApi: Boolean = false,
     val healthCheckSummary: String? = null,
     val healthCheckLatencyLabel: String? = null,
@@ -57,8 +77,12 @@ data class PronunciationSourceDetailUiState(
 class PronunciationSourceDetailViewModel(
     private val pronunciationSourceRepository: PronunciationSourceRepository,
     private val aiProfileRepository: AiProfileRepository,
+    private val bookRepository: BookRepository,
+    private val wordRepository: WordRepository,
     private val credentialStore: AiCredentialStore,
     private val apiHealthChecker: ApiHealthChecker,
+    private val audioGenerationCoordinator: AudioGenerationCoordinator,
+    private val sourcePlaybackResolver: SourcePlaybackResolver = SourcePlaybackResolver(),
 ) {
     suspend fun loadUiState(
         sourceId: String,
@@ -67,11 +91,15 @@ class PronunciationSourceDetailViewModel(
         healthCheckResult: CloudTtsHealthCheckResult? = null,
         advancedStyleTextOverride: String? = null,
         testTextOverride: String? = null,
+        generationWordTextOverride: String? = null,
+        generationBatchSizeTextOverride: String? = null,
     ): PronunciationSourceDetailUiState = withContext(Dispatchers.IO) {
         val source = pronunciationSourceRepository.getSource(sourceId)
             ?: return@withContext PronunciationSourceDetailUiState(
                 errorMessage = "没有找到对应发音源。",
             )
+        val generationSupport = sourcePlaybackResolver.resolveGenerationSupport(source)
+        val books = bookRepository.getAllBooks()
         val profiles = aiProfileRepository.getProfiles()
             .filter(AiProviderProfile::enabled)
             .filter { it.isMiMoTtsCompatible() }
@@ -117,6 +145,11 @@ class PronunciationSourceDetailViewModel(
                 ?.styleTemplate
                 .orEmpty(),
             testText = testTextOverride ?: "abandon",
+            generationWordText = generationWordTextOverride ?: "abandon",
+            generationBatchSizeText = generationBatchSizeTextOverride ?: DEFAULT_AUDIO_GENERATION_BATCH_SIZE.toString(),
+            generationSupported = generationSupport.supported,
+            generationSupportMessage = generationSupport.failureReason ?: "支持单词、整本词书和分批后台生成缓存。",
+            bookOptions = books.map(::buildBookOption),
             canCheckApi = selectedProfileId?.let { profileId ->
                 profileOptions.any { it.id == profileId && it.hasApiKey }
             } == true,
@@ -157,6 +190,96 @@ class PronunciationSourceDetailViewModel(
             ),
         )
         loadUiState(sourceId, statusMessage = "已切换默认预设。")
+    }
+
+    suspend fun enqueueSingleWordGeneration(
+        sourceId: String,
+        current: PronunciationSourceDetailUiState,
+    ): PronunciationSourceDetailUiState = withContext(Dispatchers.IO) {
+        val keyword = current.generationWordText.trim()
+        if (keyword.isBlank()) {
+            return@withContext loadUiState(
+                sourceId = sourceId,
+                errorMessage = "先输入一个要生成缓存的单词。",
+                generationWordTextOverride = current.generationWordText,
+                generationBatchSizeTextOverride = current.generationBatchSizeText,
+                testTextOverride = current.testText,
+                advancedStyleTextOverride = current.advancedStyleText,
+            )
+        }
+        val word = wordRepository.getAllWords().firstOrNull { it.lemma.equals(keyword, ignoreCase = true) }
+            ?: return@withContext loadUiState(
+                sourceId = sourceId,
+                errorMessage = "当前词库里没有找到“$keyword”，请先确认这个词已经导入到词库。",
+                generationWordTextOverride = current.generationWordText,
+                generationBatchSizeTextOverride = current.generationBatchSizeText,
+                testTextOverride = current.testText,
+                advancedStyleTextOverride = current.advancedStyleText,
+            )
+        val taskId = audioGenerationCoordinator.enqueueSingleWord(
+            sourceId = sourceId,
+            wordId = word.id,
+            presetId = current.selectedPresetId,
+            runInBackground = true,
+        )
+        loadUiState(
+            sourceId = sourceId,
+            statusMessage = "已为“${word.lemma}”创建缓存任务：$taskId",
+            generationWordTextOverride = current.generationWordText,
+            generationBatchSizeTextOverride = current.generationBatchSizeText,
+            testTextOverride = current.testText,
+            advancedStyleTextOverride = current.advancedStyleText,
+        )
+    }
+
+    suspend fun enqueueBookGeneration(
+        sourceId: String,
+        bookId: String,
+        current: PronunciationSourceDetailUiState,
+    ): PronunciationSourceDetailUiState = withContext(Dispatchers.IO) {
+        val batchSize = current.generationBatchSizeText.toIntOrNull()?.coerceAtLeast(1)
+            ?: DEFAULT_AUDIO_GENERATION_BATCH_SIZE
+        val taskId = audioGenerationCoordinator.enqueueBook(
+            sourceId = sourceId,
+            bookId = bookId,
+            presetId = current.selectedPresetId,
+            batchSize = batchSize,
+            runInBackground = true,
+        )
+        val bookTitle = current.bookOptions.firstOrNull { it.id == bookId }?.title ?: bookId
+        loadUiState(
+            sourceId = sourceId,
+            statusMessage = "已为《$bookTitle》创建整本缓存任务：$taskId",
+            generationWordTextOverride = current.generationWordText,
+            generationBatchSizeTextOverride = current.generationBatchSizeText,
+            testTextOverride = current.testText,
+            advancedStyleTextOverride = current.advancedStyleText,
+        )
+    }
+
+    suspend fun enqueueBookBatchGeneration(
+        sourceId: String,
+        bookId: String,
+        current: PronunciationSourceDetailUiState,
+    ): PronunciationSourceDetailUiState = withContext(Dispatchers.IO) {
+        val batchSize = current.generationBatchSizeText.toIntOrNull()?.coerceAtLeast(1)
+            ?: DEFAULT_AUDIO_GENERATION_BATCH_SIZE
+        val taskId = audioGenerationCoordinator.enqueueBookBatch(
+            sourceId = sourceId,
+            bookId = bookId,
+            presetId = current.selectedPresetId,
+            batchSize = batchSize,
+            runInBackground = true,
+        )
+        val bookTitle = current.bookOptions.firstOrNull { it.id == bookId }?.title ?: bookId
+        loadUiState(
+            sourceId = sourceId,
+            statusMessage = "已为《$bookTitle》创建分批缓存任务（$batchSize 条）：$taskId",
+            generationWordTextOverride = current.generationWordText,
+            generationBatchSizeTextOverride = current.generationBatchSizeText,
+            testTextOverride = current.testText,
+            advancedStyleTextOverride = current.advancedStyleText,
+        )
     }
 
     suspend fun checkApi(
@@ -211,7 +334,32 @@ class PronunciationSourceDetailViewModel(
         statusMessage = null,
         errorMessage = null,
     )
+
+    fun updateGenerationWordText(
+        current: PronunciationSourceDetailUiState,
+        text: String,
+    ): PronunciationSourceDetailUiState = current.copy(
+        generationWordText = text,
+        statusMessage = null,
+        errorMessage = null,
+    )
+
+    fun updateGenerationBatchSizeText(
+        current: PronunciationSourceDetailUiState,
+        text: String,
+    ): PronunciationSourceDetailUiState = current.copy(
+        generationBatchSizeText = text,
+        statusMessage = null,
+        errorMessage = null,
+    )
 }
+
+private fun buildBookOption(book: Book): PronunciationSourceBookOptionUiState =
+    PronunciationSourceBookOptionUiState(
+        id = book.id,
+        title = book.title,
+        summary = "${book.wordCount} 词 · ${if (book.sourceType == "builtin") "内置词书" else "导入词书"}",
+    )
 
 private fun buildSourceSubtitle(source: PronunciationSource): String =
     when (PronunciationSourceType.fromStorageValue(source.sourceType)) {
@@ -229,7 +377,10 @@ suspend fun loadPronunciationSourceDetailViewModel(
     PronunciationSourceDetailViewModel(
         pronunciationSourceRepository = buildPronunciationSourceRepository(appContext),
         aiProfileRepository = buildAiProfileRepository(appContext),
+        bookRepository = buildBookRepository(appContext),
+        wordRepository = buildWordRepository(appContext),
         credentialStore = buildAiCredentialStore(appContext),
         apiHealthChecker = ApiHealthChecker(),
+        audioGenerationCoordinator = buildAudioGenerationCoordinator(appContext),
     )
 }

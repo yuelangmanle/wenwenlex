@@ -35,7 +35,7 @@ jobs:
         run: python3 scripts/generate_release_notes_asset.py --check
 
       - name: Validate release baseline
-        run: bash scripts/validate_release_baseline.sh 1.7
+        run: bash scripts/validate_release_baseline.sh 1.8
 
       - name: Fetch Sherpa ONNX Android JNI runtime
         run: bash scripts/fetch_sherpa_onnx_android.sh v1.12.31
@@ -122,7 +122,7 @@ jobs:
         run: python3 scripts/generate_release_notes_asset.py --check
 
       - name: Validate release baseline
-        run: bash scripts/validate_release_baseline.sh 1.7
+        run: bash scripts/validate_release_baseline.sh 1.8
 
       - name: Fetch Sherpa ONNX Android JNI runtime
         run: bash scripts/fetch_sherpa_onnx_android.sh v1.12.31

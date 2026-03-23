@@ -13,7 +13,8 @@
 - 仓库地址：[yuelangmanle/wenwenlex](https://github.com/yuelangmanle/wenwenlex)
 - 当前正式版本：`1.7`
 - 当前正式发布：`2026-03-22` 已发布 `v1.7`
-- 当前开发主线：下一轮版本待规划，当前稳定基线为已发布的 `v1.7`
+- 当前发版目标：`1.8`
+- 当前开发主线：`v1.8` 收口中，当前稳定基线为已发布的 `v1.7`
 - 平台：Android
 - 开发语言：Kotlin
 - UI 技术：Jetpack Compose
@@ -64,6 +65,9 @@
 - `v1.7` 学习效果与交付护栏规格：[2026-03-22-v1.7-learning-effect-delivery-guardrails-design.md](./superpowers/specs/2026-03-22-v1.7-learning-effect-delivery-guardrails-design.md)
 - `v1.7` 学习效果与交付护栏计划：[2026-03-22-v1.7-learning-effect-delivery-guardrails.md](./superpowers/plans/2026-03-22-v1.7-learning-effect-delivery-guardrails.md)
 - `v1.7` smoke 基线：[release-v1.7-learning-effect-smoke.md](./release-v1.7-learning-effect-smoke.md)
+- `v1.8` 导入闭环与统一发音源中心规格：[2026-03-22-v1.8-import-pronunciation-source-design.md](./superpowers/specs/2026-03-22-v1.8-import-pronunciation-source-design.md)
+- `v1.8` 导入闭环与统一发音源中心计划：[2026-03-22-v1.8-import-pronunciation-source.md](./superpowers/plans/2026-03-22-v1.8-import-pronunciation-source.md)
+- `v1.8` smoke 基线：[release-v1.8-import-pronunciation-smoke.md](./release-v1.8-import-pronunciation-smoke.md)
 - 发布页面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
 - 构建页面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
 
@@ -154,6 +158,25 @@ README.md               项目入口说明
   - 云端 `Android Release #23404026655` 已通过，并已发布 `v1.7`
 - 明确不纳入：云端账号、自建服务器、多端同步、自动热更新体系、整套发音链路重写
 - 发版门槛：动态复习引擎接管今日队列核心排序，升级前快照与迁移校验打通，诊断包可导出，`Android CI` 与 `Android Release` 全绿，且主文档与发版记录同步更新
+
+### 7.5 当前 `1.8` 收口范围
+
+- 主目标：把“导入诊断与修复闭环 + 统一发音源中心 + 后台音频生成 + App 内更新日志”做成第一版正式能力
+- 范围包含：
+  - Excel 导入诊断摘要、自动修复与 AI 修复严重问题
+  - 词书详情 / 学习页会话级发音源快速切换
+  - MiMo TTS 详情、API 检测、预设切换与云端缓存音频落地
+  - 多来源缓存桶、缓存管理页与后台生成任务页
+  - `CHANGELOG.md -> release-notes.json` App 内更新日志链路
+- 配套要求：如新增导入诊断、发音源、生成任务或缓存桶字段，必须同步补数据库迁移、备份兼容、测试和文档；本轮继续保持 Room `v7` 主版本稳定
+- 当前已落仓：
+  - 导入诊断 / 修复闭环已落地
+  - 统一发音源第一版、MiMo TTS 详情和会话级切源已落地
+  - 缓存分桶管理、单词 / 整书 / 分批后台生成和失败项真实重试已落地
+  - App 内更新日志与 release notes 资产生成脚本已落地
+  - 本地 `:app:testDebugUnitTest` 已通过
+- 明确不纳入：云端账号、自建服务器、多端同步、完整语音克隆、应用内静默更新
+- 发版门槛：本地单测通过，`Android CI` 与 `Android Release` 全绿，主文档、更新日志、smoke 文档和 release-notes 资产同步更新
 
 ## 8. 打包与发版规则
 

@@ -36,7 +36,39 @@ class NativeOfflineWordTtsEngine(
         accent: PronunciationAccent,
     ): NativeWordSynthesisResult? {
         val normalizedWord = normalizeWordForPronunciation(word.lemma) ?: return null
-        val voicePack = resolveInstalledNativePack(accent) ?: return null
+        val voicePack = resolveInstalledNativePack(accent = accent) ?: return null
+        return synthesizeWordWithResolvedPack(
+            word = word,
+            normalizedWord = normalizedWord,
+            accent = accent,
+            voicePack = voicePack,
+        )
+    }
+
+    suspend fun synthesizeWordForSource(
+        word: Word,
+        sourceId: String,
+        accent: PronunciationAccent,
+    ): NativeWordSynthesisResult? {
+        val normalizedWord = normalizeWordForPronunciation(word.lemma) ?: return null
+        val voicePack = resolveInstalledNativePack(
+            accent = accent,
+            preferredVoicePackId = sourceId,
+        ) ?: return null
+        return synthesizeWordWithResolvedPack(
+            word = word,
+            normalizedWord = normalizedWord,
+            accent = accent,
+            voicePack = voicePack,
+        )
+    }
+
+    private suspend fun synthesizeWordWithResolvedPack(
+        word: Word,
+        normalizedWord: String,
+        accent: PronunciationAccent,
+        voicePack: VoicePack,
+    ): NativeWordSynthesisResult? {
         val resolvedAccent = resolveAccent(accent, voicePack)
         findCachedWord(word, voicePack, resolvedAccent)?.let { return it }
         val installDir = voicePack.installDir?.takeIf(String::isNotBlank)?.let(::File) ?: return null
@@ -77,7 +109,7 @@ class NativeOfflineWordTtsEngine(
     suspend fun resolveCacheNamespace(
         accent: PronunciationAccent,
     ): NativeWordCacheNamespace? {
-        val voicePack = resolveInstalledNativePack(accent) ?: return null
+        val voicePack = resolveInstalledNativePack(accent = accent) ?: return null
         val resolvedAccent = resolveAccent(accent, voicePack)
         return NativeWordCacheNamespace(
             accent = resolvedAccent,
@@ -91,6 +123,25 @@ class NativeOfflineWordTtsEngine(
     }
 
     private suspend fun resolveInstalledNativePack(accent: PronunciationAccent): VoicePack? {
+        return resolveInstalledNativePack(
+            accent = accent,
+            preferredVoicePackId = null,
+        )
+    }
+
+    private suspend fun resolveInstalledNativePack(
+        accent: PronunciationAccent,
+        preferredVoicePackId: String?,
+    ): VoicePack? {
+        val preferredPack = if (preferredVoicePackId.isNullOrBlank()) {
+            null
+        } else {
+            voicePackRepository.getVoicePack(preferredVoicePackId)
+                ?.takeIf(::isInstalledNativePack)
+        }
+        if (preferredPack != null) {
+            return preferredPack
+        }
         val activePack = voicePackRepository.getActiveVoicePack(accent)
             ?.takeIf(::isInstalledNativePack)
         if (activePack != null) {

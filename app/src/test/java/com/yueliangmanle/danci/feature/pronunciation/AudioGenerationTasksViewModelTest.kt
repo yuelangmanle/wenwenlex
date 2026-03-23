@@ -1,11 +1,20 @@
 package com.yueliangmanle.danci.feature.pronunciation
 
 import com.yueliangmanle.danci.core.data.AudioGenerationRepository
+import com.yueliangmanle.danci.core.data.BookRepository
 import com.yueliangmanle.danci.core.data.PronunciationSourceRepository
+import com.yueliangmanle.danci.core.data.WordRepository
+import com.yueliangmanle.danci.core.importer.ImportedBook
 import com.yueliangmanle.danci.core.model.AudioGenerationTask
 import com.yueliangmanle.danci.core.model.AudioGenerationTaskItem
+import com.yueliangmanle.danci.core.model.Book
 import com.yueliangmanle.danci.core.model.PronunciationSource
+import com.yueliangmanle.danci.core.model.Word
+import com.yueliangmanle.danci.core.pronunciation.AudioGenerationCoordinator
+import com.yueliangmanle.danci.core.pronunciation.AudioGenerationWorkScheduler
 import java.time.Instant
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -42,6 +51,10 @@ class AudioGenerationTasksViewModelTest {
                         updatedAt = Instant.EPOCH,
                     ),
                 ),
+            ),
+            audioGenerationCoordinator = buildTestCoordinator(
+                repository = FakeAudioGenerationRepository(),
+                sourceRepository = FakeTaskSourceRepository(emptyList()),
             ),
         )
 
@@ -109,6 +122,21 @@ class AudioGenerationTasksViewModelTest {
                     ),
                 ),
             ),
+            audioGenerationCoordinator = buildTestCoordinator(
+                repository = repository,
+                sourceRepository = FakeTaskSourceRepository(
+                    listOf(
+                        PronunciationSource(
+                            id = "native-us",
+                            name = "美式原生离线包",
+                            sourceType = "local_native",
+                            accent = "us",
+                            createdAt = Instant.EPOCH,
+                            updatedAt = Instant.EPOCH,
+                        ),
+                    ),
+                ),
+            ),
         )
 
         val state = viewModel.retryFailedItems("task-1")
@@ -123,7 +151,7 @@ class AudioGenerationTasksViewModelTest {
 }
 
 private class FakeAudioGenerationRepository(
-    val tasks: MutableList<AudioGenerationTask>,
+    val tasks: MutableList<AudioGenerationTask> = mutableListOf(),
 ) : AudioGenerationRepository {
     override suspend fun getAllTasks(): List<AudioGenerationTask> = tasks.toList()
 
@@ -140,6 +168,55 @@ private class FakeAudioGenerationRepository(
 
     override suspend fun clearAll() = Unit
 }
+
+private fun buildTestCoordinator(
+    repository: FakeAudioGenerationRepository,
+    sourceRepository: FakeTaskSourceRepository,
+): AudioGenerationCoordinator =
+    AudioGenerationCoordinator(
+        audioGenerationRepository = repository,
+        pronunciationSourceRepository = sourceRepository,
+        wordRepository = object : WordRepository {
+            override fun observeWords(query: String): Flow<List<Word>> = emptyFlow()
+            override suspend fun getWord(wordId: Long): Word? = null
+            override suspend fun getWords(wordIds: List<Long>): List<Word> = emptyList()
+            override suspend fun getAllWords(): List<Word> = emptyList()
+            override suspend fun insertWord(word: Word): Long = word.id
+            override suspend fun updateWord(word: Word) = Unit
+            override suspend fun importWords(words: List<com.yueliangmanle.danci.core.importer.ImportedWord>): List<Long> =
+                emptyList()
+        },
+        bookRepository = object : BookRepository {
+            override fun observeBooks(): Flow<List<Book>> = emptyFlow()
+            override fun observeWords(bookId: String): Flow<List<Word>> = emptyFlow()
+            override suspend fun getBook(bookId: String): Book? = null
+            override suspend fun getAllBooks(): List<Book> = emptyList()
+            override suspend fun getWords(bookId: String): List<Word> = emptyList()
+            override suspend fun countWords(bookId: String): Int = 0
+            override suspend fun upsertBook(book: Book) = Unit
+            override suspend fun addWordToBook(
+                bookId: String,
+                wordId: Long,
+                chapter: String?,
+                sortOrder: Int,
+                tags: List<String>,
+                note: String?,
+            ) = Unit
+
+            override suspend fun clearBookWordLinks(bookId: String) = Unit
+
+            override fun loadBuiltInCatalog(inputStream: java.io.InputStream): List<com.yueliangmanle.danci.core.data.BuiltInBookCatalogItem> =
+                emptyList()
+
+            override suspend fun importBook(book: ImportedBook, wordIds: List<Long>): Book =
+                Book(id = book.metadata.id, title = book.metadata.title)
+        },
+        scheduler = object : AudioGenerationWorkScheduler {
+            override suspend fun enqueue(taskId: String, batchSize: Int, requiresNetwork: Boolean) = Unit
+        },
+        idGenerator = { "test-task" },
+        nowProvider = { Instant.EPOCH },
+    )
 
 private class FakeTaskSourceRepository(
     private val sources: List<PronunciationSource>,

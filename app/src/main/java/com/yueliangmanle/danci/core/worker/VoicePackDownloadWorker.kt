@@ -447,6 +447,8 @@ private fun mapInstallFailure(error: Throwable): IllegalStateException {
         return IllegalStateException("安装时内存不足，请关闭后台应用后重试。", error)
     }
     val friendlyMessage = when {
+        "payload checksum" in message ->
+            "payload checksum 校验失败，请重新下载。"
         listOf("checksum", "payload checksum", "校验").any(message::contains) ->
             "语音包校验失败，请重新下载。"
         listOf("no space", "空间", "storage").any(message.lowercase()::contains) ->

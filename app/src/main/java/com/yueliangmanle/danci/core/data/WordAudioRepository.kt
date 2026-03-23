@@ -85,6 +85,21 @@ interface WordAudioRepository {
             sourceFile = sourceFile,
             mimeType = mimeType,
         )
+    suspend fun cacheGeneratedAudioWithContext(
+        wordId: Long,
+        accent: PronunciationAccent,
+        normalizedWord: String,
+        playbackSource: PlaybackSource,
+        actualSourceType: String?,
+        modelFamily: String,
+        versionTag: String,
+        sourceId: String?,
+        presetId: String?,
+        sourceFile: File,
+        namespace: String? = null,
+        taskId: String? = null,
+        mimeType: String = "audio/wav",
+    ): WordAudioAsset? = null
     suspend fun isRemoteLookupCoolingDown(wordId: Long, accent: PronunciationAccent): Boolean
     suspend fun cacheDictionaryAudio(
         wordId: Long,
@@ -229,13 +244,45 @@ class RoomWordAudioRepository(
         namespace: String?,
         mimeType: String,
     ): WordAudioAsset? {
+        return cacheGeneratedAudioWithContext(
+            wordId = wordId,
+            accent = accent,
+            normalizedWord = normalizedWord,
+            playbackSource = PlaybackSource.OFFLINE_NATIVE_GENERATED,
+            actualSourceType = sourceId?.let { ACTUAL_SOURCE_TYPE_LOCAL_NATIVE },
+            modelFamily = modelFamily,
+            versionTag = packVersion,
+            sourceId = sourceId,
+            presetId = presetId,
+            sourceFile = sourceFile,
+            namespace = namespace,
+            taskId = null,
+            mimeType = mimeType,
+        )
+    }
+
+    override suspend fun cacheGeneratedAudioWithContext(
+        wordId: Long,
+        accent: PronunciationAccent,
+        normalizedWord: String,
+        playbackSource: PlaybackSource,
+        actualSourceType: String?,
+        modelFamily: String,
+        versionTag: String,
+        sourceId: String?,
+        presetId: String?,
+        sourceFile: File,
+        namespace: String?,
+        taskId: String?,
+        mimeType: String,
+    ): WordAudioAsset? {
         if (normalizedWord.isBlank() || !sourceFile.exists()) {
             return null
         }
         val resolvedNamespace = namespace?.takeIf(String::isNotBlank) ?: buildGeneratedNamespace(
             accent = accent,
             modelFamily = modelFamily,
-            packVersion = packVersion,
+            packVersion = versionTag,
             sourceId = sourceId,
             presetId = presetId,
             sceneType = GENERATED_AUDIO_SCENE_WORD,
@@ -252,7 +299,7 @@ class RoomWordAudioRepository(
         val existing = dao.findLatestAssetByContext(
             wordId = wordId,
             accent = accent.storageValue,
-            sourceType = PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue,
+            sourceType = playbackSource.storageValue,
             status = WordAudioAssetStatus.READY.storageValue,
             sourceId = sourceId,
             presetId = presetId,
@@ -263,11 +310,12 @@ class RoomWordAudioRepository(
             wordId = wordId,
             sourceId = sourceId,
             presetId = presetId,
-            actualSourceType = sourceId?.let { ACTUAL_SOURCE_TYPE_LOCAL_NATIVE },
+            actualSourceType = actualSourceType,
             namespace = resolvedNamespace,
             assetState = WordAudioAssetStatus.READY.storageValue,
+            taskId = taskId,
             accent = accent.storageValue,
-            sourceType = PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue,
+            sourceType = playbackSource.storageValue,
             remoteUrl = null,
             localPath = targetFile.absolutePath,
             mimeType = mimeType,

@@ -10,6 +10,8 @@ import com.yueliangmanle.danci.core.model.AudioGenerationTaskItem
 
 interface AudioGenerationRepository {
     suspend fun getAllTasks(): List<AudioGenerationTask>
+    suspend fun getTask(taskId: String): AudioGenerationTask? =
+        getAllTasks().firstOrNull { it.id == taskId }
     suspend fun upsertTasks(tasks: List<AudioGenerationTask>)
     suspend fun clearAll()
 }
@@ -23,6 +25,11 @@ class RoomAudioGenerationRepository(
                 items = dao.getItemsByTask(task.id).map(AudioGenerationTaskItemEntity::asExternalModel),
             )
         }
+
+    override suspend fun getTask(taskId: String): AudioGenerationTask? =
+        dao.getTaskById(taskId)?.asExternalModel(
+            items = dao.getItemsByTask(taskId).map(AudioGenerationTaskItemEntity::asExternalModel),
+        )
 
     override suspend fun upsertTasks(tasks: List<AudioGenerationTask>) {
         if (tasks.isEmpty()) {

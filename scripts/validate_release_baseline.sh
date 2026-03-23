@@ -74,8 +74,18 @@ grep -q "Release 页面" "$primary_smoke" || {
   exit 1
 }
 
+grep -q "release-notes.json" "$primary_smoke" || {
+  echo "$primary_smoke is missing release-notes.json section" >&2
+  exit 1
+}
+
 grep -q "本机归档" "$primary_smoke" || {
   echo "$primary_smoke is missing 本机归档 section" >&2
+  exit 1
+}
+
+grep -q "真机补充验证" "$primary_smoke" || {
+  echo "$primary_smoke is missing 真机补充验证 section" >&2
   exit 1
 }
 

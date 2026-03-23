@@ -18,6 +18,9 @@ interface AudioGenerationTaskDao {
     @Query("SELECT * FROM audio_generation_tasks ORDER BY updatedAt DESC, id DESC")
     suspend fun getAllTasks(): List<AudioGenerationTaskEntity>
 
+    @Query("SELECT * FROM audio_generation_tasks WHERE id = :taskId LIMIT 1")
+    suspend fun getTaskById(taskId: String): AudioGenerationTaskEntity?
+
     @Query("SELECT * FROM audio_generation_task_items WHERE taskId = :taskId ORDER BY itemKey ASC")
     suspend fun getItemsByTask(taskId: String): List<AudioGenerationTaskItemEntity>
 
