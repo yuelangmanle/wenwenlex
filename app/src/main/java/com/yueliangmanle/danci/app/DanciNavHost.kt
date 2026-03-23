@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.NavHostController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.navArgument
@@ -34,6 +35,15 @@ fun DanciNavHost(
     startDestination: TopLevelDestination,
     navController: NavHostController,
 ) {
+    val navigateToHomeTopLevel: () -> Unit = {
+        navController.navigate(TopLevelDestination.HOME.name) {
+            popUpTo(navController.graph.findStartDestination().id) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
     NavHost(
         modifier = modifier,
         navController = navController,
@@ -57,9 +67,7 @@ fun DanciNavHost(
                         onOpenDetailClick = { wordId ->
                             navController.navigate(wordDetailRoute(wordId))
                         },
-                        onBackHomeClick = {
-                            navController.navigate(TopLevelDestination.HOME.name)
-                        },
+                        onBackHomeClick = navigateToHomeTopLevel,
                     )
                     TopLevelDestination.BOOKS -> BooksRoute(
                         onImportClick = {
@@ -95,9 +103,7 @@ fun DanciNavHost(
                 onOpenDetailClick = { wordId ->
                     navController.navigate(wordDetailRoute(wordId))
                 },
-                onBackHomeClick = {
-                    navController.navigate(TopLevelDestination.HOME.name)
-                },
+                onBackHomeClick = navigateToHomeTopLevel,
             )
         }
         composable(

@@ -29,11 +29,12 @@ fun StudyRoute(
     }
     val pronunciationOrchestrator = remember(context) { buildPronunciationOrchestrator(context) }
     var viewModel: StudyViewModel? by remember(context) { mutableStateOf(null) }
+    var resolvedMode by remember(launchMode) { mutableStateOf(launchMode) }
     var state by remember(launchMode) {
         mutableStateOf(StudyUiState())
     }
-    val sessionLabel = remember(launchMode) {
-        when (launchMode) {
+    val sessionLabel = remember(resolvedMode) {
+        when (resolvedMode) {
             StudyLaunchMode.NEW_WORDS -> "新词学习会话"
             StudyLaunchMode.REVIEW -> "复习学习会话"
             StudyLaunchMode.RECENT_MISTAKES -> "错题学习会话"
@@ -42,10 +43,12 @@ fun StudyRoute(
     }
 
     androidx.compose.runtime.LaunchedEffect(context, launchMode) {
+        resolvedMode = launchMode
         state = StudyUiState(sessionTitle = sessionLabel)
         val loaded = loadStudyViewModel(context, launchMode)
-        viewModel = loaded
-        state = loaded.buildUiState().copy(sessionTitle = sessionLabel)
+        viewModel = loaded.viewModel
+        resolvedMode = loaded.resolvedMode
+        state = loaded.viewModel.buildUiState().copy(sessionTitle = sessionLabelFor(loaded.resolvedMode))
     }
 
     StudyScreen(
@@ -88,3 +91,11 @@ fun StudyRoute(
         },
     )
 }
+
+private fun sessionLabelFor(mode: StudyLaunchMode?): String =
+    when (mode) {
+        StudyLaunchMode.NEW_WORDS -> "新词学习会话"
+        StudyLaunchMode.REVIEW -> "复习学习会话"
+        StudyLaunchMode.RECENT_MISTAKES -> "错题学习会话"
+        null -> "当前学习会话"
+    }

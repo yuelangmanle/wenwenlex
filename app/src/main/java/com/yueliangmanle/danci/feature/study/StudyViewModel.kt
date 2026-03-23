@@ -51,6 +51,11 @@ data class SessionCheckpointRequest(
     val reason: String,
 )
 
+data class LoadedStudySession(
+    val viewModel: StudyViewModel,
+    val resolvedMode: StudyLaunchMode,
+)
+
 class StudyViewModel(
     initialQueue: List<StudyCardItem>,
     private val emptyState: StudyQueueEmptyState? = null,
@@ -228,23 +233,28 @@ class StudyViewModel(
 suspend fun loadStudyViewModel(
     context: Context,
     launchMode: StudyLaunchMode? = null,
-): StudyViewModel {
+): LoadedStudySession {
     syncBuiltInCatalogToDatabase(context)
     val settings = buildSettingsRepository(context).getSettings()
     val bookRepository = buildBookRepository(context)
     val studyRepository = RoomStudyRepository(buildDanciDatabase(context).studyDao())
     val activeBook = settings.activeBookId?.let { bookRepository.getBook(it) } ?: bookRepository.getAllBooks().first()
     val words = bookRepository.getWords(activeBook.id)
-    val mode = launchMode ?: StudyLaunchMode.NEW_WORDS
-    val plan = StudyQueuePlanner().plan(
+    val recordsByWordId = studyRepository.getAllLearningRecords().associateBy { it.wordId }
+    val planner = StudyQueuePlanner()
+    val mode = planner.resolveMode(launchMode, words, recordsByWordId)
+    val plan = planner.plan(
         mode = mode,
         words = words,
-        recordsByWordId = studyRepository.getAllLearningRecords().associateBy { it.wordId },
+        recordsByWordId = recordsByWordId,
         groupSize = defaultStudyGroupSize(mode),
     )
-    return StudyViewModel(
-        initialQueue = plan.queue,
-        emptyState = plan.emptyState,
-        eventRecorder = buildAiMemoryRepository(context),
+    return LoadedStudySession(
+        viewModel = StudyViewModel(
+            initialQueue = plan.queue,
+            emptyState = plan.emptyState,
+            eventRecorder = buildAiMemoryRepository(context),
+        ),
+        resolvedMode = mode,
     )
 }

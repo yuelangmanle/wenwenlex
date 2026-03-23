@@ -197,7 +197,7 @@ fun StudyScreen(
 
 private fun emptyStateMessage(emptyState: StudyQueueEmptyState): String =
     when (emptyState) {
-        StudyQueueEmptyState.NO_NEW_WORDS -> "当前没有可学习的新词"
+        StudyQueueEmptyState.NO_NEW_WORDS -> "今天的新词已完成"
         StudyQueueEmptyState.NO_DUE_REVIEW -> "当前没有到期复习词"
-        StudyQueueEmptyState.NO_RECENT_MISTAKES -> "当前没有最近错词"
+        StudyQueueEmptyState.NO_RECENT_MISTAKES -> "最近没有需要回拉的错词"
     }

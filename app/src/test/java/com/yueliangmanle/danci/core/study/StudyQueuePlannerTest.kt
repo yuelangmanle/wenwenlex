@@ -43,20 +43,38 @@ class StudyQueuePlannerTest {
 
     @Test
     fun planner_returnsRecentMistakeWordsForRecentMistakesMode() {
-        val result = StudyQueuePlanner().plan(
+        val now = Instant.parse("2026-03-24T10:00:00Z")
+        val result = StudyQueuePlanner(nowProvider = { now }).plan(
             mode = StudyLaunchMode.RECENT_MISTAKES,
             words = listOf(word(1), word(2), word(3), word(4)),
             recordsByWordId = mapOf(
                 1L to record(1, lastOutcome = "known"),
-                2L to record(2, lastOutcome = "not_known"),
-                3L to record(3, lastOutcome = "fuzzy"),
-                4L to record(4, lastOutcome = null),
+                2L to record(2, lastOutcome = "not_known", lastReviewedAt = now.minusSeconds(60)),
+                3L to record(3, lastOutcome = "fuzzy", lastReviewedAt = now.minusSeconds(2 * 24 * 3600)),
+                4L to record(4, lastOutcome = "fuzzy", lastReviewedAt = now.minusSeconds(5 * 24 * 3600)),
             ),
             groupSize = 10,
         )
 
         assertEquals(listOf(2L, 3L), result.queue.map { it.wordId })
         assertEquals(null, result.emptyState)
+    }
+
+    @Test
+    fun planner_fallsBackToFirstAvailableModeWhenLaunchModeMissing() {
+        val now = Instant.parse("2026-03-24T10:00:00Z")
+        val planner = StudyQueuePlanner(nowProvider = { now })
+
+        val resolvedMode = planner.resolveMode(
+            requestedMode = null,
+            words = listOf(word(1), word(2), word(3)),
+            recordsByWordId = mapOf(
+                1L to record(1, reviewCount = 1, lastOutcome = "not_known", lastReviewedAt = now.minusSeconds(60)),
+                2L to record(2, reviewCount = 1, nextReviewAt = now.minusSeconds(60)),
+            ),
+        )
+
+        assertEquals(StudyLaunchMode.RECENT_MISTAKES, resolvedMode)
     }
 
     @Test
@@ -84,6 +102,7 @@ class StudyQueuePlannerTest {
         nextReviewAt: Instant? = null,
         reviewCount: Int = 1,
         lastOutcome: String? = null,
+        lastReviewedAt: Instant? = null,
     ): LearningRecord =
         LearningRecord(
             wordId = wordId,
@@ -91,6 +110,7 @@ class StudyQueuePlannerTest {
             familiarityState = familiarityState,
             nextReviewAt = nextReviewAt,
             reviewCount = reviewCount,
+            lastReviewedAt = lastReviewedAt,
             lastOutcome = lastOutcome,
         )
 }

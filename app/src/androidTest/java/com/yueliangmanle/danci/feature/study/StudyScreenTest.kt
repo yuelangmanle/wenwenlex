@@ -4,6 +4,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import com.yueliangmanle.danci.core.study.StudyQueueEmptyState
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
 import org.junit.Test
@@ -26,6 +27,7 @@ class StudyScreenTest {
                 ),
                 onFeedbackClick = {},
                 onOpenDetailClick = {},
+                onBackHomeClick = {},
                 onPlayPronunciationClick = {},
             )
         }
@@ -47,10 +49,45 @@ class StudyScreenTest {
                 ),
                 onFeedbackClick = {},
                 onOpenDetailClick = {},
+                onBackHomeClick = {},
                 onPlayPronunciationClick = {},
             )
         }
 
         composeRule.onNodeWithText("已联网获取英式词典音频（有道词典）。").assertIsDisplayed()
+    }
+
+    @Test
+    fun studyScreenShowsLoadingStateBeforeQueueReady() {
+        composeRule.setContent {
+            StudyScreen(
+                state = StudyUiState(),
+                onFeedbackClick = {},
+                onOpenDetailClick = {},
+                onBackHomeClick = {},
+                onPlayPronunciationClick = {},
+            )
+        }
+
+        composeRule.onNodeWithText("正在准备本轮单词…").assertIsDisplayed()
+    }
+
+    @Test
+    fun studyScreenShowsModeSpecificEmptyStateMessage() {
+        composeRule.setContent {
+            StudyScreen(
+                state = StudyUiState(
+                    isLoadingQueue = false,
+                    emptyState = StudyQueueEmptyState.NO_RECENT_MISTAKES,
+                ),
+                onFeedbackClick = {},
+                onOpenDetailClick = {},
+                onBackHomeClick = {},
+                onPlayPronunciationClick = {},
+            )
+        }
+
+        composeRule.onNodeWithText("最近没有需要回拉的错词").assertIsDisplayed()
+        composeRule.onNodeWithText("返回首页").assertIsDisplayed()
     }
 }

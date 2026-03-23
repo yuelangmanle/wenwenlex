@@ -65,6 +65,6 @@ class ReviewScheduler {
 
 private fun String?.isMistakeOutcome(): Boolean =
     when (this?.lowercase()) {
-        "wrong", "forgot", "again" -> true
+        "wrong", "forgot", "again", "not_known", "fuzzy" -> true
         else -> false
     }
