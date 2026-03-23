@@ -1,5 +1,7 @@
 package com.yueliangmanle.danci.feature.study
 
+import com.yueliangmanle.danci.core.data.StudyEventRecorder
+import com.yueliangmanle.danci.core.model.StudyEvent
 import com.yueliangmanle.danci.core.study.CardFeedback
 import com.yueliangmanle.danci.core.study.StudyQueueEmptyState
 import com.yueliangmanle.danci.core.study.StudyCardItem
@@ -49,6 +51,23 @@ class StudyViewModelTest {
 
         assertNull(viewModel.consumeCheckpointRequest(sessionCheckpointsEnabled = false))
         assertNull(viewModel.consumeCheckpointRequest(sessionCheckpointsEnabled = true))
+    }
+
+    @Test
+    fun recordsSessionIdOnPresentedAndFeedbackEvents() {
+        val recordedEvents = mutableListOf<StudyEvent>()
+        val viewModel = StudyViewModel(
+            initialQueue = sampleQueue(size = 1),
+            sessionId = 42L,
+            eventRecorder = StudyEventRecorder { event ->
+                recordedEvents += event
+            },
+        )
+
+        viewModel.submitFeedback(CardFeedback.KNOWN)
+
+        assertEquals(42L, recordedEvents.first().sessionId)
+        assertEquals(42L, recordedEvents.last().sessionId)
     }
 
     private fun sampleQueue(size: Int): List<StudyCardItem> =

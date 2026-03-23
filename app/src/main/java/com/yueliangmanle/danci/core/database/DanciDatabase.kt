@@ -53,7 +53,7 @@ import java.time.Instant
         WordAudioAssetEntity::class,
         VoicePackEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 @TypeConverters(DanciTypeConverters::class)
@@ -85,6 +85,7 @@ fun buildDanciDatabase(context: Context): DanciDatabase {
         )
             .addMigrations(MIGRATION_1_2)
             .addMigrations(MIGRATION_2_3)
+            .addMigrations(MIGRATION_3_4)
             .build().also { database ->
             DanciDatabaseHolder.instance = database
         }
@@ -212,6 +213,23 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
             )
             """.trimIndent(),
         )
+    }
+}
+
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE learning_records ADD COLUMN reviewStage INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE learning_records ADD COLUMN learningStage TEXT NOT NULL DEFAULT 'UNSEEN'")
+        db.execSQL("ALTER TABLE learning_records ADD COLUMN introducedAt INTEGER")
+        db.execSQL("ALTER TABLE learning_records ADD COLUMN lastMistakeAt INTEGER")
+        db.execSQL("ALTER TABLE learning_records ADD COLUMN lastFuzzyAt INTEGER")
+        db.execSQL("ALTER TABLE learning_records ADD COLUMN lastStudyMode TEXT")
+        db.execSQL("ALTER TABLE learning_records ADD COLUMN currentGroupPassState TEXT")
+
+        db.execSQL("ALTER TABLE study_sessions ADD COLUMN scopeType TEXT NOT NULL DEFAULT 'book'")
+        db.execSQL("ALTER TABLE study_sessions ADD COLUMN scopeRef TEXT")
+        db.execSQL("ALTER TABLE study_sessions ADD COLUMN groupSize INTEGER NOT NULL DEFAULT 5")
+        db.execSQL("ALTER TABLE study_sessions ADD COLUMN currentGroupIndex INTEGER NOT NULL DEFAULT 0")
     }
 }
 

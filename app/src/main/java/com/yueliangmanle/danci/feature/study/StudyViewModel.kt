@@ -15,6 +15,7 @@ import com.yueliangmanle.danci.core.database.buildDanciDatabase
 import com.yueliangmanle.danci.core.model.LearningRecord
 import com.yueliangmanle.danci.core.model.StudyEvent
 import com.yueliangmanle.danci.core.model.StudyEventType
+import com.yueliangmanle.danci.core.model.StudySession
 import com.yueliangmanle.danci.core.model.studyEventMetadataOf
 import com.yueliangmanle.danci.core.study.CardFeedback
 import com.yueliangmanle.danci.core.study.FeedbackMapper
@@ -59,6 +60,7 @@ data class LoadedStudySession(
 class StudyViewModel(
     initialQueue: List<StudyCardItem>,
     private val emptyState: StudyQueueEmptyState? = null,
+    private val sessionId: Long? = null,
     private val feedbackMapper: FeedbackMapper = FeedbackMapper(),
     private val eventRecorder: StudyEventRecorder = NoOpStudyEventRecorder,
     private val nowProvider: () -> Instant = { Instant.now() },
@@ -132,6 +134,7 @@ class StudyViewModel(
         )
         eventRecorder.record(
             StudyEvent(
+                sessionId = sessionId,
                 wordId = card.wordId,
                 eventType = StudyEventType.CARD_FEEDBACK,
                 feedback = feedback.name.lowercase(),
@@ -177,6 +180,7 @@ class StudyViewModel(
         val card = queue.getOrNull(currentIndex) ?: return
         eventRecorder.record(
             StudyEvent(
+                sessionId = sessionId,
                 wordId = card.wordId,
                 eventType = StudyEventType.DETAIL_OPENED,
                 happenedAt = nowProvider(),
@@ -218,6 +222,7 @@ class StudyViewModel(
         lastPresentedWordId = card.wordId
         eventRecorder.record(
             StudyEvent(
+                sessionId = sessionId,
                 wordId = card.wordId,
                 eventType = StudyEventType.CARD_PRESENTED,
                 happenedAt = currentCardPresentedAt,
@@ -249,10 +254,23 @@ suspend fun loadStudyViewModel(
         recordsByWordId = recordsByWordId,
         groupSize = defaultStudyGroupSize(mode),
     )
+    val sessionId = studyRepository.startSession(
+        StudySession(
+            mode = mode.storageValue,
+            targetBookId = activeBook.id,
+            scopeType = "active_book",
+            scopeRef = activeBook.id,
+            groupSize = defaultStudyGroupSize(mode),
+            currentGroupIndex = 0,
+            startedAt = Instant.now(),
+            plannedCount = plan.queue.size,
+        ),
+    )
     return LoadedStudySession(
         viewModel = StudyViewModel(
             initialQueue = plan.queue,
             emptyState = plan.emptyState,
+            sessionId = sessionId,
             eventRecorder = buildAiMemoryRepository(context),
         ),
         resolvedMode = mode,

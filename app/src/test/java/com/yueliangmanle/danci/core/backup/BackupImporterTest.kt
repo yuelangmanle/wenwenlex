@@ -2,6 +2,8 @@ package com.yueliangmanle.danci.core.backup
 
 import com.yueliangmanle.danci.core.data.AppSettings
 import com.yueliangmanle.danci.core.database.entity.BookEntity
+import com.yueliangmanle.danci.core.database.entity.LearningRecordEntity
+import com.yueliangmanle.danci.core.database.entity.StudySessionEntity
 import com.yueliangmanle.danci.core.database.entity.WordEntity
 import com.yueliangmanle.danci.core.model.AiMemorySummary
 import com.yueliangmanle.danci.core.model.DailySummary
@@ -49,6 +51,33 @@ class BackupImporterTest {
                             wordForms = listOf("abandoned", "abandoning"),
                         ),
                     ),
+                    learningRecords = listOf(
+                        LearningRecordEntity(
+                            wordId = 1L,
+                            mastery = 0.75f,
+                            familiarityState = "熟悉",
+                            reviewStage = 2,
+                            learningStage = "REVIEW_DUE",
+                            introducedAt = Instant.parse("2026-03-17T08:00:00Z"),
+                            nextReviewAt = Instant.parse("2026-03-19T08:00:00Z"),
+                            lastMistakeAt = Instant.parse("2026-03-16T08:00:00Z"),
+                            lastFuzzyAt = Instant.parse("2026-03-17T08:30:00Z"),
+                            lastStudyMode = "review",
+                            currentGroupPassState = "passed",
+                        ),
+                    ),
+                    studySessions = listOf(
+                        StudySessionEntity(
+                            id = 1L,
+                            mode = "review",
+                            targetBookId = "cet4",
+                            scopeType = "active_book",
+                            scopeRef = "cet4",
+                            groupSize = 10,
+                            currentGroupIndex = 1,
+                            startedAt = Instant.parse("2026-03-18T12:00:00Z"),
+                        ),
+                    ),
                     aiMemorySummary = AiMemorySummary(
                         learnerProfile = LearnerProfile(
                             vocabularyLevel = "提升中",
@@ -77,6 +106,9 @@ class BackupImporterTest {
         assertEquals("abandon", imported.snapshot.words.single().lemma)
         assertEquals("提升中", imported.snapshot.aiMemorySummary.learnerProfile?.vocabularyLevel)
         assertEquals(1, imported.snapshot.aiMemorySummary.dailySummaries.size)
+        assertEquals("REVIEW_DUE", imported.snapshot.learningRecords.single().learningStage)
+        assertEquals("active_book", imported.snapshot.studySessions.single().scopeType)
+        assertEquals(10, imported.snapshot.studySessions.single().groupSize)
     }
 
     @Test

@@ -2,6 +2,8 @@ package com.yueliangmanle.danci.core.backup
 
 import com.yueliangmanle.danci.core.data.AppSettings
 import com.yueliangmanle.danci.core.database.entity.BookEntity
+import com.yueliangmanle.danci.core.database.entity.LearningRecordEntity
+import com.yueliangmanle.danci.core.database.entity.StudySessionEntity
 import com.yueliangmanle.danci.core.database.entity.WordEntity
 import com.yueliangmanle.danci.core.model.AiMemorySummary
 import com.yueliangmanle.danci.core.model.DailySummary
@@ -42,6 +44,33 @@ class BackupExporterTest {
                             meanings = listOf("放弃"),
                         ),
                     ),
+                    learningRecords = listOf(
+                        LearningRecordEntity(
+                            wordId = 1L,
+                            mastery = 0.7f,
+                            familiarityState = "熟悉",
+                            reviewStage = 2,
+                            learningStage = "REVIEW_DUE",
+                            introducedAt = Instant.parse("2026-03-17T08:00:00Z"),
+                            nextReviewAt = Instant.parse("2026-03-19T08:00:00Z"),
+                            lastMistakeAt = Instant.parse("2026-03-16T08:00:00Z"),
+                            lastFuzzyAt = Instant.parse("2026-03-17T08:30:00Z"),
+                            lastStudyMode = "review",
+                            currentGroupPassState = "passed",
+                        ),
+                    ),
+                    studySessions = listOf(
+                        StudySessionEntity(
+                            id = 1L,
+                            mode = "review",
+                            targetBookId = "cet4",
+                            scopeType = "active_book",
+                            scopeRef = "cet4",
+                            groupSize = 10,
+                            currentGroupIndex = 1,
+                            startedAt = Instant.parse("2026-03-18T12:00:00Z"),
+                        ),
+                    ),
                     aiMemorySummary = sampleAiMemory(),
                 )
             },
@@ -51,6 +80,8 @@ class BackupExporterTest {
         assertTrue(backup.manifest.sections.contains("learner_profile"))
         assertTrue(backup.manifest.sections.contains("daily_summary"))
         assertTrue(backup.manifest.sections.contains("weekly_summary"))
+        assertTrue(backup.serializedJson.contains("\"review_stage\":2"))
+        assertTrue(backup.serializedJson.contains("\"scope_type\":\"active_book\""))
         assertFalse(backup.serializedJson.contains("sk-secret"))
     }
 
