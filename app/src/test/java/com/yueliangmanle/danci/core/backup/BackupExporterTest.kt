@@ -102,7 +102,7 @@ class BackupExporterTest {
         val payload = JSONObject(backup.serializedJson)
         val aiMemory = payload.getJSONObject("ai_memory_summary")
 
-        assertEquals(6, backup.manifest.version)
+        assertEquals(BACKUP_VERSION, backup.manifest.version)
         assertTrue(aiMemory.has("checkpoint_summaries"))
         assertTrue(aiMemory.has("analytics_snapshot"))
         assertTrue(aiMemory.has("long_term_insights"))

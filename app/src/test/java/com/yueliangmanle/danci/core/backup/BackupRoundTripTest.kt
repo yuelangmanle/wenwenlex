@@ -333,6 +333,13 @@ class BackupRoundTripTest {
 
     @Test
     fun wordAudioAsset_roundTripsV7SourceFields() {
+        val readableFile = kotlin.io.path.createTempFile(
+            prefix = "wenwenlex-roundtrip-",
+            suffix = ".wav",
+        ).toFile().apply {
+            writeBytes(byteArrayOf(0x01, 0x02, 0x03))
+            deleteOnExit()
+        }
         val entity = WordAudioAssetEntity(
             id = 9,
             wordId = 1,
@@ -344,7 +351,7 @@ class BackupRoundTripTest {
             namespace = "us/mimo/v1",
             assetState = "ready",
             status = "ready",
-            localPath = "/tmp/audio.wav",
+            localPath = readableFile.absolutePath,
         )
 
         val restored = entity.toJson().toWordAudioAssetEntity()
