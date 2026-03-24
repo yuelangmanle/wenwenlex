@@ -52,11 +52,22 @@ interface WordAudioRepository {
         wordId: Long,
         accent: PronunciationAccent,
     ): WordAudioAsset? = null
+    suspend fun findCloudTtsAsset(
+        wordId: Long,
+        accent: PronunciationAccent,
+    ): WordAudioAsset? = null
     suspend fun cacheNativeGeneratedAudio(
         wordId: Long,
         accent: PronunciationAccent,
         normalizedWord: String,
         sourceFile: File,
+        mimeType: String = "audio/wav",
+    ): WordAudioAsset? = null
+    suspend fun cacheCloudTtsAudio(
+        wordId: Long,
+        accent: PronunciationAccent,
+        normalizedWord: String,
+        audioBytes: ByteArray,
         mimeType: String = "audio/wav",
     ): WordAudioAsset? = null
     suspend fun isRemoteLookupCoolingDown(wordId: Long, accent: PronunciationAccent): Boolean
@@ -134,6 +145,31 @@ class RoomWordAudioRepository(
             }
     }
 
+    override suspend fun findCloudTtsAsset(
+        wordId: Long,
+        accent: PronunciationAccent,
+    ): WordAudioAsset? {
+        val candidates = mutableListOf<WordAudioAssetEntity>()
+        dao.findLatestAsset(
+            wordId,
+            accent.storageValue,
+            PlaybackSource.ONLINE_PREBUILT_CACHE.storageValue,
+        )?.let(candidates::add)
+        if (accent != PronunciationAccent.AUTO) {
+            dao.findLatestAsset(
+                wordId,
+                PronunciationAccent.AUTO.storageValue,
+                PlaybackSource.ONLINE_PREBUILT_CACHE.storageValue,
+            )?.let(candidates::add)
+        }
+        return candidates
+            .map(WordAudioAssetEntity::asExternalModel)
+            .firstOrNull { asset ->
+                asset.status == WordAudioAssetStatus.READY.storageValue &&
+                    asset.localPath?.let(::File)?.exists() == true
+            }
+    }
+
     override suspend fun cacheNativeGeneratedAudio(
         wordId: Long,
         accent: PronunciationAccent,
@@ -159,6 +195,44 @@ class RoomWordAudioRepository(
             wordId = wordId,
             accent = accent.storageValue,
             sourceType = PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue,
+            remoteUrl = null,
+            localPath = targetFile.absolutePath,
+            mimeType = mimeType,
+            checksum = checksum,
+            status = WordAudioAssetStatus.READY.storageValue,
+            fetchedAt = nowProvider(),
+            lastPlayedAt = existing?.lastPlayedAt,
+            lastError = null,
+            failureCount = 0,
+        )
+        val insertedId = dao.upsertAsset(entity)
+        return entity.copy(id = insertedId.takeIf { it > 0 } ?: entity.id).asExternalModel()
+    }
+
+    override suspend fun cacheCloudTtsAudio(
+        wordId: Long,
+        accent: PronunciationAccent,
+        normalizedWord: String,
+        audioBytes: ByteArray,
+        mimeType: String,
+    ): WordAudioAsset? {
+        if (normalizedWord.isBlank() || audioBytes.isEmpty()) {
+            return null
+        }
+        val extension = mimeType.substringAfter('/', "wav")
+        val targetFile = buildCloudTtsCacheFile(normalizedWord, accent, extension)
+        targetFile.writeBytes(audioBytes)
+        val checksum = sha256(audioBytes)
+        val existing = dao.findLatestAsset(
+            wordId = wordId,
+            accent = accent.storageValue,
+            sourceType = PlaybackSource.ONLINE_PREBUILT_CACHE.storageValue,
+        )
+        val entity = WordAudioAssetEntity(
+            id = existing?.id ?: 0L,
+            wordId = wordId,
+            accent = accent.storageValue,
+            sourceType = PlaybackSource.ONLINE_PREBUILT_CACHE.storageValue,
             remoteUrl = null,
             localPath = targetFile.absolutePath,
             mimeType = mimeType,
@@ -357,6 +431,20 @@ class RoomWordAudioRepository(
         val target = File(
             appContext.filesDir,
             "audio-cache/generated/${accent.storageValue}/$normalizedWord.wav",
+        )
+        target.parentFile?.mkdirs()
+        return target
+    }
+
+    private fun buildCloudTtsCacheFile(
+        normalizedWord: String,
+        accent: PronunciationAccent,
+        extension: String,
+    ): File {
+        val safeExtension = extension.lowercase().ifBlank { "wav" }
+        val target = File(
+            appContext.filesDir,
+            "audio-cache/cloud-tts/${accent.storageValue}/$normalizedWord.$safeExtension",
         )
         target.parentFile?.mkdirs()
         return target

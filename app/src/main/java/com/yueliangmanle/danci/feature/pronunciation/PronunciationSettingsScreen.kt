@@ -35,6 +35,7 @@ fun PronunciationSettingsScreen(
     onClearCacheClick: () -> Unit,
     onOpenAudioCacheManagementClick: () -> Unit,
     onOpenAudioTaskCenterClick: () -> Unit,
+    onOpenCloudTtsSettingsClick: () -> Unit,
     onActivateVoicePack: (String) -> Unit,
     onDownloadVoicePack: (String) -> Unit,
     onRemoveVoicePack: (String) -> Unit,
@@ -173,6 +174,25 @@ fun PronunciationSettingsScreen(
                             onRemove = { onRemoveVoicePack(pack.id) },
                         )
                     }
+                }
+            }
+        }
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text("云端 TTS", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "可接入云端 TTS API，在词典发音失败时实时生成音频，并写入本地缓存。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedButton(
+                    onClick = onOpenCloudTtsSettingsClick,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("进入云端 TTS 设置")
                 }
             }
         }

@@ -25,6 +25,8 @@ import com.yueliangmanle.danci.feature.pronunciation.AUDIO_CACHE_MANAGEMENT_ROUT
 import com.yueliangmanle.danci.feature.pronunciation.AudioCacheManagementRoute
 import com.yueliangmanle.danci.feature.pronunciation.AUDIO_TASK_CENTER_ROUTE
 import com.yueliangmanle.danci.feature.pronunciation.AudioTaskCenterRoute
+import com.yueliangmanle.danci.feature.pronunciation.CLOUD_TTS_SETTINGS_ROUTE
+import com.yueliangmanle.danci.feature.pronunciation.CloudTtsSettingsRoute
 import com.yueliangmanle.danci.feature.pronunciation.PRONUNCIATION_SETTINGS_ROUTE
 import com.yueliangmanle.danci.feature.pronunciation.PronunciationSettingsRoute
 import com.yueliangmanle.danci.feature.quiz.QuizRoute
@@ -149,7 +151,13 @@ fun DanciNavHost(
                 onOpenAudioTaskCenterClick = {
                     navController.navigate(AUDIO_TASK_CENTER_ROUTE)
                 },
+                onOpenCloudTtsSettingsClick = {
+                    navController.navigate(CLOUD_TTS_SETTINGS_ROUTE)
+                },
             )
+        }
+        composable(route = CLOUD_TTS_SETTINGS_ROUTE) {
+            CloudTtsSettingsRoute()
         }
         composable(route = AUDIO_CACHE_MANAGEMENT_ROUTE) {
             AudioCacheManagementRoute()

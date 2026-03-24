@@ -9,13 +9,16 @@ import com.yueliangmanle.danci.core.data.buildSettingsRepository
 import com.yueliangmanle.danci.core.data.buildVoicePackRepository
 import com.yueliangmanle.danci.core.data.buildWordAudioRepository
 import com.yueliangmanle.danci.core.data.buildWordRepository
+import com.yueliangmanle.danci.core.model.buildCachedCloudTtsStatusMessage
 import com.yueliangmanle.danci.core.model.buildCachedDictionaryStatusMessage
+import com.yueliangmanle.danci.core.model.buildCloudTtsStatusMessage
 import com.yueliangmanle.danci.core.model.buildRemoteDictionaryStatusMessage
 import com.yueliangmanle.danci.core.model.PlaybackResult
 import com.yueliangmanle.danci.core.model.PlaybackSource
 import com.yueliangmanle.danci.core.model.PronunciationAccent
 import com.yueliangmanle.danci.core.model.PronunciationMode
 import com.yueliangmanle.danci.core.model.Word
+import com.yueliangmanle.danci.core.security.buildAiCredentialStore
 
 class PronunciationOrchestrator(
     private val settingsRepository: SettingsRepository,
@@ -24,6 +27,7 @@ class PronunciationOrchestrator(
     private val dictionaryAudioService: DictionaryAudioService,
     private val offlineTtsEngine: OfflineTtsEngine,
     private val systemTtsEngine: SystemTtsEngine,
+    private val cloudTtsEngine: CloudTtsEngineContract = NoOpCloudTtsEngine,
     private val telemetryRecorder: PlaybackTelemetryRecorder,
     private val audioPlayer: suspend (String?) -> Boolean = ::playAudioFile,
 ) {
@@ -161,6 +165,48 @@ class PronunciationOrchestrator(
             playOfflineIfAvailable()?.let { return it }
         }
 
+        wordAudioRepository.findCloudTtsAsset(word.id, accent)?.let { asset ->
+            val resolvedAccent = PronunciationAccent.fromStorageValue(asset.accent)
+            if (audioPlayer(asset.localPath)) {
+                wordAudioRepository.markPlayed(asset)
+                telemetryRecorder.recordWordPlayback(
+                    wordId = word.id,
+                    source = PlaybackSource.ONLINE_PREBUILT_CACHE,
+                    accent = resolvedAccent,
+                    contextLabel = contextLabel,
+                    success = true,
+                )
+                return PlaybackResult(
+                    success = true,
+                    source = PlaybackSource.ONLINE_PREBUILT_CACHE,
+                    accent = resolvedAccent,
+                    statusMessage = buildCachedCloudTtsStatusMessage(),
+                )
+            }
+        }
+
+        cloudTtsEngine.synthesizeWord(word, accent)?.let { asset ->
+            val resolvedAccent = PronunciationAccent.fromStorageValue(asset.accent)
+            if (audioPlayer(asset.localPath)) {
+                wordAudioRepository.markPlayed(asset)
+                telemetryRecorder.recordWordPlayback(
+                    wordId = word.id,
+                    source = PlaybackSource.CLOUD_TTS_REMOTE,
+                    accent = resolvedAccent,
+                    contextLabel = contextLabel,
+                    success = true,
+                )
+                return PlaybackResult(
+                    success = true,
+                    source = PlaybackSource.CLOUD_TTS_REMOTE,
+                    accent = resolvedAccent,
+                    statusMessage = buildCloudTtsStatusMessage(
+                        providerLabel = cloudTtsProviderLabel(settings.defaultCloudTtsProviderId),
+                    ),
+                )
+            }
+        }
+
         if (settings.fallbackToSystemTts && systemTtsEngine.speak(word.lemma, accent)) {
             telemetryRecorder.recordWordPlayback(
                 wordId = word.id,
@@ -204,10 +250,11 @@ class PronunciationOrchestrator(
 fun buildPronunciationOrchestrator(context: Context): PronunciationOrchestrator {
     val appContext = context.applicationContext
     val systemTtsEngine = SystemTtsEngine(appContext)
+    val settingsRepository = buildSettingsRepository(appContext)
     val voicePackRepository = buildVoicePackRepository(appContext)
     val wordAudioRepository = buildWordAudioRepository(appContext)
     return PronunciationOrchestrator(
-        settingsRepository = buildSettingsRepository(appContext),
+        settingsRepository = settingsRepository,
         wordRepository = buildWordRepository(appContext),
         wordAudioRepository = wordAudioRepository,
         dictionaryAudioService = DictionaryAudioService(),
@@ -221,6 +268,20 @@ fun buildPronunciationOrchestrator(context: Context): PronunciationOrchestrator 
             ),
         ),
         systemTtsEngine = systemTtsEngine,
+        cloudTtsEngine = CloudTtsEngine(
+            settingsRepository = settingsRepository,
+            credentialStore = buildAiCredentialStore(appContext),
+            wordAudioRepository = wordAudioRepository,
+            registry = CloudTtsProviderRegistry(
+                providers = listOf(MiMoCloudTtsProvider()),
+            ),
+        ),
         telemetryRecorder = PlaybackTelemetryRecorder(buildAiMemoryRepository(appContext)),
     )
 }
+
+private fun cloudTtsProviderLabel(providerId: String?): String =
+    when (providerId) {
+        "mimo" -> "MiMo"
+        else -> "云端 TTS"
+    }

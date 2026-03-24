@@ -136,10 +136,60 @@ class PronunciationOrchestratorTest {
         assertEquals(1, dictionaryAudioService.resolveCalls)
         assertEquals(remoteAsset, wordAudioRepository.markedPlayed.single())
     }
+
+    @Test
+    fun orchestratorUsesCloudTtsWhenDictionaryUnavailable() = runTest {
+        val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val word = Word(id = 77L, lemma = "abandon")
+        val cloudAsset = WordAudioAsset(
+            id = 3L,
+            wordId = word.id,
+            accent = PronunciationAccent.US.storageValue,
+            sourceType = PlaybackSource.ONLINE_PREBUILT_CACHE.storageValue,
+            localPath = "/tmp/cloud-tts.wav",
+            status = WordAudioAssetStatus.READY.storageValue,
+        )
+        val wordAudioRepository = FakeOrchestratorWordAudioRepository(
+            nativeGeneratedAsset = null,
+            dictionaryAssetsByUrl = emptyMap(),
+            cloudAssetToCache = cloudAsset,
+        )
+        val systemTtsEngine = SystemTtsEngine(appContext)
+        val orchestrator = PronunciationOrchestrator(
+            settingsRepository = FakeOrchestratorSettingsRepository(
+                AppSettings(
+                    defaultCloudTtsProviderId = "mimo",
+                    defaultCloudTtsPresetId = "default_en",
+                ),
+            ),
+            wordRepository = FakeOrchestratorWordRepository(word),
+            wordAudioRepository = wordAudioRepository,
+            dictionaryAudioService = CountingDictionaryAudioService(),
+            offlineTtsEngine = OfflineTtsEngine(
+                voicePackRepository = FakeOrchestratorVoicePackRepository(),
+                bridgeSpeaker = systemTtsEngine,
+            ),
+            systemTtsEngine = systemTtsEngine,
+            cloudTtsEngine = FakeOrchestratorCloudTtsEngine(cloudAsset),
+            telemetryRecorder = PlaybackTelemetryRecorder(NoOpStudyEventRecorder),
+            audioPlayer = { true },
+        )
+
+        val result = orchestrator.playWord(
+            word = word,
+            accentOverride = PronunciationAccent.US,
+        )
+
+        assertEquals(PlaybackSource.CLOUD_TTS_REMOTE, result.source)
+        assertEquals("已通过 MiMo 云端 TTS 生成音频。", result.statusMessage)
+        assertEquals(cloudAsset, wordAudioRepository.markedPlayed.single())
+    }
 }
 
-private class FakeOrchestratorSettingsRepository : SettingsRepository {
-    private val state = MutableStateFlow(AppSettings())
+private class FakeOrchestratorSettingsRepository(
+    initial: AppSettings = AppSettings(),
+) : SettingsRepository {
+    private val state = MutableStateFlow(initial)
 
     override val settings: Flow<AppSettings> = state
 
@@ -190,6 +240,7 @@ private class FakeOrchestratorWordRepository(
 private class FakeOrchestratorWordAudioRepository(
     private val nativeGeneratedAsset: WordAudioAsset?,
     private val dictionaryAssetsByUrl: Map<String, WordAudioAsset> = emptyMap(),
+    private val cloudAssetToCache: WordAudioAsset? = null,
 ) : WordAudioRepository {
     val markedPlayed = mutableListOf<WordAudioAsset>()
     val cachedCandidateUrls = mutableListOf<String>()
@@ -217,6 +268,19 @@ private class FakeOrchestratorWordAudioRepository(
         return dictionaryAssetsByUrl[candidate.url]
     }
 
+    override suspend fun findCloudTtsAsset(
+        wordId: Long,
+        accent: PronunciationAccent,
+    ): WordAudioAsset? = null
+
+    override suspend fun cacheCloudTtsAudio(
+        wordId: Long,
+        accent: PronunciationAccent,
+        normalizedWord: String,
+        audioBytes: ByteArray,
+        mimeType: String,
+    ): WordAudioAsset? = cloudAssetToCache
+
     override suspend fun markRemoteLookupFailure(
         wordId: Long,
         accent: PronunciationAccent,
@@ -230,6 +294,15 @@ private class FakeOrchestratorWordAudioRepository(
     override suspend fun clearDictionaryCache(): Int = 0
 
     override suspend fun cacheSizeBytes(): Long = 0L
+}
+
+private class FakeOrchestratorCloudTtsEngine(
+    private val asset: WordAudioAsset,
+) : CloudTtsEngineContract {
+    override suspend fun synthesizeWord(
+        word: Word,
+        accent: PronunciationAccent,
+    ): WordAudioAsset? = asset
 }
 
 private class FakeOrchestratorVoicePackRepository : VoicePackRepository {

@@ -34,7 +34,8 @@ enum class PlaybackSource(
     DICTIONARY_REMOTE("dictionary_remote", "在线词典音频"),
     OFFLINE_NATIVE_CACHE("offline_native_cache", "离线原生缓存音频"),
     OFFLINE_NATIVE_GENERATED("offline_native_generated", "离线原生生成音频"),
-    ONLINE_PREBUILT_CACHE("online_prebuilt_cache", "在线预生成缓存音频"),
+    CLOUD_TTS_REMOTE("cloud_tts_remote", "云端 TTS 实时生成音频"),
+    ONLINE_PREBUILT_CACHE("online_prebuilt_cache", "云端 TTS 缓存音频"),
     OFFLINE_TTS("offline_tts", "离线语音包朗读"),
     SYSTEM_TTS("system_tts", "系统朗读");
 
@@ -119,3 +120,9 @@ fun buildRemoteDictionaryStatusMessage(
 
 fun buildCachedDictionaryStatusMessage(accent: PronunciationAccent): String =
     "已播放缓存${accent.label}词典音频。"
+
+fun buildCloudTtsStatusMessage(providerLabel: String): String =
+    "已通过 $providerLabel 云端 TTS 生成音频。"
+
+fun buildCachedCloudTtsStatusMessage(): String =
+    "已播放云端 TTS 缓存音频。"

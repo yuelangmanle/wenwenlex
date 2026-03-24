@@ -34,6 +34,10 @@ data class AppSettings(
     val autoCacheWordAudio: Boolean = true,
     val audioCacheLimitMb: Int = DEFAULT_AUDIO_CACHE_LIMIT_MB,
     val activeVoicePackId: String? = null,
+    val defaultCloudTtsProviderId: String? = null,
+    val defaultCloudTtsPresetId: String? = null,
+    val cloudTtsBaseUrl: String = DEFAULT_CLOUD_TTS_BASE_URL,
+    val cloudTtsModel: String = DEFAULT_CLOUD_TTS_MODEL,
     val fallbackToSystemTts: Boolean = true,
     val preferOfflineForLongText: Boolean = true,
     val reminderEnabled: Boolean = false,
@@ -80,6 +84,14 @@ interface SettingsRepository {
 
     suspend fun updateActiveVoicePackId(voicePackId: String?)
 
+    suspend fun updateDefaultCloudTtsProviderId(providerId: String?) = Unit
+
+    suspend fun updateDefaultCloudTtsPresetId(presetId: String?) = Unit
+
+    suspend fun updateCloudTtsBaseUrl(baseUrl: String) = Unit
+
+    suspend fun updateCloudTtsModel(model: String) = Unit
+
     suspend fun updateFallbackToSystemTts(enabled: Boolean)
 
     suspend fun updatePreferOfflineForLongText(enabled: Boolean)
@@ -111,6 +123,10 @@ private object SettingsPreferencesKeys {
     val autoCacheWordAudio = booleanPreferencesKey("auto_cache_word_audio")
     val audioCacheLimitMb = intPreferencesKey("audio_cache_limit_mb")
     val activeVoicePackId = stringPreferencesKey("active_voice_pack_id")
+    val defaultCloudTtsProviderId = stringPreferencesKey("default_cloud_tts_provider_id")
+    val defaultCloudTtsPresetId = stringPreferencesKey("default_cloud_tts_preset_id")
+    val cloudTtsBaseUrl = stringPreferencesKey("cloud_tts_base_url")
+    val cloudTtsModel = stringPreferencesKey("cloud_tts_model")
     val fallbackToSystemTts = booleanPreferencesKey("fallback_to_system_tts")
     val preferOfflineForLongText = booleanPreferencesKey("prefer_offline_for_long_text")
     val reminderEnabled = booleanPreferencesKey("reminder_enabled")
@@ -141,6 +157,10 @@ class DataStoreSettingsRepository(
                 autoCacheWordAudio = preferences[SettingsPreferencesKeys.autoCacheWordAudio] ?: true,
                 audioCacheLimitMb = preferences[SettingsPreferencesKeys.audioCacheLimitMb] ?: DEFAULT_AUDIO_CACHE_LIMIT_MB,
                 activeVoicePackId = preferences[SettingsPreferencesKeys.activeVoicePackId],
+                defaultCloudTtsProviderId = preferences[SettingsPreferencesKeys.defaultCloudTtsProviderId],
+                defaultCloudTtsPresetId = preferences[SettingsPreferencesKeys.defaultCloudTtsPresetId],
+                cloudTtsBaseUrl = preferences[SettingsPreferencesKeys.cloudTtsBaseUrl] ?: DEFAULT_CLOUD_TTS_BASE_URL,
+                cloudTtsModel = preferences[SettingsPreferencesKeys.cloudTtsModel] ?: DEFAULT_CLOUD_TTS_MODEL,
                 fallbackToSystemTts = preferences[SettingsPreferencesKeys.fallbackToSystemTts] ?: true,
                 preferOfflineForLongText = preferences[SettingsPreferencesKeys.preferOfflineForLongText] ?: true,
                 reminderEnabled = preferences[SettingsPreferencesKeys.reminderEnabled] ?: false,
@@ -249,6 +269,28 @@ class DataStoreSettingsRepository(
         updateNullableString(SettingsPreferencesKeys.activeVoicePackId, voicePackId)
     }
 
+    override suspend fun updateDefaultCloudTtsProviderId(providerId: String?) {
+        updateNullableString(SettingsPreferencesKeys.defaultCloudTtsProviderId, providerId)
+    }
+
+    override suspend fun updateDefaultCloudTtsPresetId(presetId: String?) {
+        updateNullableString(SettingsPreferencesKeys.defaultCloudTtsPresetId, presetId)
+    }
+
+    override suspend fun updateCloudTtsBaseUrl(baseUrl: String) {
+        dataStore.edit { preferences ->
+            preferences[SettingsPreferencesKeys.cloudTtsBaseUrl] =
+                baseUrl.ifBlank { DEFAULT_CLOUD_TTS_BASE_URL }
+        }
+    }
+
+    override suspend fun updateCloudTtsModel(model: String) {
+        dataStore.edit { preferences ->
+            preferences[SettingsPreferencesKeys.cloudTtsModel] =
+                model.ifBlank { DEFAULT_CLOUD_TTS_MODEL }
+        }
+    }
+
     override suspend fun updateFallbackToSystemTts(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[SettingsPreferencesKeys.fallbackToSystemTts] = enabled
@@ -301,5 +343,7 @@ fun AppSettings.asAiRuntimeSettings(apiKey: String? = null): AiRuntimeSettings =
 
 const val DEFAULT_AI_BASE_URL = "https://api.openai.com/v1"
 const val DEFAULT_AI_MODEL = "gpt-5-mini"
+const val DEFAULT_CLOUD_TTS_BASE_URL = "https://api.xiaomimimo.com/v1"
+const val DEFAULT_CLOUD_TTS_MODEL = "mimo-v2-tts"
 const val DEFAULT_REMINDER_HOUR = 21
 const val DEFAULT_REMINDER_MINUTE = 0

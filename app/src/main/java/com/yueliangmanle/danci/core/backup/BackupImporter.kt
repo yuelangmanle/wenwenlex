@@ -108,6 +108,12 @@ internal fun JSONObject.toAppSettings(): AppSettings =
             com.yueliangmanle.danci.core.model.DEFAULT_AUDIO_CACHE_LIMIT_MB,
         ),
         activeVoicePackId = optNullableString("active_voice_pack_id"),
+        defaultCloudTtsProviderId = optNullableString("default_cloud_tts_provider_id"),
+        defaultCloudTtsPresetId = optNullableString("default_cloud_tts_preset_id"),
+        cloudTtsBaseUrl = optNullableString("cloud_tts_base_url")
+            ?: com.yueliangmanle.danci.core.data.DEFAULT_CLOUD_TTS_BASE_URL,
+        cloudTtsModel = optNullableString("cloud_tts_model")
+            ?: com.yueliangmanle.danci.core.data.DEFAULT_CLOUD_TTS_MODEL,
         fallbackToSystemTts = optBoolean("fallback_to_system_tts", true),
         preferOfflineForLongText = optBoolean("prefer_offline_for_long_text", true),
         reminderEnabled = optBoolean("reminder_enabled", false),
