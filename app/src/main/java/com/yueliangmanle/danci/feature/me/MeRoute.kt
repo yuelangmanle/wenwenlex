@@ -13,6 +13,7 @@ import com.yueliangmanle.danci.core.data.buildAiProfileRepository
 import com.yueliangmanle.danci.core.data.buildBackupRepository
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
 import com.yueliangmanle.danci.core.database.buildDanciDatabase
+import com.yueliangmanle.danci.core.database.toUserFacingLoadMessage
 import com.yueliangmanle.danci.core.worker.DailyReminderScheduler
 import kotlinx.coroutines.launch
 
@@ -25,27 +26,35 @@ fun MeRoute(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val viewModel = remember(context) {
-        MeViewModel(
-            settingsRepository = buildSettingsRepository(context),
-            aiProfileRepository = buildAiProfileRepository(context),
-            backupRepository = buildBackupRepository(context),
-            studyRepository = RoomStudyRepository(buildDanciDatabase(context).studyDao()),
-            reminderScheduler = DailyReminderScheduler(context),
-        )
-    }
+    var viewModel: MeViewModel? by remember(context) { mutableStateOf(null) }
     var state by remember {
         mutableStateOf(MeUiState(isLoading = true))
     }
 
-    LaunchedEffect(viewModel) {
-        state = viewModel.loadUiState()
+    LaunchedEffect(context) {
+        state = runCatching {
+            val loadedViewModel = MeViewModel(
+                settingsRepository = buildSettingsRepository(context),
+                aiProfileRepository = buildAiProfileRepository(context),
+                backupRepository = buildBackupRepository(context),
+                studyRepository = RoomStudyRepository(buildDanciDatabase(context).studyDao()),
+                reminderScheduler = DailyReminderScheduler(context),
+            )
+            viewModel = loadedViewModel
+            loadedViewModel.loadUiState()
+        }.getOrElse { error ->
+            MeUiState(
+                isLoading = false,
+                statusMessage = error.toUserFacingLoadMessage("我的页面"),
+            )
+        }
     }
 
     fun launchAction(action: suspend MeViewModel.() -> MeUiState) {
         scope.launch {
+            val currentViewModel = viewModel ?: return@launch
             state = state.copy(isWorking = true, statusMessage = null)
-            state = runCatching { viewModel.action() }.getOrElse { error ->
+            state = runCatching { currentViewModel.action() }.getOrElse { error ->
                 state.copy(
                     isWorking = false,
                     statusMessage = error.message ?: "操作失败，请稍后重试。",

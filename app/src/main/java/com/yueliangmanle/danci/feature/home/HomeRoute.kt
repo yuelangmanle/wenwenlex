@@ -10,6 +10,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.yueliangmanle.danci.core.ai.buildAiStrategyCoordinator
 import com.yueliangmanle.danci.core.ai.loadCurrentPlanSnapshot
+import com.yueliangmanle.danci.core.database.toUserFacingLoadMessage
 import kotlinx.coroutines.launch
 
 @Composable
@@ -39,7 +40,7 @@ fun HomeRoute(
                 headline = "首页暂时没有加载出来",
                 aiSuggestionTitle = "加载失败",
                 aiSuggestion = "可以稍后重试，或先切到其他页面继续操作。",
-                errorMessage = error.message ?: "首页加载失败，请稍后重试。",
+                errorMessage = error.toUserFacingLoadMessage("首页"),
             )
         }
     }

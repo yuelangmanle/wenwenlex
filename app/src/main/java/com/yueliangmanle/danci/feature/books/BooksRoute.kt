@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import com.yueliangmanle.danci.core.database.toUserFacingLoadMessage
 
 @Composable
 fun BooksRoute(
@@ -25,7 +26,7 @@ fun BooksRoute(
         }.getOrElse { error ->
             BooksUiState(
                 statusMessage = "词书页加载失败，可以稍后重试。",
-                errorMessage = error.message ?: "词书页加载失败，请稍后重试。",
+                errorMessage = error.toUserFacingLoadMessage("词书页"),
             )
         }
     }

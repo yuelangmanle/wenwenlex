@@ -11,6 +11,7 @@ import com.yueliangmanle.danci.core.ai.resolveRuntimeSettingsForCapability
 import com.yueliangmanle.danci.core.ai.buildAiStrategyCoordinator
 import com.yueliangmanle.danci.core.ai.loadCurrentPlanSnapshot
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
+import com.yueliangmanle.danci.core.database.toUserFacingLoadMessage
 import com.yueliangmanle.danci.core.model.AiCapability
 import com.yueliangmanle.danci.core.pronunciation.buildPronunciationOrchestrator
 import com.yueliangmanle.danci.core.study.StudyLaunchMode
@@ -45,10 +46,22 @@ fun StudyRoute(
     androidx.compose.runtime.LaunchedEffect(context, launchMode) {
         resolvedMode = launchMode
         state = StudyUiState(sessionTitle = sessionLabel)
-        val loaded = loadStudyViewModel(context, launchMode)
-        viewModel = loaded.viewModel
-        resolvedMode = loaded.resolvedMode
-        state = loaded.viewModel.buildUiState().copy(sessionTitle = sessionLabelFor(loaded.resolvedMode))
+        runCatching {
+            val loaded = loadStudyViewModel(context, launchMode)
+            viewModel = loaded.viewModel
+            resolvedMode = loaded.resolvedMode
+            loaded.viewModel.buildUiState().copy(sessionTitle = sessionLabelFor(loaded.resolvedMode))
+        }.onSuccess { loadedState ->
+            state = loadedState
+        }.onFailure { error ->
+            state = StudyUiState(
+                sessionTitle = sessionLabel,
+                currentWord = "学习页暂时没有加载出来",
+                meanings = listOf("可以先回首页或词书页继续操作。"),
+                isLoadingQueue = false,
+                errorMessage = error.toUserFacingLoadMessage("学习页"),
+            )
+        }
     }
 
     StudyScreen(
