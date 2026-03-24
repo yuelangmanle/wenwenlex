@@ -624,7 +624,7 @@ private fun tableColumns(
     return columns
 }
 
-private const val CREATE_STUDY_SESSIONS_TABLE_SQL =
+private val CREATE_STUDY_SESSIONS_TABLE_SQL =
     """
     CREATE TABLE IF NOT EXISTS study_sessions (
         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -644,7 +644,7 @@ private const val CREATE_STUDY_SESSIONS_TABLE_SQL =
     )
     """.trimIndent()
 
-private const val CREATE_LEARNING_RECORDS_TABLE_SQL =
+private val CREATE_LEARNING_RECORDS_TABLE_SQL =
     """
     CREATE TABLE IF NOT EXISTS learning_records (
         wordId INTEGER NOT NULL,
@@ -670,7 +670,7 @@ private const val CREATE_LEARNING_RECORDS_TABLE_SQL =
     )
     """.trimIndent()
 
-private const val CREATE_LEARNER_PROFILES_TABLE_SQL =
+private val CREATE_LEARNER_PROFILES_TABLE_SQL =
     """
     CREATE TABLE IF NOT EXISTS learner_profiles (
         profileId TEXT NOT NULL,
@@ -683,7 +683,7 @@ private const val CREATE_LEARNER_PROFILES_TABLE_SQL =
     )
     """.trimIndent()
 
-private const val CREATE_PLAN_HISTORY_TABLE_SQL =
+private val CREATE_PLAN_HISTORY_TABLE_SQL =
     """
     CREATE TABLE IF NOT EXISTS plan_history (
         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -695,7 +695,7 @@ private const val CREATE_PLAN_HISTORY_TABLE_SQL =
     )
     """.trimIndent()
 
-private const val CREATE_WORD_AUDIO_ASSETS_TABLE_SQL =
+private val CREATE_WORD_AUDIO_ASSETS_TABLE_SQL =
     """
     CREATE TABLE IF NOT EXISTS word_audio_assets (
         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -715,7 +715,7 @@ private const val CREATE_WORD_AUDIO_ASSETS_TABLE_SQL =
     )
     """.trimIndent()
 
-private const val CREATE_VOICE_PACKS_TABLE_SQL =
+private val CREATE_VOICE_PACKS_TABLE_SQL =
     """
     CREATE TABLE IF NOT EXISTS voice_packs (
         id TEXT NOT NULL PRIMARY KEY,
@@ -736,7 +736,7 @@ private const val CREATE_VOICE_PACKS_TABLE_SQL =
     )
     """.trimIndent()
 
-private const val CREATE_IMPORT_BATCHES_TABLE_SQL =
+private val CREATE_IMPORT_BATCHES_TABLE_SQL =
     """
     CREATE TABLE IF NOT EXISTS import_batches (
         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -753,7 +753,7 @@ private const val CREATE_IMPORT_BATCHES_TABLE_SQL =
     )
     """.trimIndent()
 
-private const val CREATE_AUDIO_GENERATION_JOBS_TABLE_SQL =
+private val CREATE_AUDIO_GENERATION_JOBS_TABLE_SQL =
     """
     CREATE TABLE IF NOT EXISTS audio_generation_jobs (
         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
