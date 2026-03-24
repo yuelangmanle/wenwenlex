@@ -24,7 +24,7 @@ fun stringPropertyOrEnv(propertyName: String, envName: String): String? {
         ?: System.getenv(envName)?.takeIf { it.isNotBlank() }
 }
 
-val appVersionName = providers.gradleProperty("appVersionName").orElse("1.9").get()
+val appVersionName = providers.gradleProperty("appVersionName").orElse("2.0").get()
 val (majorVersion, minorVersion) = parseAppVersion(appVersionName)
 val appVersionCode = majorVersion * 100 + minorVersion * 10
 val releaseStoreFilePath = stringPropertyOrEnv("releaseStoreFile", "ANDROID_RELEASE_KEYSTORE_PATH")
