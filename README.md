@@ -5,6 +5,7 @@
 ## 当前状态
 
 - 当前正式版本：`1.3`
+- 当前开发主线：`1.9` 学习流与音频基础设施收口
 - 版本规则：每次迭代递增 `0.1`，按 `1.0 -> 1.1 -> ... -> 1.9 -> 2.0` 进位
 - 正式发包界面：[GitHub Releases](https://github.com/yuelangmanle/wenwenlex/releases)
 - 开发验证界面：[GitHub Actions](https://github.com/yuelangmanle/wenwenlex/actions)
@@ -70,6 +71,17 @@
 - native 语音包正式分发链路已接入，GitHub Release 会同时上传 zip、manifest 和 checksum 资产
 - `Android CI` / `Android Release` 已接入 native 语音包发布资产自检，避免 catalog 与 Release 资产脱节
 - 当前 native 语音包依然先发 scaffold 包，用于正式分发、安装校验与链路联调；真实模型资产将在后续版本替换
+
+## 当前开发中的 1.9 主线
+
+以下能力已在仓库主线完成，等待最终收口和正式发版：
+
+- 学习首页三个入口已改为由真实学习记录驱动：新词、复习、最近错词各走各自队列
+- 音频缓存管理页已上线，可按来源查看占用并执行清理
+- 音频任务中心已上线，可创建在线词典、云端 TTS、本地离线三类后台缓存任务
+- 云端 TTS 已接入当前发音回退链路，并提供独立设置页
+- 语音包下载已支持取消、断点续传、失败分类和备用下载源切换
+- 词包 manifest 已支持多下载源定义，当前默认保留 `latest` 与固定 `v1.3` Release 两条路径
 
 ## 后续增强方向
 
