@@ -23,6 +23,8 @@ import com.yueliangmanle.danci.feature.me.AI_SETTINGS_ROUTE
 import com.yueliangmanle.danci.feature.me.MeRoute
 import com.yueliangmanle.danci.feature.pronunciation.AUDIO_CACHE_MANAGEMENT_ROUTE
 import com.yueliangmanle.danci.feature.pronunciation.AudioCacheManagementRoute
+import com.yueliangmanle.danci.feature.pronunciation.AUDIO_TASK_CENTER_ROUTE
+import com.yueliangmanle.danci.feature.pronunciation.AudioTaskCenterRoute
 import com.yueliangmanle.danci.feature.pronunciation.PRONUNCIATION_SETTINGS_ROUTE
 import com.yueliangmanle.danci.feature.pronunciation.PronunciationSettingsRoute
 import com.yueliangmanle.danci.feature.quiz.QuizRoute
@@ -144,10 +146,16 @@ fun DanciNavHost(
                 onOpenAudioCacheManagementClick = {
                     navController.navigate(AUDIO_CACHE_MANAGEMENT_ROUTE)
                 },
+                onOpenAudioTaskCenterClick = {
+                    navController.navigate(AUDIO_TASK_CENTER_ROUTE)
+                },
             )
         }
         composable(route = AUDIO_CACHE_MANAGEMENT_ROUTE) {
             AudioCacheManagementRoute()
+        }
+        composable(route = AUDIO_TASK_CENTER_ROUTE) {
+            AudioTaskCenterRoute()
         }
         composable(route = BOOK_IMPORT_ROUTE) {
             BookImportRoute(

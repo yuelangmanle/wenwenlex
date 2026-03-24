@@ -16,6 +16,7 @@ const val PRONUNCIATION_SETTINGS_ROUTE = "pronunciation_settings"
 @Composable
 fun PronunciationSettingsRoute(
     onOpenAudioCacheManagementClick: () -> Unit = {},
+    onOpenAudioTaskCenterClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -92,6 +93,7 @@ fun PronunciationSettingsRoute(
             launchAction { clearDictionaryCache() }
         },
         onOpenAudioCacheManagementClick = onOpenAudioCacheManagementClick,
+        onOpenAudioTaskCenterClick = onOpenAudioTaskCenterClick,
         onActivateVoicePack = { packId ->
             launchAction { activateVoicePack(packId) }
         },

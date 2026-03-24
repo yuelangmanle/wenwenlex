@@ -9,6 +9,7 @@ import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.yueliangmanle.danci.core.database.dao.AiProviderProfileDao
+import com.yueliangmanle.danci.core.database.dao.AudioGenerationJobDao
 import com.yueliangmanle.danci.core.database.dao.BookDao
 import com.yueliangmanle.danci.core.database.dao.ImportBatchDao
 import com.yueliangmanle.danci.core.database.dao.PhoneticEnrichmentJobDao
@@ -17,6 +18,7 @@ import com.yueliangmanle.danci.core.database.dao.VoicePackDao
 import com.yueliangmanle.danci.core.database.dao.WordDao
 import com.yueliangmanle.danci.core.database.dao.WordAudioAssetDao
 import com.yueliangmanle.danci.core.database.entity.AiProviderProfileEntity
+import com.yueliangmanle.danci.core.database.entity.AudioGenerationJobEntity
 import com.yueliangmanle.danci.core.database.entity.BookEntity
 import com.yueliangmanle.danci.core.database.entity.BookWordEntity
 import com.yueliangmanle.danci.core.database.entity.ConfusionEdgeEntity
@@ -48,18 +50,20 @@ import java.time.Instant
         PlanHistoryEntity::class,
         ConfusionEdgeEntity::class,
         AiProviderProfileEntity::class,
+        AudioGenerationJobEntity::class,
         ImportBatchEntity::class,
         PhoneticEnrichmentJobEntity::class,
         WordAudioAssetEntity::class,
         VoicePackEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 @TypeConverters(DanciTypeConverters::class)
 abstract class DanciDatabase : RoomDatabase() {
     abstract fun wordDao(): WordDao
     abstract fun wordAudioAssetDao(): WordAudioAssetDao
+    abstract fun audioGenerationJobDao(): AudioGenerationJobDao
     abstract fun bookDao(): BookDao
     abstract fun studyDao(): StudyDao
     abstract fun aiProviderProfileDao(): AiProviderProfileDao
@@ -86,6 +90,7 @@ fun buildDanciDatabase(context: Context): DanciDatabase {
             .addMigrations(MIGRATION_1_2)
             .addMigrations(MIGRATION_2_3)
             .addMigrations(MIGRATION_3_4)
+            .addMigrations(MIGRATION_4_5)
             .build().also { database ->
             DanciDatabaseHolder.instance = database
         }
@@ -230,6 +235,29 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
         db.execSQL("ALTER TABLE study_sessions ADD COLUMN scopeRef TEXT")
         db.execSQL("ALTER TABLE study_sessions ADD COLUMN groupSize INTEGER NOT NULL DEFAULT 5")
         db.execSQL("ALTER TABLE study_sessions ADD COLUMN currentGroupIndex INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS audio_generation_jobs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                jobType TEXT NOT NULL,
+                sourceType TEXT NOT NULL,
+                scopeType TEXT NOT NULL,
+                scopeRef TEXT NOT NULL,
+                status TEXT NOT NULL,
+                totalCount INTEGER NOT NULL DEFAULT 0,
+                completedCount INTEGER NOT NULL DEFAULT 0,
+                failedCount INTEGER NOT NULL DEFAULT 0,
+                createdAt INTEGER NOT NULL,
+                updatedAt INTEGER NOT NULL,
+                lastError TEXT
+            )
+            """.trimIndent(),
+        )
     }
 }
 

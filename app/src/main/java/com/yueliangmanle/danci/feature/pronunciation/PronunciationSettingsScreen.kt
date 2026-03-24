@@ -34,6 +34,7 @@ fun PronunciationSettingsScreen(
     onPreferOfflineLongTextChanged: (Boolean) -> Unit,
     onClearCacheClick: () -> Unit,
     onOpenAudioCacheManagementClick: () -> Unit,
+    onOpenAudioTaskCenterClick: () -> Unit,
     onActivateVoicePack: (String) -> Unit,
     onDownloadVoicePack: (String) -> Unit,
     onRemoveVoicePack: (String) -> Unit,
@@ -132,6 +133,12 @@ fun PronunciationSettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text("进入缓存管理")
+                }
+                OutlinedButton(
+                    onClick = onOpenAudioTaskCenterClick,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("进入音频任务中心")
                 }
                 OutlinedButton(
                     onClick = onClearCacheClick,

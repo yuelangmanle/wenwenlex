@@ -134,6 +134,54 @@ class DanciDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun migrate4To5_createsAudioGenerationJobsTable() {
+        val db = createVersion4Database()
+        createVersion4Schema(db)
+
+        MIGRATION_4_5.migrate(db)
+
+        assertHasColumn(db, "audio_generation_jobs", "jobType")
+        assertHasColumn(db, "audio_generation_jobs", "sourceType")
+        assertHasColumn(db, "audio_generation_jobs", "scopeType")
+        assertHasColumn(db, "audio_generation_jobs", "scopeRef")
+        assertHasColumn(db, "audio_generation_jobs", "status")
+        assertHasColumn(db, "audio_generation_jobs", "totalCount")
+        assertHasColumn(db, "audio_generation_jobs", "completedCount")
+        assertHasColumn(db, "audio_generation_jobs", "failedCount")
+        assertHasColumn(db, "audio_generation_jobs", "createdAt")
+        assertHasColumn(db, "audio_generation_jobs", "updatedAt")
+        assertHasColumn(db, "audio_generation_jobs", "lastError")
+
+        db.execSQL(
+            """
+            INSERT INTO audio_generation_jobs(
+                jobType, sourceType, scopeType, scopeRef, status,
+                totalCount, completedCount, failedCount, createdAt, updatedAt, lastError
+            ) VALUES (
+                'dictionary_prefetch', 'dictionary_cache', 'active_book', 'cet4', 'queued',
+                20, 3, 1, 1711267200000, 1711267200000, NULL
+            )
+            """.trimIndent(),
+        )
+
+        db.query(
+            """
+            SELECT jobType, sourceType, scopeType, scopeRef, totalCount, completedCount, failedCount
+            FROM audio_generation_jobs
+            """.trimIndent(),
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("dictionary_prefetch", cursor.getString(0))
+            assertEquals("dictionary_cache", cursor.getString(1))
+            assertEquals("active_book", cursor.getString(2))
+            assertEquals("cet4", cursor.getString(3))
+            assertEquals(20, cursor.getInt(4))
+            assertEquals(3, cursor.getInt(5))
+            assertEquals(1, cursor.getInt(6))
+        }
+    }
+
     private fun createVersion3Database(): SupportSQLiteDatabase {
         val context = ApplicationProvider.getApplicationContext<Context>()
         databaseFile = File(context.cacheDir, "migration-test-${System.nanoTime()}.db")
@@ -141,6 +189,27 @@ class DanciDatabaseMigrationTest {
             .name(databaseFile!!.absolutePath)
             .callback(
                 object : SupportSQLiteOpenHelper.Callback(3) {
+                    override fun onCreate(db: SupportSQLiteDatabase) = Unit
+
+                    override fun onUpgrade(
+                        db: SupportSQLiteDatabase,
+                        oldVersion: Int,
+                        newVersion: Int,
+                    ) = Unit
+                },
+            )
+            .build()
+        helper = FrameworkSQLiteOpenHelperFactory().create(configuration)
+        return helper!!.writableDatabase
+    }
+
+    private fun createVersion4Database(): SupportSQLiteDatabase {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        databaseFile = File(context.cacheDir, "migration-test-${System.nanoTime()}.db")
+        val configuration = SupportSQLiteOpenHelper.Configuration.builder(context)
+            .name(databaseFile!!.absolutePath)
+            .callback(
+                object : SupportSQLiteOpenHelper.Callback(4) {
                     override fun onCreate(db: SupportSQLiteDatabase) = Unit
 
                     override fun onUpgrade(
@@ -186,6 +255,65 @@ class DanciDatabaseMigrationTest {
                 id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                 mode TEXT NOT NULL,
                 targetBookId TEXT,
+                startedAt INTEGER NOT NULL,
+                finishedAt INTEGER,
+                plannedCount INTEGER NOT NULL DEFAULT 0,
+                completedCount INTEGER NOT NULL DEFAULT 0,
+                correctCount INTEGER NOT NULL DEFAULT 0,
+                wrongCount INTEGER NOT NULL DEFAULT 0,
+                strategySnapshot TEXT
+            )
+            """.trimIndent(),
+        )
+    }
+
+    private fun createVersion4Schema(db: SupportSQLiteDatabase) {
+        db.execSQL("DROP TABLE IF EXISTS learning_records")
+        db.execSQL("DROP TABLE IF EXISTS study_sessions")
+        db.execSQL("DROP TABLE IF EXISTS words")
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS words (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS learning_records (
+                wordId INTEGER NOT NULL,
+                mastery REAL NOT NULL,
+                familiarityState TEXT NOT NULL,
+                reviewStage INTEGER NOT NULL DEFAULT 0,
+                learningStage TEXT NOT NULL DEFAULT 'UNSEEN',
+                introducedAt INTEGER,
+                nextReviewAt INTEGER,
+                reviewCount INTEGER NOT NULL DEFAULT 0,
+                lapseCount INTEGER NOT NULL DEFAULT 0,
+                consecutiveCorrectCount INTEGER NOT NULL DEFAULT 0,
+                lastReviewedAt INTEGER,
+                lastOutcome TEXT,
+                lastMistakeAt INTEGER,
+                lastFuzzyAt INTEGER,
+                lastStudyMode TEXT,
+                currentGroupPassState TEXT,
+                confusionWeight REAL NOT NULL DEFAULT 0,
+                similarSpellingWeight REAL NOT NULL DEFAULT 0,
+                PRIMARY KEY(wordId),
+                FOREIGN KEY(wordId) REFERENCES words(id) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS study_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                mode TEXT NOT NULL,
+                targetBookId TEXT,
+                scopeType TEXT NOT NULL DEFAULT 'book',
+                scopeRef TEXT,
+                groupSize INTEGER NOT NULL DEFAULT 5,
+                currentGroupIndex INTEGER NOT NULL DEFAULT 0,
                 startedAt INTEGER NOT NULL,
                 finishedAt INTEGER,
                 plannedCount INTEGER NOT NULL DEFAULT 0,
