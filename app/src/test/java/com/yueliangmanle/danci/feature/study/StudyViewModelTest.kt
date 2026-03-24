@@ -5,12 +5,65 @@ import com.yueliangmanle.danci.core.model.StudyEvent
 import com.yueliangmanle.danci.core.study.CardFeedback
 import com.yueliangmanle.danci.core.study.StudyQueueEmptyState
 import com.yueliangmanle.danci.core.study.StudyCardItem
+import com.yueliangmanle.danci.core.study.WordPassStep
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
 
 class StudyViewModelTest {
+    @Test
+    fun knownFeedbackAdvancesCurrentWordToRecallBeforeMovingQueue() {
+        val viewModel = StudyViewModel(initialQueue = sampleQueue(size = 2))
+
+        val state = viewModel.submitFeedback(CardFeedback.KNOWN)
+
+        assertEquals("word1", state.currentWord)
+        assertEquals(WordPassStep.RECALL, state.passStep)
+    }
+
+    @Test
+    fun completesWordOnlyAfterAllPassStepsFinish() {
+        val viewModel = StudyViewModel(initialQueue = sampleQueue(size = 2))
+
+        viewModel.submitFeedback(CardFeedback.KNOWN)
+        viewModel.submitFeedback(CardFeedback.KNOWN)
+        val state = viewModel.submitFeedback(CardFeedback.KNOWN)
+
+        assertEquals("word2", state.currentWord)
+        assertEquals(WordPassStep.MEANING, state.passStep)
+    }
+
+    @Test
+    fun emitsGroupSummaryAfterLastWordInGroup() {
+        val viewModel = StudyViewModel(initialQueue = sampleQueue(size = 2))
+
+        repeat(6) {
+            viewModel.submitFeedback(CardFeedback.KNOWN)
+        }
+
+        val state = viewModel.buildUiState()
+
+        assertEquals("本组 2 词已完成", state.groupSummaryTitle)
+        assertEquals(true, state.showContinueNextGroup)
+    }
+
+    @Test
+    fun continueNextGroupTransitionsFromGroupSummaryToCompletionWhenNoPendingWordsRemain() {
+        val viewModel = StudyViewModel(initialQueue = sampleQueue(size = 1))
+
+        repeat(3) {
+            viewModel.submitFeedback(CardFeedback.KNOWN)
+        }
+
+        assertEquals("本组 1 词已完成", viewModel.buildUiState().groupSummaryTitle)
+
+        val state = viewModel.continueNextGroup()
+
+        assertEquals(true, state.isSessionComplete)
+        assertEquals(null, state.groupSummaryTitle)
+    }
+
     @Test
     fun exposesEmptyStateInsteadOfRenderingCompletionCardForEmptyQueue() {
         val viewModel = StudyViewModel(
@@ -30,7 +83,7 @@ class StudyViewModelTest {
     fun emitsCheckpointRequestAfterFifteenCompletedWords() {
         val viewModel = StudyViewModel(initialQueue = sampleQueue(size = 15))
 
-        repeat(15) {
+        repeat(45) {
             viewModel.submitFeedback(CardFeedback.KNOWN)
         }
 
@@ -45,7 +98,7 @@ class StudyViewModelTest {
     fun dropsCheckpointRequestWhenSessionCheckpointsAreDisabled() {
         val viewModel = StudyViewModel(initialQueue = sampleQueue(size = 15))
 
-        repeat(15) {
+        repeat(45) {
             viewModel.submitFeedback(CardFeedback.KNOWN)
         }
 

@@ -89,6 +89,10 @@ fun StudyRoute(
                 )
             }
         },
+        onContinueNextGroupClick = {
+            val currentViewModel = viewModel ?: return@StudyScreen
+            state = currentViewModel.continueNextGroup().copy(sessionTitle = sessionLabel)
+        },
     )
 }
 

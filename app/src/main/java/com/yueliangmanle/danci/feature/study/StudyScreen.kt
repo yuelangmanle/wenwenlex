@@ -24,6 +24,7 @@ fun StudyScreen(
     onOpenDetailClick: () -> Unit,
     onBackHomeClick: () -> Unit,
     onPlayPronunciationClick: () -> Unit,
+    onContinueNextGroupClick: () -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -67,6 +68,31 @@ fun StudyScreen(
             }
             return@Column
         }
+        if (state.groupSummaryTitle != null) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        text = state.groupSummaryTitle,
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                    state.groupSummaryBody?.let { body ->
+                        Text(
+                            text = body,
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
+                    if (state.showContinueNextGroup) {
+                        OutlinedButton(onClick = onContinueNextGroupClick) {
+                            Text("开始下一组")
+                        }
+                    }
+                }
+            }
+            return@Column
+        }
         Card(
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -74,6 +100,13 @@ fun StudyScreen(
                 modifier = Modifier.padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                state.passStepLabel?.let { label ->
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
                 Text(
                     text = state.currentWord,
                     style = MaterialTheme.typography.displaySmall,
@@ -100,6 +133,13 @@ fun StudyScreen(
                 state.exampleTranslation?.let { translation ->
                     Text(
                         text = translation,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                state.stepPrompt?.let { prompt ->
+                    Text(
+                        text = prompt,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
