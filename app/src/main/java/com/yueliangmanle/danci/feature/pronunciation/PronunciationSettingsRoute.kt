@@ -102,6 +102,12 @@ fun PronunciationSettingsRoute(
         onDownloadVoicePack = { packId ->
             launchAction { downloadVoicePack(packId) }
         },
+        onCancelVoicePackDownload = { packId ->
+            launchAction { cancelVoicePackDownload(packId) }
+        },
+        onRetryVoicePackDownloadWithMirror = { packId ->
+            launchAction { retryVoicePackDownloadWithMirror(packId) }
+        },
         onRemoveVoicePack = { packId ->
             launchAction { removeVoicePack(packId) }
         },

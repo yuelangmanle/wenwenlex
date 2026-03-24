@@ -10,6 +10,7 @@ data class VoicePack(
     val engineType: String = VoicePackEngineType.SHERPA_ONNX.storageValue,
     val version: String = "1",
     val downloadUrl: String? = null,
+    val downloadUrls: List<String> = emptyList(),
     val manifestUrl: String? = null,
     val installDir: String? = null,
     val archiveChecksum: String? = null,
@@ -22,6 +23,8 @@ data class VoicePack(
     val estimatedStorageBytes: Long? = null,
     val estimatedRamMb: Int? = null,
     val licenses: List<String> = emptyList(),
+    val lastFailureCode: String? = null,
+    val lastFailureMessage: String? = null,
     val createdAt: Instant = Instant.EPOCH,
     val updatedAt: Instant = Instant.EPOCH,
 )

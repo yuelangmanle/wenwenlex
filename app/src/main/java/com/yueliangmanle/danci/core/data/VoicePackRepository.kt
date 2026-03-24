@@ -113,6 +113,7 @@ class RoomVoicePackRepository(
                 status = status,
                 installDir = installDir ?: existing.installDir,
                 installedSizeBytes = installedSizeBytes ?: existing.installedSizeBytes,
+                downloadUrl = existing.downloadUrl,
                 updatedAt = Instant.now(),
             ),
         )
@@ -140,9 +141,10 @@ class RoomVoicePackRepository(
         if (voicePacks.isEmpty()) {
             return emptyList()
         }
+        val catalogVoicePacksById = loadBundledCatalogVoicePacks()
         val catalogMetadataById = loadBundledCatalogRuntimeMetadata()
         return voicePacks.map { voicePack ->
-            voicePack.hydrateRuntimeMetadata(
+            voicePack.withCatalogDownloadSources(catalogVoicePacksById[voicePack.id]).hydrateRuntimeMetadata(
                 catalogManifest = catalogMetadataById[voicePack.id],
                 installedManifest = loadInstalledRuntimeMetadata(voicePack),
             )
@@ -150,12 +152,26 @@ class RoomVoicePackRepository(
     }
 
     private fun hydrateRuntimeMetadata(voicePack: VoicePack): VoicePack {
+        val catalogVoicePack = loadBundledCatalogVoicePacks()[voicePack.id]
         val catalogMetadataById = loadBundledCatalogRuntimeMetadata()
-        return voicePack.hydrateRuntimeMetadata(
+        return voicePack.withCatalogDownloadSources(catalogVoicePack).hydrateRuntimeMetadata(
             catalogManifest = catalogMetadataById[voicePack.id],
             installedManifest = loadInstalledRuntimeMetadata(voicePack),
         )
     }
+
+    private fun loadBundledCatalogVoicePacks(): Map<String, VoicePack> =
+        runCatching {
+            val jsonText = appContext.assets.open(VOICE_PACK_MANIFEST_ASSET_PATH)
+                .bufferedReader()
+                .use { it.readText() }
+            parseVoicePackManifest(
+                jsonText = jsonText,
+                existingById = emptyMap(),
+                currentActiveId = null,
+                now = Instant.EPOCH,
+            ).associateBy(VoicePack::id)
+        }.getOrDefault(emptyMap())
 
     private fun loadBundledCatalogRuntimeMetadata(): Map<String, NativeVoicePackManifest> =
         runCatching {
@@ -206,6 +222,18 @@ internal fun parseVoicePackManifest(
         }
         val existing = existingById[id]
         val nativeManifest = NativeVoicePackManifest.fromCatalogItem(item)
+        val manifestDownloadUrls = item.optStringList("downloadUrls")
+            .ifEmpty {
+                listOfNotNull(item.optString("downloadUrl").takeIf(String::isNotBlank))
+            }
+        val mergedDownloadUrls = (existing?.downloadUrls.orEmpty() + manifestDownloadUrls)
+            .map(String::trim)
+            .filter(String::isNotEmpty)
+            .distinct()
+        val resolvedDownloadUrl = existing?.downloadUrl
+            ?.takeIf { mergedDownloadUrls.contains(it) }
+            ?: manifestDownloadUrls.firstOrNull()
+            ?: existing?.downloadUrl
         voicePacks += VoicePack(
             id = id,
             name = item.optString("name").ifBlank { id },
@@ -213,7 +241,8 @@ internal fun parseVoicePackManifest(
             accent = item.optString("accent").ifBlank { "auto" },
             engineType = item.optString("engineType").ifBlank { VoicePackEngineType.SHERPA_ONNX.storageValue },
             version = item.optString("version").ifBlank { "1" },
-            downloadUrl = item.optString("downloadUrl").takeIf(String::isNotBlank) ?: existing?.downloadUrl,
+            downloadUrl = resolvedDownloadUrl,
+            downloadUrls = mergedDownloadUrls.ifEmpty { listOfNotNull(resolvedDownloadUrl) },
             manifestUrl = item.optString("manifestUrl").takeIf(String::isNotBlank) ?: existing?.manifestUrl,
             installDir = existing?.installDir,
             archiveChecksum = item.optString("archiveChecksum").takeIf(String::isNotBlank) ?: existing?.archiveChecksum,
@@ -242,6 +271,7 @@ internal fun VoicePackEntity.asExternalModel(): VoicePack =
         engineType = engineType,
         version = version,
         downloadUrl = downloadUrl,
+        downloadUrls = listOfNotNull(downloadUrl),
         manifestUrl = manifestUrl,
         installDir = installDir,
         archiveChecksum = archiveChecksum,
@@ -295,6 +325,28 @@ private fun VoicePack.hydrateRuntimeMetadata(
     )
 }
 
+private fun VoicePack.withCatalogDownloadSources(
+    catalogVoicePack: VoicePack?,
+): VoicePack {
+    val mergedDownloadUrls = (
+        listOfNotNull(downloadUrl) +
+            downloadUrls +
+            catalogVoicePack?.downloadUrls.orEmpty() +
+            listOfNotNull(catalogVoicePack?.downloadUrl)
+        )
+        .map(String::trim)
+        .filter(String::isNotEmpty)
+        .distinct()
+    val resolvedDownloadUrl = downloadUrl
+        ?.takeIf { mergedDownloadUrls.contains(it) }
+        ?: catalogVoicePack?.downloadUrl
+        ?: mergedDownloadUrls.firstOrNull()
+    return copy(
+        downloadUrl = resolvedDownloadUrl,
+        downloadUrls = mergedDownloadUrls,
+    )
+}
+
 private fun VoicePack.toNativeVoicePackManifest(): NativeVoicePackManifest? {
     val manifest = NativeVoicePackManifest(
         engineFamily = engineFamily,
@@ -316,6 +368,18 @@ private fun NativeVoicePackManifest.merge(other: NativeVoicePackManifest): Nativ
         estimatedRamMb = other.estimatedRamMb ?: estimatedRamMb,
         licenses = other.licenses.ifEmpty { licenses },
     )
+
+private fun JSONObject.optStringList(key: String): List<String> {
+    val items = optJSONArray(key) ?: return emptyList()
+    return buildList {
+        repeat(items.length()) { index ->
+            items.optString(index)
+                .trim()
+                .takeIf(String::isNotEmpty)
+                ?.let(::add)
+        }
+    }
+}
 
 fun buildVoicePackRepository(context: Context): VoicePackRepository {
     val appContext = context.applicationContext

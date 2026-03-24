@@ -130,4 +130,49 @@ class VoicePackRepositoryTest {
         assertEquals(VoicePackStatus.READY.storageValue, pack.status)
         assertTrue(pack.isActive)
     }
+
+    @Test
+    fun parseVoicePackManifestReadsDownloadUrlsAndPreservesSelectedMirror() {
+        val existing = mapOf(
+            "en-gb-offline-word-v1" to TestVoicePackFactory.voicePack(
+                id = "en-gb-offline-word-v1",
+                downloadUrl = "https://mirror.example.com/pack.zip",
+                downloadUrls = listOf(
+                    "https://primary.example.com/pack.zip",
+                    "https://mirror.example.com/pack.zip",
+                ),
+            ),
+        )
+
+        val parsed = parseVoicePackManifest(
+            jsonText = """
+                {
+                  "voicePacks": [
+                    {
+                      "id": "en-gb-offline-word-v1",
+                      "name": "英式离线发音包",
+                      "downloadUrl": "https://primary.example.com/pack.zip",
+                      "downloadUrls": [
+                        "https://primary.example.com/pack.zip",
+                        "https://mirror.example.com/pack.zip"
+                      ]
+                    }
+                  ]
+                }
+            """.trimIndent(),
+            existingById = existing,
+            currentActiveId = null,
+            now = Instant.parse("2026-03-19T12:00:00Z"),
+        )
+
+        val pack = parsed.single()
+        assertEquals("https://mirror.example.com/pack.zip", pack.downloadUrl)
+        assertEquals(
+            listOf(
+                "https://primary.example.com/pack.zip",
+                "https://mirror.example.com/pack.zip",
+            ),
+            pack.downloadUrls,
+        )
+    }
 }

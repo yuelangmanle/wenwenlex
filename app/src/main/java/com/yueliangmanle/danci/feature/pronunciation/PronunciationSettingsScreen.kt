@@ -38,6 +38,8 @@ fun PronunciationSettingsScreen(
     onOpenCloudTtsSettingsClick: () -> Unit,
     onActivateVoicePack: (String) -> Unit,
     onDownloadVoicePack: (String) -> Unit,
+    onCancelVoicePackDownload: (String) -> Unit,
+    onRetryVoicePackDownloadWithMirror: (String) -> Unit,
     onRemoveVoicePack: (String) -> Unit,
 ) {
     Column(
@@ -171,6 +173,8 @@ fun PronunciationSettingsScreen(
                             pack = pack,
                             onActivate = { onActivateVoicePack(pack.id) },
                             onDownload = { onDownloadVoicePack(pack.id) },
+                            onCancelDownload = { onCancelVoicePackDownload(pack.id) },
+                            onRetryWithMirror = { onRetryVoicePackDownloadWithMirror(pack.id) },
                             onRemove = { onRemoveVoicePack(pack.id) },
                         )
                     }
@@ -327,6 +331,8 @@ private fun VoicePackRow(
     pack: VoicePackItemUiState,
     onActivate: () -> Unit,
     onDownload: () -> Unit,
+    onCancelDownload: () -> Unit,
+    onRetryWithMirror: () -> Unit,
     onRemove: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -351,6 +357,11 @@ private fun VoicePackRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
+                pack.downloadSourceSummary,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
                 if (pack.isActive) "${pack.statusLabel} · 当前已启用" else pack.statusLabel,
                 style = MaterialTheme.typography.bodySmall,
                 color = if (pack.failureReason != null) {
@@ -371,11 +382,17 @@ private fun VoicePackRow(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 OutlinedButton(
-                    onClick = onDownload,
-                    enabled = pack.canDownload,
+                    onClick = if (pack.canCancelDownload) onCancelDownload else onDownload,
+                    enabled = pack.canDownload || pack.canCancelDownload,
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text(if (pack.isBusy) "处理中…" else if (pack.canDownload) "下载/安装" else "已安装")
+                    Text(
+                        when {
+                            pack.canCancelDownload -> "取消下载"
+                            pack.canDownload -> "下载/安装"
+                            else -> "已安装"
+                        },
+                    )
                 }
                 OutlinedButton(
                     onClick = onActivate,
@@ -383,6 +400,14 @@ private fun VoicePackRow(
                     modifier = Modifier.weight(1f),
                 ) {
                     Text(if (pack.isActive) "当前已启用" else "设为默认")
+                }
+            }
+            if (pack.canSwitchDownloadSource) {
+                OutlinedButton(
+                    onClick = onRetryWithMirror,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("切换下载源重试")
                 }
             }
             if (pack.canDelete) {

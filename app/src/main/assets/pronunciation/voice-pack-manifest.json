@@ -8,6 +8,9 @@
       "engineType": "system_tts_bridge",
       "version": "1",
       "downloadUrl": "asset://pronunciation/packs/en-gb-bridge-basic",
+      "downloadUrls": [
+        "asset://pronunciation/packs/en-gb-bridge-basic"
+      ],
       "manifestUrl": "asset://pronunciation/packs/en-gb-bridge-basic/manifest.json"
     },
     {
@@ -18,6 +21,9 @@
       "engineType": "system_tts_bridge",
       "version": "1",
       "downloadUrl": "asset://pronunciation/packs/en-us-bridge-basic",
+      "downloadUrls": [
+        "asset://pronunciation/packs/en-us-bridge-basic"
+      ],
       "manifestUrl": "asset://pronunciation/packs/en-us-bridge-basic/manifest.json"
     },
     {
@@ -28,6 +34,10 @@
       "engineType": "sherpa_onnx",
       "version": "1.3",
       "downloadUrl": "https://github.com/yuelangmanle/wenwenlex/releases/latest/download/wenwenlex-voice-pack-en-gb-offline-word-v1.zip",
+      "downloadUrls": [
+        "https://github.com/yuelangmanle/wenwenlex/releases/latest/download/wenwenlex-voice-pack-en-gb-offline-word-v1.zip",
+        "https://github.com/yuelangmanle/wenwenlex/releases/download/v1.3/wenwenlex-voice-pack-en-gb-offline-word-v1.zip"
+      ],
       "manifestUrl": "https://github.com/yuelangmanle/wenwenlex/releases/latest/download/wenwenlex-voice-pack-en-gb-offline-word-v1-manifest.json",
       "native": {
         "engineFamily": "native_neural_tts",
@@ -46,6 +56,10 @@
       "engineType": "sherpa_onnx",
       "version": "1.3",
       "downloadUrl": "https://github.com/yuelangmanle/wenwenlex/releases/latest/download/wenwenlex-voice-pack-en-us-offline-word-v1.zip",
+      "downloadUrls": [
+        "https://github.com/yuelangmanle/wenwenlex/releases/latest/download/wenwenlex-voice-pack-en-us-offline-word-v1.zip",
+        "https://github.com/yuelangmanle/wenwenlex/releases/download/v1.3/wenwenlex-voice-pack-en-us-offline-word-v1.zip"
+      ],
       "manifestUrl": "https://github.com/yuelangmanle/wenwenlex/releases/latest/download/wenwenlex-voice-pack-en-us-offline-word-v1-manifest.json",
       "native": {
         "engineFamily": "native_neural_tts",

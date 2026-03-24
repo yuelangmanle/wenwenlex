@@ -175,15 +175,111 @@ class PronunciationSettingsViewModelTest {
         assertEquals("安装异常", item.statusLabel)
         assertEquals("原生语音包 manifest 缺少 entryFiles 声明。", item.failureReason)
     }
+
+    @Test
+    fun loadUiStateMarksDownloadingVoicePackAsCancelable() = runTest {
+        val viewModel = PronunciationSettingsViewModel(
+            settingsRepository = FakeSettingsRepository(initial = AppSettings()),
+            wordAudioRepository = FakeWordAudioRepository(),
+            voicePackRepository = FakeVoicePackRepository(
+                mutableListOf(
+                    TestVoicePackFactory.voicePack(
+                        id = "en-us-offline-word-v1",
+                        name = "美式离线发音包",
+                        engineType = "sherpa_onnx",
+                        status = VoicePackStatus.DOWNLOADING.storageValue,
+                    ),
+                ),
+            ),
+            voicePackDownloadController = FakeVoicePackDownloadController(),
+        )
+
+        val state = viewModel.loadUiState()
+
+        assertTrue(state.voicePacks.single().canCancelDownload)
+    }
+
+    @Test
+    fun retryVoicePackDownloadWithMirrorUsesAllowCellularSetting() = runTest {
+        val settingsRepository = FakeSettingsRepository(
+            initial = AppSettings(
+                allowCellularVoicePackDownload = false,
+            ),
+        )
+        val controller = FakeVoicePackDownloadController()
+        val viewModel = PronunciationSettingsViewModel(
+            settingsRepository = settingsRepository,
+            wordAudioRepository = FakeWordAudioRepository(),
+            voicePackRepository = FakeVoicePackRepository(
+                mutableListOf(
+                    TestVoicePackFactory.voicePack(
+                        id = "en-gb-offline-word-v1",
+                        engineType = "sherpa_onnx",
+                        status = VoicePackStatus.BROKEN.storageValue,
+                        downloadUrl = "https://primary.example.com/pack.zip",
+                        downloadUrls = listOf(
+                            "https://primary.example.com/pack.zip",
+                            "https://mirror.example.com/pack.zip",
+                        ),
+                    ),
+                ),
+            ),
+            voicePackDownloadController = controller,
+        )
+
+        viewModel.retryVoicePackDownloadWithMirror("en-gb-offline-word-v1")
+
+        assertEquals(
+            listOf(Triple("en-gb-offline-word-v1", "https://mirror.example.com/pack.zip", false)),
+            controller.retryCalls,
+        )
+    }
+
+    @Test
+    fun cancelVoicePackDownloadDelegatesController() = runTest {
+        val controller = FakeVoicePackDownloadController()
+        val viewModel = PronunciationSettingsViewModel(
+            settingsRepository = FakeSettingsRepository(initial = AppSettings()),
+            wordAudioRepository = FakeWordAudioRepository(),
+            voicePackRepository = FakeVoicePackRepository(
+                mutableListOf(
+                    TestVoicePackFactory.voicePack(
+                        id = "en-gb-offline-word-v1",
+                        engineType = "sherpa_onnx",
+                        status = VoicePackStatus.DOWNLOADING.storageValue,
+                    ),
+                ),
+            ),
+            voicePackDownloadController = controller,
+        )
+
+        viewModel.cancelVoicePackDownload("en-gb-offline-word-v1")
+
+        assertEquals(listOf("en-gb-offline-word-v1"), controller.cancelCalls)
+    }
 }
 
 private class FakeVoicePackDownloadController(
     private val failureMessages: Map<String, String> = emptyMap(),
 ) : VoicePackDownloadController {
     val calls = mutableListOf<Pair<String, Boolean>>()
+    val cancelCalls = mutableListOf<String>()
+    val retryCalls = mutableListOf<Triple<String, String, Boolean>>()
 
     override suspend fun enqueue(voicePackId: String, allowCellular: Boolean) {
         calls += voicePackId to allowCellular
+    }
+
+    override suspend fun cancel(voicePackId: String) {
+        cancelCalls += voicePackId
+    }
+
+    override suspend fun retryWithMirror(
+        voicePackId: String,
+        downloadUrl: String,
+        allowCellular: Boolean,
+    ) {
+        retryCalls += Triple(voicePackId, downloadUrl, allowCellular)
     }
 
     override suspend fun latestFailureMessage(voicePackId: String): String? =

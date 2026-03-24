@@ -22,8 +22,6 @@ import com.yueliangmanle.danci.core.pronunciation.LicenseManifestVerifier
 import com.yueliangmanle.danci.core.pronunciation.NativeVoicePackManifest
 import java.io.File
 import java.io.FileOutputStream
-import java.net.HttpURLConnection
-import java.net.URL
 import java.security.MessageDigest
 import java.util.zip.ZipInputStream
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +30,7 @@ import org.json.JSONObject
 
 private const val INPUT_VOICE_PACK_ID = "voice_pack_id"
 private const val OUTPUT_ERROR_MESSAGE = "error_message"
+private const val OUTPUT_ERROR_CODE = "error_code"
 private const val VOICE_PACK_INSTALL_MANIFEST_FILE = "manifest.json"
 
 const val VOICE_PACK_DOWNLOAD_WORK_PREFIX = "voice_pack_download_"
@@ -39,7 +38,17 @@ const val VOICE_PACK_DOWNLOAD_WORK_PREFIX = "voice_pack_download_"
 interface VoicePackDownloadController {
     suspend fun enqueue(voicePackId: String, allowCellular: Boolean)
 
+    suspend fun cancel(voicePackId: String) = Unit
+
+    suspend fun retryWithMirror(
+        voicePackId: String,
+        downloadUrl: String,
+        allowCellular: Boolean,
+    ) = Unit
+
     suspend fun latestFailureMessage(voicePackId: String): String? = null
+
+    suspend fun latestFailureCode(voicePackId: String): String? = null
 }
 
 class VoicePackDownloadWorker(
@@ -57,6 +66,9 @@ class VoicePackDownloadWorker(
                 assetManager = applicationContext.assets,
                 cacheDir = File(applicationContext.cacheDir, "voice-pack-downloads"),
                 installRootDir = repository.voicePackRootDir(),
+                archiveDownloader = VoicePackArchiveDownloader(
+                    shouldCancel = { isStopped },
+                ),
             )
             val installResult = installer.install(
                 voicePack = voicePack,
@@ -70,6 +82,17 @@ class VoicePackDownloadWorker(
                 installedSizeBytes = installResult.installedSizeBytes,
             )
             Result.success()
+        } catch (error: VoicePackDownloadCancelledException) {
+            repository.updateVoicePackStatus(voicePackId, VoicePackStatus.NOT_INSTALLED.storageValue)
+            Result.success()
+        } catch (error: VoicePackDownloadFailureException) {
+            repository.updateVoicePackStatus(voicePackId, VoicePackStatus.BROKEN.storageValue)
+            Result.failure(
+                workDataOf(
+                    OUTPUT_ERROR_CODE to error.failureCode,
+                    OUTPUT_ERROR_MESSAGE to error.message,
+                ),
+            )
         } catch (error: Throwable) {
             repository.updateVoicePackStatus(voicePackId, VoicePackStatus.BROKEN.storageValue)
             Result.failure(
@@ -100,6 +123,29 @@ class VoicePackDownloadScheduler(
         )
     }
 
+    override suspend fun cancel(voicePackId: String) {
+        workManager.cancelUniqueWork(uniqueWorkName(voicePackId))
+        repository.updateVoicePackStatus(voicePackId, VoicePackStatus.NOT_INSTALLED.storageValue)
+    }
+
+    override suspend fun retryWithMirror(
+        voicePackId: String,
+        downloadUrl: String,
+        allowCellular: Boolean,
+    ) {
+        val voicePack = repository.getVoicePack(voicePackId) ?: return
+        repository.upsertVoicePack(
+            voicePack.copy(
+                downloadUrl = downloadUrl,
+                status = VoicePackStatus.NOT_INSTALLED.storageValue,
+            ),
+        )
+        enqueue(
+            voicePackId = voicePackId,
+            allowCellular = allowCellular,
+        )
+    }
+
     override suspend fun latestFailureMessage(voicePackId: String): String? =
         withContext(Dispatchers.IO) {
             workManager.getWorkInfosForUniqueWork(uniqueWorkName(voicePackId))
@@ -109,6 +155,21 @@ class VoicePackDownloadScheduler(
                 .mapNotNull { workInfo ->
                     workInfo.outputData
                         .getString(OUTPUT_ERROR_MESSAGE)
+                        ?.trim()
+                        ?.takeIf(String::isNotEmpty)
+                }
+                .firstOrNull()
+        }
+
+    override suspend fun latestFailureCode(voicePackId: String): String? =
+        withContext(Dispatchers.IO) {
+            workManager.getWorkInfosForUniqueWork(uniqueWorkName(voicePackId))
+                .get()
+                .asSequence()
+                .filter { it.state == WorkInfo.State.FAILED }
+                .mapNotNull { workInfo ->
+                    workInfo.outputData
+                        .getString(OUTPUT_ERROR_CODE)
                         ?.trim()
                         ?.takeIf(String::isNotEmpty)
                 }
@@ -155,6 +216,7 @@ internal class VoicePackInstaller(
     private val assetManager: AssetManager,
     private val cacheDir: File,
     private val installRootDir: File,
+    private val archiveDownloader: VoicePackArchiveDownloader = VoicePackArchiveDownloader(),
 ) {
     suspend fun install(
         voicePack: VoicePack,
@@ -176,7 +238,20 @@ internal class VoicePackInstaller(
             cacheDir.mkdirs()
             val archiveFile = File(cacheDir, "${voicePack.id}.zip")
             onStatusChange(VoicePackStatus.DOWNLOADING.storageValue)
-            val checksum = downloadRemoteArchive(downloadUrl, archiveFile)
+            val downloadResult = archiveDownloader.download(
+                urls = voicePack.downloadUrls.ifEmpty { listOfNotNull(downloadUrl) },
+                targetFile = archiveFile,
+            )
+            if (downloadResult.cancelled) {
+                throw VoicePackDownloadCancelledException()
+            }
+            if (!downloadResult.success) {
+                throw VoicePackDownloadFailureException(
+                    failureCode = downloadResult.failureCode ?: "source_io_error",
+                    message = downloadResult.failureMessage ?: "语音包下载失败，请重试。",
+                )
+            }
+            val checksum = downloadResult.checksum ?: error("语音包下载后校验信息缺失。")
             val expectedChecksum = voicePack.archiveChecksum?.takeIf(String::isNotBlank)
             if (expectedChecksum != null) {
                 onStatusChange(VoicePackStatus.VERIFYING.storageValue)
@@ -212,28 +287,6 @@ internal class VoicePackInstaller(
         )
     }
 
-    private fun downloadRemoteArchive(
-        remoteUrl: String,
-        targetFile: File,
-    ): String {
-        val connection = URL(remoteUrl).openConnection() as HttpURLConnection
-        try {
-            connection.requestMethod = "GET"
-            connection.connectTimeout = 10_000
-            connection.readTimeout = 20_000
-            connection.instanceFollowRedirects = true
-            connection.connect()
-            check(connection.responseCode in 200..299) {
-                "语音包下载失败：HTTP ${connection.responseCode}"
-            }
-            val bytes = connection.inputStream.use { it.readBytes() }
-            targetFile.outputStream().use { it.write(bytes) }
-            return sha256(bytes)
-        } finally {
-            connection.disconnect()
-        }
-    }
-
     private fun unzipArchive(
         archiveFile: File,
         installDir: File,
@@ -260,6 +313,13 @@ internal class VoicePackInstaller(
         }
     }
 }
+
+internal class VoicePackDownloadCancelledException : IllegalStateException("语音包下载已取消。")
+
+internal class VoicePackDownloadFailureException(
+    val failureCode: String,
+    message: String,
+) : IllegalStateException(message)
 
 private fun copyAssetPath(
     assetManager: AssetManager,
@@ -332,11 +392,6 @@ internal fun validateInstalledVoicePack(
         }
     }
 }
-
-private fun sha256(bytes: ByteArray): String =
-    MessageDigest.getInstance("SHA-256")
-        .digest(bytes)
-        .joinToString("") { "%02x".format(it) }
 
 private fun JSONObject.optStringList(key: String): List<String> {
     val items = optJSONArray(key) ?: return emptyList()

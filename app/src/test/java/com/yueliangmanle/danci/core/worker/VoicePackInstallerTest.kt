@@ -3,11 +3,75 @@ package com.yueliangmanle.danci.core.worker
 import com.yueliangmanle.danci.core.data.TestVoicePackFactory
 import com.yueliangmanle.danci.core.model.VoicePackStatus
 import java.nio.file.Files
+import java.net.SocketTimeoutException
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 
 class VoicePackInstallerTest {
+    @Test
+    fun archiveDownloaderResumesFromExistingPartFileWhenRangeSupported() = runTest {
+        val tempDir = Files.createTempDirectory("voice-pack-download-test").toFile()
+        try {
+            val targetFile = tempDir.resolve("pack.zip")
+            val partFile = tempDir.resolve("pack.zip.part")
+            partFile.writeText("abc")
+            val requests = mutableListOf<ArchiveDownloadRequest>()
+            val downloader = VoicePackArchiveDownloader(
+                fetch = { request ->
+                    requests += request
+                    ArchiveDownloadResponse(
+                        responseCode = 206,
+                        body = "def".toByteArray(),
+                    )
+                },
+            )
+
+            val result = downloader.download(
+                urls = listOf("https://example.com/pack.zip"),
+                targetFile = targetFile,
+            )
+
+            assertTrue(result.success)
+            assertTrue(result.resumed)
+            assertEquals(3L, requests.single().rangeStart)
+            assertEquals("abcdef", targetFile.readText())
+            assertFalse(partFile.exists())
+        } finally {
+            tempDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun archiveDownloaderSuggestsMirrorWhenPrimarySourceTimesOut() = runTest {
+        val tempDir = Files.createTempDirectory("voice-pack-download-test").toFile()
+        try {
+            val targetFile = tempDir.resolve("pack.zip")
+            val downloader = VoicePackArchiveDownloader(
+                fetch = {
+                    throw SocketTimeoutException("timeout")
+                },
+            )
+
+            val result = downloader.download(
+                urls = listOf(
+                    "https://primary.example.com/pack.zip",
+                    "https://mirror.example.com/pack.zip",
+                ),
+                targetFile = targetFile,
+            )
+
+            assertFalse(result.success)
+            assertEquals("source_timeout", result.failureCode)
+            assertEquals("https://mirror.example.com/pack.zip", result.nextSuggestedUrl)
+        } finally {
+            tempDir.deleteRecursively()
+        }
+    }
+
     @Test
     fun validateInstalledVoicePackRejectsNativeManifestWithoutLicenses() {
         val installDir = Files.createTempDirectory("voice-pack-native-test").toFile()
