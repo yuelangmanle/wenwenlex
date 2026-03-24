@@ -20,6 +20,32 @@ import kotlinx.coroutines.withContext
 
 private val REMOTE_LOOKUP_COOLDOWN: Duration = Duration.ofDays(7)
 
+data class AudioCacheFilter(
+    val sourceType: String? = null,
+    val bookId: String? = null,
+    val query: String = "",
+)
+
+data class AudioCacheBucket(
+    val sourceType: String,
+    val sourceLabel: String = PlaybackSource.fromStorageValue(sourceType).label,
+    val count: Int,
+    val totalBytes: Long,
+)
+
+data class AudioCacheEntry(
+    val assetId: Long,
+    val wordId: Long,
+    val accent: String,
+    val sourceType: String,
+    val sourceLabel: String,
+    val localPath: String?,
+    val sizeBytes: Long,
+    val fetchedAt: Instant?,
+    val lastPlayedAt: Instant?,
+    val lastError: String?,
+)
+
 interface WordAudioRepository {
     suspend fun findCachedAsset(wordId: Long, accent: PronunciationAccent): WordAudioAsset?
     suspend fun findNativeGeneratedAsset(
@@ -44,7 +70,12 @@ interface WordAudioRepository {
         errorMessage: String,
     )
     suspend fun markPlayed(asset: WordAudioAsset)
-    suspend fun clearDictionaryCache(): Int
+    suspend fun summarizeBySource(): List<AudioCacheBucket> = emptyList()
+    suspend fun queryAssets(filter: AudioCacheFilter = AudioCacheFilter()): List<AudioCacheEntry> = emptyList()
+    suspend fun clearBucket(sourceType: String): Int = 0
+    suspend fun evictToLimit(limitBytes: Long): List<WordAudioAsset> = emptyList()
+    suspend fun clearDictionaryCache(): Int =
+        clearBucket(PlaybackSource.DICTIONARY_CACHE.storageValue)
     suspend fun cacheSizeBytes(): Long
 }
 
@@ -224,25 +255,69 @@ class RoomWordAudioRepository(
         )
     }
 
-    override suspend fun clearDictionaryCache(): Int {
+    override suspend fun summarizeBySource(): List<AudioCacheBucket> =
+        queryAssets()
+            .groupBy(AudioCacheEntry::sourceType)
+            .map { (sourceType, entries) ->
+                AudioCacheBucket(
+                    sourceType = sourceType,
+                    count = entries.size,
+                    totalBytes = entries.sumOf(AudioCacheEntry::sizeBytes),
+                )
+            }
+            .sortedByDescending(AudioCacheBucket::totalBytes)
+
+    override suspend fun queryAssets(filter: AudioCacheFilter): List<AudioCacheEntry> =
+        dao.getAssetsByStatus(WordAudioAssetStatus.READY.storageValue)
+            .asSequence()
+            .filter { entity ->
+                filter.sourceType == null || entity.sourceType == filter.sourceType
+            }
+            .mapNotNull(::toAudioCacheEntry)
+            .sortedWith(
+                compareByDescending<AudioCacheEntry> { it.lastPlayedAt ?: it.fetchedAt ?: Instant.EPOCH }
+                    .thenByDescending(AudioCacheEntry::assetId),
+            )
+            .toList()
+
+    override suspend fun clearBucket(sourceType: String): Int {
         val assets = dao.getAssetsBySource(
-            sourceType = PlaybackSource.DICTIONARY_CACHE.storageValue,
+            sourceType = sourceType,
             status = WordAudioAssetStatus.READY.storageValue,
         )
         assets.forEach { asset ->
             asset.localPath?.let(::File)?.takeIf(File::exists)?.delete()
         }
-        dao.deleteAssetsBySource(PlaybackSource.DICTIONARY_CACHE.storageValue)
+        dao.deleteAssetsBySource(sourceType)
         return assets.size
     }
 
     override suspend fun cacheSizeBytes(): Long =
-        dao.getAssetsBySource(
-            sourceType = PlaybackSource.DICTIONARY_CACHE.storageValue,
-            status = WordAudioAssetStatus.READY.storageValue,
-        ).sumOf { asset ->
-            asset.localPath?.let(::File)?.takeIf(File::exists)?.length() ?: 0L
+        queryAssets().sumOf(AudioCacheEntry::sizeBytes)
+
+    override suspend fun evictToLimit(limitBytes: Long): List<WordAudioAsset> {
+        val safeLimitBytes = limitBytes.coerceAtLeast(0L)
+        val readyAssets = dao.getAssetsByStatus(WordAudioAssetStatus.READY.storageValue)
+        val sizedAssets = readyAssets.mapNotNull { entity ->
+            val file = entity.localPath?.let(::File)?.takeIf(File::exists) ?: return@mapNotNull null
+            entity to file.length()
         }
+        var currentSize = sizedAssets.sumOf { it.second }
+        if (currentSize <= safeLimitBytes) {
+            return emptyList()
+        }
+        val removed = mutableListOf<WordAudioAsset>()
+        sizedAssets.forEach { (entity, sizeBytes) ->
+            if (currentSize <= safeLimitBytes) {
+                return@forEach
+            }
+            entity.localPath?.let(::File)?.takeIf(File::exists)?.delete()
+            dao.deleteAssetById(entity.id)
+            currentSize -= sizeBytes
+            removed += entity.asExternalModel()
+        }
+        return removed
+    }
 
     private suspend fun downloadToFile(
         remoteUrl: String,
@@ -285,6 +360,22 @@ class RoomWordAudioRepository(
         )
         target.parentFile?.mkdirs()
         return target
+    }
+
+    private fun toAudioCacheEntry(entity: WordAudioAssetEntity): AudioCacheEntry? {
+        val file = entity.localPath?.let(::File)?.takeIf(File::exists) ?: return null
+        return AudioCacheEntry(
+            assetId = entity.id,
+            wordId = entity.wordId,
+            accent = entity.accent,
+            sourceType = entity.sourceType,
+            sourceLabel = PlaybackSource.fromStorageValue(entity.sourceType).label,
+            localPath = entity.localPath,
+            sizeBytes = file.length(),
+            fetchedAt = entity.fetchedAt,
+            lastPlayedAt = entity.lastPlayedAt,
+            lastError = entity.lastError,
+        )
     }
 }
 

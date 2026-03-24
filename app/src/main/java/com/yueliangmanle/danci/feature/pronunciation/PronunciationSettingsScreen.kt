@@ -33,6 +33,7 @@ fun PronunciationSettingsScreen(
     onFallbackToSystemTtsChanged: (Boolean) -> Unit,
     onPreferOfflineLongTextChanged: (Boolean) -> Unit,
     onClearCacheClick: () -> Unit,
+    onOpenAudioCacheManagementClick: () -> Unit,
     onActivateVoicePack: (String) -> Unit,
     onDownloadVoicePack: (String) -> Unit,
     onRemoveVoicePack: (String) -> Unit,
@@ -120,17 +121,23 @@ fun PronunciationSettingsScreen(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text("词典音频缓存", style = MaterialTheme.typography.titleMedium)
+                Text("音频缓存", style = MaterialTheme.typography.titleMedium)
                 Text(
                     "上限 ${state.audioCacheLimitMb} MB · ${state.audioCacheSummary}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 OutlinedButton(
+                    onClick = onOpenAudioCacheManagementClick,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("进入缓存管理")
+                }
+                OutlinedButton(
                     onClick = onClearCacheClick,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("清空缓存")
+                    Text("快速清空词典缓存")
                 }
             }
         }

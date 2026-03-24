@@ -53,6 +53,15 @@ interface WordAudioAssetDao {
         status: String,
     ): List<WordAudioAssetEntity>
 
+    @Query(
+        """
+        SELECT * FROM word_audio_assets
+        WHERE status = :status
+        ORDER BY COALESCE(lastPlayedAt, fetchedAt) ASC, id ASC
+        """,
+    )
+    suspend fun getAssetsByStatus(status: String): List<WordAudioAssetEntity>
+
     @Query("DELETE FROM word_audio_assets WHERE id = :id")
     suspend fun deleteAssetById(id: Long)
 
@@ -62,4 +71,3 @@ interface WordAudioAssetDao {
     @Query("DELETE FROM word_audio_assets")
     suspend fun clearAssets()
 }
-

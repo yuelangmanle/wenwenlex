@@ -149,6 +149,11 @@ private class FakeNativeWordAudioAssetDao : WordAudioAssetDao {
         assets
             .filter { it.sourceType == sourceType && it.status == status }
 
+    override suspend fun getAssetsByStatus(
+        status: String,
+    ): List<WordAudioAssetEntity> =
+        assets.filter { it.status == status }
+
     override suspend fun deleteAssetById(id: Long) {
         assets.removeAll { it.id == id }
     }

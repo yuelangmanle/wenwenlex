@@ -80,6 +80,126 @@ class WordAudioRepositoryTest {
         assertTrue(asset?.localPath.orEmpty().contains("audio-cache/generated/us/don't.wav"))
         assertTrue(asset?.localPath?.let(::File)?.exists() == true)
     }
+
+    @Test
+    fun evictToLimit_removesLeastRecentlyPlayedAssetsFirst() = runTest {
+        val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val now = Instant.parse("2026-03-19T12:00:00Z")
+        val dao = FakeWordAudioAssetDao().apply {
+            upsertAsset(
+                asset(
+                    id = 1L,
+                    wordId = 1L,
+                    sourceType = PlaybackSource.DICTIONARY_CACHE.storageValue,
+                    localPath = audioFile(appContext, "older-dictionary.mp3", 60).absolutePath,
+                    fetchedAt = now.minusSeconds(300),
+                ),
+            )
+            upsertAsset(
+                asset(
+                    id = 2L,
+                    wordId = 2L,
+                    sourceType = PlaybackSource.ONLINE_PREBUILT_CACHE.storageValue,
+                    localPath = audioFile(appContext, "older-cloud.mp3", 50).absolutePath,
+                    fetchedAt = now.minusSeconds(240),
+                ),
+            )
+            upsertAsset(
+                asset(
+                    id = 3L,
+                    wordId = 3L,
+                    sourceType = PlaybackSource.OFFLINE_NATIVE_GENERATED.storageValue,
+                    localPath = audioFile(appContext, "newer-native.wav", 100).absolutePath,
+                    fetchedAt = now.minusSeconds(60),
+                ),
+            )
+        }
+        val repository = RoomWordAudioRepository(
+            appContext = appContext,
+            dao = dao,
+            nowProvider = { now },
+        )
+
+        val deleted = repository.evictToLimit(limitBytes = 100)
+
+        assertEquals(
+            listOf("older-dictionary.mp3", "older-cloud.mp3"),
+            deleted.map { File(it.localPath.orEmpty()).name },
+        )
+        assertEquals(100L, repository.cacheSizeBytes())
+    }
+
+    @Test
+    fun clearBucket_removesOnlyRequestedSourceType() = runTest {
+        val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val now = Instant.parse("2026-03-19T12:00:00Z")
+        val dao = FakeWordAudioAssetDao().apply {
+            upsertAsset(
+                asset(
+                    id = 1L,
+                    wordId = 1L,
+                    sourceType = PlaybackSource.DICTIONARY_CACHE.storageValue,
+                    localPath = audioFile(appContext, "dictionary.mp3", 20).absolutePath,
+                    fetchedAt = now.minusSeconds(120),
+                ),
+            )
+            upsertAsset(
+                asset(
+                    id = 2L,
+                    wordId = 2L,
+                    sourceType = PlaybackSource.ONLINE_PREBUILT_CACHE.storageValue,
+                    localPath = audioFile(appContext, "cloud.mp3", 20).absolutePath,
+                    fetchedAt = now.minusSeconds(60),
+                ),
+            )
+        }
+        val repository = RoomWordAudioRepository(
+            appContext = appContext,
+            dao = dao,
+            nowProvider = { now },
+        )
+
+        repository.clearBucket(sourceType = PlaybackSource.ONLINE_PREBUILT_CACHE.storageValue)
+
+        assertEquals(
+            0,
+            repository.summarizeBySource()
+                .firstOrNull { it.sourceType == PlaybackSource.ONLINE_PREBUILT_CACHE.storageValue }
+                ?.count ?: 0,
+        )
+        assertTrue(
+            repository.summarizeBySource().any {
+                it.sourceType == PlaybackSource.DICTIONARY_CACHE.storageValue && it.count == 1
+            },
+        )
+    }
+}
+
+private fun asset(
+    id: Long,
+    wordId: Long,
+    sourceType: String,
+    localPath: String,
+    fetchedAt: Instant,
+): WordAudioAssetEntity =
+    WordAudioAssetEntity(
+        id = id,
+        wordId = wordId,
+        accent = PronunciationAccent.UK.storageValue,
+        sourceType = sourceType,
+        localPath = localPath,
+        mimeType = "audio/mpeg",
+        status = WordAudioAssetStatus.READY.storageValue,
+        fetchedAt = fetchedAt,
+    )
+
+private fun audioFile(
+    context: android.content.Context,
+    name: String,
+    sizeBytes: Int,
+): File = File(context.filesDir, "audio-cache/test/$name").apply {
+    parentFile?.mkdirs()
+    writeBytes(ByteArray(sizeBytes) { 0x01 })
 }
 
 private class FakeWordAudioAssetDao : WordAudioAssetDao {
@@ -140,6 +260,16 @@ private class FakeWordAudioAssetDao : WordAudioAssetDao {
                 it.sourceType == sourceType &&
                     it.status == status
             }
+            .sortedWith(
+                compareBy<WordAudioAssetEntity> { it.lastPlayedAt ?: it.fetchedAt ?: Instant.EPOCH }
+                    .thenBy(WordAudioAssetEntity::id),
+            )
+
+    override suspend fun getAssetsByStatus(
+        status: String,
+    ): List<WordAudioAssetEntity> =
+        assets
+            .filter { it.status == status }
             .sortedWith(
                 compareBy<WordAudioAssetEntity> { it.lastPlayedAt ?: it.fetchedAt ?: Instant.EPOCH }
                     .thenBy(WordAudioAssetEntity::id),

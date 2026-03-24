@@ -14,7 +14,9 @@ import kotlinx.coroutines.launch
 const val PRONUNCIATION_SETTINGS_ROUTE = "pronunciation_settings"
 
 @Composable
-fun PronunciationSettingsRoute() {
+fun PronunciationSettingsRoute(
+    onOpenAudioCacheManagementClick: () -> Unit = {},
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var viewModel: PronunciationSettingsViewModel? by remember(context) {
@@ -89,6 +91,7 @@ fun PronunciationSettingsRoute() {
         onClearCacheClick = {
             launchAction { clearDictionaryCache() }
         },
+        onOpenAudioCacheManagementClick = onOpenAudioCacheManagementClick,
         onActivateVoicePack = { packId ->
             launchAction { activateVoicePack(packId) }
         },
