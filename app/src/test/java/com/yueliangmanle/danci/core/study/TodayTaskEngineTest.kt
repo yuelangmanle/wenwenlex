@@ -5,17 +5,16 @@ import org.junit.Test
 
 class TodayTaskEngineTest {
     @Test
-    fun splitsTodayQueueIntoNewReviewAndMistakeBuckets() {
+    fun keepsRemainingNewWordsIndependentFromReviewAndMistakeBuckets() {
         val plan = TodayTaskEngine().build(
-            dailyGoal = 20,
+            remainingNewWords = 19,
             overdueWords = 12,
-            unseenWords = 50,
             recentMistakeWords = 4,
         )
 
-        assertEquals(8, plan.newWordCount)
+        assertEquals(19, plan.newWordCount)
         assertEquals(12, plan.reviewCount)
         assertEquals(4, plan.mistakeCount)
-        assertEquals(17, plan.estimatedMinutes)
+        assertEquals(25, plan.estimatedMinutes)
     }
 }

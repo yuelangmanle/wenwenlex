@@ -1,19 +1,21 @@
 package com.yueliangmanle.danci.feature.home
 
 import android.content.Context
-import com.yueliangmanle.danci.core.data.BookRepository
 import com.yueliangmanle.danci.core.ai.AiPlanAdjustmentResult
 import com.yueliangmanle.danci.core.ai.PlanSource
 import com.yueliangmanle.danci.core.data.AppSettings
+import com.yueliangmanle.danci.core.data.RoomBookRepository
+import com.yueliangmanle.danci.core.data.RoomStudyRepository
 import com.yueliangmanle.danci.core.data.buildSettingsRepository
-import com.yueliangmanle.danci.core.data.buildBookRepository
 import com.yueliangmanle.danci.core.data.syncBuiltInCatalogToDatabase
+import com.yueliangmanle.danci.core.database.buildDanciDatabase
 import com.yueliangmanle.danci.core.model.Book
 import com.yueliangmanle.danci.core.model.LearningRecord
 import com.yueliangmanle.danci.core.study.ReviewScheduler
 import com.yueliangmanle.danci.core.study.TodayTaskEngine
 import java.time.Instant
-import kotlin.math.max
+import java.time.LocalDate
+import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -47,27 +49,33 @@ class HomeViewModel(
     private val todayTaskEngine: TodayTaskEngine = TodayTaskEngine(),
     private val reviewScheduler: ReviewScheduler = ReviewScheduler(),
     private val nowProvider: () -> Instant = { Instant.now() },
+    private val zoneId: ZoneId = ZoneId.systemDefault(),
 ) {
     fun buildUiState(): HomeUiState {
         val activeBook = selectActiveBook()
+        val now = nowProvider()
+        val today = LocalDate.ofInstant(now, zoneId)
         val reviewSummary = reviewScheduler.summarize(
             learningRecords = learningRecords,
-            now = nowProvider(),
+            now = now,
+            zoneId = zoneId,
         )
         val dailyGoal = settings.dailyGoal
-        val unseenWords = max(dailyGoal, activeBook?.wordCount ?: dailyGoal)
+        val introducedToday = learningRecords.count { record ->
+            record.introducedAt?.let { isToday(it, today) } == true
+        }
+        val remainingNewWords = (dailyGoal - introducedToday).coerceAtLeast(0)
         val plan = todayTaskEngine.build(
-            dailyGoal = dailyGoal,
+            remainingNewWords = remainingNewWords,
             overdueWords = reviewSummary.overdueWords,
-            unseenWords = unseenWords,
             recentMistakeWords = reviewSummary.recentMistakeWords,
         )
-        val plannedStudyCount = plan.newWordCount + plan.reviewCount
+        val plannedStudyCount = plan.newWordCount + plan.reviewCount + plan.mistakeCount
 
         return HomeUiState(
             headline = "今天还要学 $plannedStudyCount 个词",
             todayGoalCount = dailyGoal,
-            completedCount = 0,
+            completedCount = introducedToday.coerceIn(0, dailyGoal),
             newWordCount = plan.newWordCount,
             reviewCount = plan.reviewCount,
             mistakeCount = plan.mistakeCount,
@@ -114,16 +122,24 @@ class HomeViewModel(
 
     private fun selectActiveBook(): Book? =
         books.firstOrNull { it.id == settings.activeBookId } ?: books.firstOrNull()
+
+    private fun isToday(
+        instant: Instant,
+        today: LocalDate,
+    ): Boolean = LocalDate.ofInstant(instant, zoneId) == today
 }
 
 suspend fun loadHomeViewModel(context: Context): HomeViewModel {
     return withContext(Dispatchers.IO) {
         syncBuiltInCatalogToDatabase(context)
+        val database = buildDanciDatabase(context.applicationContext)
         val settings = buildSettingsRepository(context).getSettings()
-        val books = buildBookRepository(context).getAllBooks()
+        val books = RoomBookRepository(database.bookDao()).getAllBooks()
+        val learningRecords = RoomStudyRepository(database.studyDao()).getAllLearningRecords()
         HomeViewModel(
             settings = settings,
             books = books,
+            learningRecords = learningRecords,
         )
     }
 }

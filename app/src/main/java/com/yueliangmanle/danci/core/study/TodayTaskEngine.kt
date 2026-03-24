@@ -1,6 +1,5 @@
 package com.yueliangmanle.danci.core.study
 
-import kotlin.math.min
 import kotlin.math.roundToInt
 
 data class TodayPlan(
@@ -12,15 +11,12 @@ data class TodayPlan(
 
 class TodayTaskEngine {
     fun build(
-        dailyGoal: Int,
+        remainingNewWords: Int,
         overdueWords: Int,
-        unseenWords: Int,
         recentMistakeWords: Int,
     ): TodayPlan {
-        val safeDailyGoal = dailyGoal.coerceAtLeast(0)
-        val review = min(overdueWords.coerceAtLeast(0), safeDailyGoal)
-        val remaining = (safeDailyGoal - review).coerceAtLeast(0)
-        val newWords = min(unseenWords.coerceAtLeast(0), remaining)
+        val review = overdueWords.coerceAtLeast(0)
+        val newWords = remainingNewWords.coerceAtLeast(0)
         val mistakes = recentMistakeWords.coerceAtLeast(0)
         val totalItems = review + newWords + mistakes
 
